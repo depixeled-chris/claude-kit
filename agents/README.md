@@ -21,4 +21,7 @@ installs them (→ `~/.claude/agents/`); a project may also pin its own under
 ## Index
 | Agent | Role | Tools |
 | --- | --- | --- |
-| _(none yet — seed with the generic roles we actually reuse)_ | | |
+| [researcher](researcher.md) | Read-only investigation (codebase + web); returns sourced answers with pointers | Read, Grep, Glob, Bash, WebSearch, WebFetch |
+| [code-reviewer](code-reviewer.md) | Reviews changes for correctness/security/maintainability; reports, doesn't fix | Read, Grep, Glob, Bash |
+| [refactorer](refactorer.md) | Behavior-preserving restructure, verified with tests | Read, Grep, Glob, Edit, Write, Bash |
+| [test-author](test-author.md) | Writes + runs real automated tests (red→green for bugs) | Read, Grep, Glob, Edit, Write, Bash |

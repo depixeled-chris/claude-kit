@@ -20,3 +20,5 @@ improve by iteration in one place. `bootstrap.sh` installs them (→
 | Skill | Purpose |
 | --- | --- |
 | [claude-kit](claude-kit/SKILL.md) | Manage work + tooling through the kit (workflow, setup, the shared inventory, public/private boundary) |
+| [release-checklist](release-checklist/SKILL.md) | Pre-push/pre-release gate: tests, build, debug-leftover scan, version/changelog, commit hygiene → GO/NO-GO |
+| [doc-audit](doc-audit/SKILL.md) | Find drift between docs and code: broken links, stale references, out-of-date examples, undocumented surface |

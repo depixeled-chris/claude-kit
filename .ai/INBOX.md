@@ -17,7 +17,18 @@ The `(type)` is optional; untyped lines are classified at triage.
 - [2026-06-02] (feature) Expand README + STRATEGY: kit is source-of-truth for ALL tooling + a research KB + an agent library, not just the workflow.
 - [2026-06-02] (chore) Make ~/.claude a fully DERIVED install end-to-end: run bootstrap to symlink commands/skills/agents (needs WSL on native Windows — currently hooks were hand-copied). (Done 2026-06-02: global CLAUDE.md split into public base user-config/CLAUDE.global.md + private overlay ~/.claude/private/CLAUDE.md and composed live; all 8 hooks are Node + wired; legacy bash deleted.)
 - [2026-06-02] (chore) Per-doc classify the hustle-or-die docs/research → extract generic cores into research/, leave product-specific behind. Never import anything citing proprietary/unlicensed frameworks.
-- [2026-06-02] (feature) Seed agents/ with the generic agent roles we actually reuse (researcher, code-reviewer, refactorer, test-author).
 - [2026-06-02] (chore) Migrate hustle-or-die's repo-root ROADMAP.md/DECISIONS.md onto the .ai/ model (consume the kit) once the kit's hooks/overlay land.
-- [2026-06-02] (feature) Seed skills/ with generic broadly-useful skills beyond the claude-kit manager (e.g. research-pass, release-checklist, doc-audit).
-- [2026-06-02] (chore) init-project: gitignore .claude/journal/ (the PreCompact breadcrumb dir) so it doesn't show as untracked in adopted repos.
+<!-- DONE 2026-06-02: seeded agents/ (researcher, code-reviewer, refactorer, test-author)
+     and skills/ (release-checklist, doc-audit). research-pass intentionally skipped — it
+     overlaps the new researcher agent + the bundled deep-research skill. -->
+<!-- DONE 2026-06-02: hustle-or-die already migrated to .ai/ (root ROADMAP/DECISIONS ->
+     .ai/), so the "migrate once kit lands" line above is itself stale; kept only as a
+     reminder to make hod CONSUME the kit's installed hooks/template rather than its own
+     copies. -->
+<!-- NOTE: hustle-or-die already consumes the .ai/ model; the line above tracks switching
+     it to the kit's shared tooling, not re-migrating. -->
+
+<!-- DROPPED 2026-06-02 (obsolete): no .claude/journal/ exists — the breadcrumb-writing
+     pre-compact-snapshot.sh was retired; PreCompact is now flush.mjs (reminder-only, no
+     file writes), matching STRATEGY. Nothing to gitignore. Revisit only if we add
+     auto-snapshotting on compact (a new feature, not this chore). -->
