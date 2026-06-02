@@ -1,0 +1,1 @@
+(idea) Agent-assignment attribution on ticket history (who/which-agent did what) — DEFERRED per maintainer 2026-06-02; not needed yet. Prior art: workflow repo `agent_assignments`. If multi-agent accountability becomes real, add an actor field to History events (not a table).

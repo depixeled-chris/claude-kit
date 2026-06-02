@@ -1,0 +1,1 @@
+(chore) Make ~/.claude a fully DERIVED install end-to-end: run bootstrap to symlink commands/skills/agents (needs WSL on native Windows — currently hooks were hand-copied). (Done 2026-06-02: global CLAUDE.md split into public base user-config/CLAUDE.global.md + private overlay ~/.claude/private/CLAUDE.md and composed live; all 8 hooks are Node + wired; legacy bash deleted.)
