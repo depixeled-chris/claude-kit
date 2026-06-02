@@ -27,5 +27,7 @@ the tool payload from stdin, decides, and exits (`exit 2` = block, `0` = allow).
 - Wired into `~/.claude/settings.json` via `user-config/settings.recommended.json`;
   installed/symlinked by `bootstrap.sh`.
 
-> Status: ports in progress (see `.ai/INBOX.md`). The verified bash prototypes live
-> on the authoring machine and are being moved here as Node.
+> Status: **ported to Node** — `lib`, `orient`, `commit-gate`, `flush`, `pre-write`.
+> Wired via `user-config/settings.recommended.json` + `bootstrap.sh`. Verified against
+> mock payloads; they fix the bash bugs (const-skip, Windows backslash paths, stdin).
+> Still to port: `post-write` lint/jscpd + the housekeeping `SessionStart`/`Stop` nags.

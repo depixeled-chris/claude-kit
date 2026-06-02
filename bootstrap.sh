@@ -46,9 +46,14 @@ for f in "$KIT"/agents/*.md; do
   link "$f" "$CLAUDE/agents/$(basename "$f")"
 done
 
-# Enforcement hooks are wired through settings (PreToolUse/SessionStart/PreCompact/Stop)
-# pointing at "$KIT"/hooks/*.mjs. They are being ported to Node; until then they are
-# declared in user-config/settings.recommended.json, which you merge below.
+echo "Linking hooks -> $CLAUDE/hooks/"
+mkdir -p "$CLAUDE/hooks"
+for f in "$KIT"/hooks/*.mjs; do
+  [ -e "$f" ] || continue
+  link "$f" "$CLAUDE/hooks/$(basename "$f")"
+done
+# The hooks are wired into ~/.claude/settings.json via
+# user-config/settings.recommended.json (PreToolUse/SessionStart/PreCompact) — merge it below.
 
 CAP_LINE="cap(){ node \"$KIT/scripts/cap.mjs\" \"\$@\"; }"
 echo
