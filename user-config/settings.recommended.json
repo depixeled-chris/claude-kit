@@ -45,7 +45,12 @@
       { "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/flush.mjs\"" }] }
     ],
     "Stop": [
-      { "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/housekeeping.mjs\"" }] }
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"$HOME/.claude/hooks/housekeeping.mjs\"" },
+          { "type": "command", "command": "node \"$HOME/.claude/hooks/sync-data.mjs\"" }
+        ]
+      }
     ]
   }
 }

@@ -92,6 +92,17 @@ link_items "$KIT/hooks" "$CLAUDE/hooks" mjs
 link "$KIT/user-config/statusline.sh" "$CLAUDE/statusline.sh"
 chmod +x "$KIT/user-config/statusline.sh" "$KIT/scripts/"*.mjs 2>/dev/null || true
 
+# --- claude-kit-data (private, centralized workflow data — D-008) ---
+# Set CLAUDE_DATA to your claude-kit-data clone. The overlay then lives at
+# $CLAUDE_DATA/overlay (one synced source), so ~/.claude/private points there. Per-project
+# .ai/ is a symlink/junction into $CLAUDE_DATA/projects/<name>/, wired per repo by
+# init-project.mjs from the repo's .claude-project pointer.
+DATA="${CLAUDE_DATA:-}"
+if [ -n "$DATA" ] && [ -d "$DATA/overlay" ]; then
+  echo "Wiring overlay -> $DATA/overlay (centralized)"
+  link "$DATA/overlay" "$CLAUDE/private"
+fi
+
 PRIV="${CLAUDE_KIT_PRIVATE:-$CLAUDE/private}"
 if [ -d "$PRIV" ]; then
   echo "Private overlay -> $CLAUDE  (from $PRIV; private wins on name collisions)"
@@ -115,5 +126,7 @@ echo
 echo "Then merge user-config/settings.recommended.json into $CLAUDE/settings.json"
 echo "(it enables the statusline + wires the hooks + pre-allows the cap/init scripts)."
 echo
-echo "Per project, run:  node $KIT/scripts/init-project.mjs   (inside the repo)"
+echo "Per project (inside the repo):  node $KIT/scripts/init-project.mjs"
+echo "  with CLAUDE_DATA set, it writes .claude-project + links .ai into"
+echo "  \$CLAUDE_DATA/projects/<name>/ (centralized, D-008) rather than scaffolding in-repo."
 echo "Done."

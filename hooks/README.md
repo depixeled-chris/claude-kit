@@ -19,7 +19,7 @@ the tool payload from stdin, decides, and exits (`exit 2` = block, `0` = allow).
 | `PostToolUse` (Edit\|Write) | lint + jscpd | Language-aware linters (ruff/clippy/eslint/…) + copy-paste detection. Advisory — never block; warn and log tooling gaps. |
 | `PreToolUse` (Bash) | commit-gate | Block a `git commit` of code not tied to a ticket / plan-of-record (override `[no-log: reason]`). |
 | `PreCompact` | flush | Force a `.ai/SESSION.md` flush before context is lost. |
-| `Stop` | housekeeping | Nag at end-of-turn if a weekly review is overdue. |
+| `Stop` | housekeeping + sync-data | Nag if a weekly review is overdue; **auto-commit + push `claude-kit-data`** when the centralized data repo is dirty (D-008), so a turn's `.ai/` edits persist without manual ceremony. |
 
 **Tool resolution (`lib.nodeCli`)** runs node-ecosystem linters as `node <bin.js>` —
 resolving project-local first, then a global install — so a `.cmd`-shimmed global on
