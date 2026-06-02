@@ -20,3 +20,6 @@ The `(type)` is optional; untyped lines are classified at triage.
 - [2026-06-02] (chore) Per-doc classify the hustle-or-die docs/research → extract generic cores into research/, leave product-specific behind. Never import anything citing proprietary/unlicensed frameworks.
 - [2026-06-02] (feature) Seed agents/ with the generic agent roles we actually reuse (researcher, code-reviewer, refactorer, test-author).
 - [2026-06-02] (chore) Migrate hustle-or-die's repo-root ROADMAP.md/DECISIONS.md onto the .ai/ model (consume the kit) once the kit's hooks/overlay land.
+- [2026-06-02] (feature) Seed skills/ with generic broadly-useful skills beyond the claude-kit manager (e.g. research-pass, release-checklist, doc-audit).
+- [2026-06-02] (chore) settings.recommended.json: declare the hook wiring (PreToolUse Edit|Write + Bash, SessionStart, PreCompact, Stop) pointing at hooks/*.mjs, once the Node ports land; bootstrap should help-merge it.
+- [2026-06-02] (chore) init-project: gitignore .claude/journal/ (the PreCompact breadcrumb dir) so it doesn't show as untracked in adopted repos.

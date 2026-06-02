@@ -31,6 +31,25 @@ echo "Linking statusline"
 link "$KIT/user-config/statusline.sh" "$CLAUDE/statusline.sh"
 chmod +x "$KIT/user-config/statusline.sh" "$KIT/scripts/"*.mjs 2>/dev/null || true
 
+echo "Linking skills -> $CLAUDE/skills/"
+mkdir -p "$CLAUDE/skills"
+for d in "$KIT"/skills/*/; do
+  [ -d "$d" ] || continue
+  link "${d%/}" "$CLAUDE/skills/$(basename "$d")"
+done
+
+echo "Linking agents -> $CLAUDE/agents/"
+mkdir -p "$CLAUDE/agents"
+for f in "$KIT"/agents/*.md; do
+  [ -e "$f" ] || continue
+  [ "$(basename "$f")" = "README.md" ] && continue
+  link "$f" "$CLAUDE/agents/$(basename "$f")"
+done
+
+# Enforcement hooks are wired through settings (PreToolUse/SessionStart/PreCompact/Stop)
+# pointing at "$KIT"/hooks/*.mjs. They are being ported to Node; until then they are
+# declared in user-config/settings.recommended.json, which you merge below.
+
 CAP_LINE="cap(){ node \"$KIT/scripts/cap.mjs\" \"\$@\"; }"
 echo
 echo "Add this to your shell rc (~/.zshrc on mac, ~/.bashrc on Linux/WSL):"
