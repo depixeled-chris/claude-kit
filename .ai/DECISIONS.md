@@ -102,3 +102,13 @@ Deferred (maintainer, 2026-06-02): **agent-assignment attribution** — the prio
 `agent_assignments` (who/which-agent did what) is NOT carried over. History has no agent
 dimension yet; not needed now. Revisit only if multi-agent work needs per-agent
 accountability — then add an `(event)` actor field, don't reintroduce a table.
+
+## 2026-06-02  Commit AND push at every task boundary, referencing the work item  [D-007]
+Decided: at each task boundary, **commit and push** — not just commit — and reference the
+work item in the message (`implements T-007` / `D-006`). Pushing between tasks (not only
+committing) keeps the remote as a recoverable rewind point from any machine.
+Rejected: batching a whole session into one commit, or committing without pushing. Why:
+a local-only commit dies with the working copy/machine, and one big commit gives no
+granular rewind point. Tightens the global GIT WORKFLOW; the commit-gate already enforces
+the citation half (a code commit must cite its item).
+Source: conversation 2026-06-02.

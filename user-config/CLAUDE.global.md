@@ -74,8 +74,12 @@ Delete everything else.
 
 # GIT WORKFLOW
 - **Local = draft** (messy WIP OK). **PR/main = publish** (clean, logical, buildable).
-- Commit every 60–90 minutes or at natural breaks; end each day with a commit (WIP OK).
-- Local commit messages may be rough; clean up before pushing:
+- **Commit AND push at every task boundary** — pushing between tasks (not just
+  committing) keeps the remote as a rewind point recoverable from any machine.
+- **Reference the work item in every commit** (`implements T-007` / `D-006`); the
+  commit gate enforces this for code commits.
+- Commit at least every 60–90 minutes / natural breaks; end each day with a commit (WIP OK).
+- Local commit messages may be rough; clean up before pushing a shared branch:
   `git fetch origin && git rebase -i origin/main`.
 
 # CONTEXT & PROCESS DISCIPLINE
