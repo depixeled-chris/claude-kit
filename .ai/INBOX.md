@@ -15,7 +15,7 @@ The `(type)` is optional; untyped lines are classified at triage.
 
 - [2026-06-02] (bug) commit-gate inspects the SESSION repo (process.cwd()), not the repo a `cd X && git commit` actually targets — so committing repo B from a session in repo A guards A's tree (wrong files; over/under-blocks). Resolve the commit's real target (parse leading `cd`/`git -C`, handle MSYS `/d/` vs `D:\` paths) before reading `changed`. Surfaced 2026-06-02 dogfooding the kit from a hustle-or-die session.
 - [2026-06-02] (feature) Expand README + STRATEGY: kit is source-of-truth for ALL tooling + a research KB + an agent library, not just the workflow.
-- [2026-06-02] (chore) Migrate the global ~/.claude/CLAUDE.md rules into the kit; make ~/.claude a fully derived install. (Hooks done 2026-06-02: all 8 ported to Node + verified; the legacy bash hooks were deleted from ~/.claude.)
+- [2026-06-02] (chore) Make ~/.claude a fully DERIVED install end-to-end: run bootstrap to symlink commands/skills/agents (needs WSL on native Windows — currently hooks were hand-copied). (Done 2026-06-02: global CLAUDE.md split into public base user-config/CLAUDE.global.md + private overlay ~/.claude/private/CLAUDE.md and composed live; all 8 hooks are Node + wired; legacy bash deleted.)
 - [2026-06-02] (chore) Per-doc classify the hustle-or-die docs/research → extract generic cores into research/, leave product-specific behind. Never import anything citing proprietary/unlicensed frameworks.
 - [2026-06-02] (feature) Seed agents/ with the generic agent roles we actually reuse (researcher, code-reviewer, refactorer, test-author).
 - [2026-06-02] (chore) Migrate hustle-or-die's repo-root ROADMAP.md/DECISIONS.md onto the .ai/ model (consume the kit) once the kit's hooks/overlay land.
