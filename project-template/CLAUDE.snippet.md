@@ -52,8 +52,9 @@ On "work T-001" (or when I pull it from the drain):
 2. **Confirm scope before editing files** (Chris's standing rule). Within an
    already-approved ticket, proceed through the plan without re-asking per file.
 3. Set `status: doing`. Mirror each acceptance criterion into the native task
-   list (TaskCreate, with blockedBy for ordering) for live progress in the UI —
-   native tasks are throwaway; **the ticket file is truth.**
+   list as a task titled `T-NNN <criterion>` (TaskCreate, with blockedBy for
+   ordering) — the prefix marks it as ticket-backed. **The ticket file is truth;**
+   the native list is a live projection kept in lockstep (see Native task sync).
 4. As each criterion is satisfied, check its box `[x]` in the ticket and append
    to `## Notes` (a log — never delete prior notes).
 5. When all criteria pass: set `status: review`, stop, summarize the diff.
@@ -76,3 +77,19 @@ On "work T-001" (or when I pull it from the drain):
 - **Before any /compact or /clear, flush SESSION.md first.**
 - Prefer subagents for codebase search; pass pointers (path + line range), not
   whole-file dumps, to keep the main thread lean.
+
+### Native task sync (.ai/ ↔ native list)
+The native task list is a **live, bidirectional projection** of the tickets — the
+ticket file stays the durable truth (native tasks are per-session + machine-local).
+Config: `.ai/config.yml` → `native_task_sync`. Because I am the only writer of native
+tasks, keeping both in lockstep IS the sync:
+- **Hydrate on start:** rebuild the native list from the active ticket(s) at session /
+  `/work` start — `node <kit>/scripts/sync-tasks.mjs` emits the task spec from
+  `.ai/tickets/`. (Native tasks don't survive the session; the ticket does.)
+- **Lockstep:** when a ticket's status or a criterion changes, update the matching
+  native task in the same step — and write any native status change back to the ticket.
+- **Prefix:** every ticket-backed native task is titled `T-NNN …` so it's visibly
+  distinct from ad-hoc tasks. Status maps per `native_task_sync.status_map`.
+- **Promote orphans:** a native task with no `T-` prefix is unpersisted work — capture
+  it to `.ai/INBOX.md` (per `promote_orphans_to`), then re-title the native task with
+  the id triage assigns. Nothing important is left living only in the ephemeral list.

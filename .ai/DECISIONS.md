@@ -56,3 +56,25 @@ Rejected: per-project research silos; bulk-importing existing project research. 
 reuse across projects; and product/strategy-specific research (and anything citing
 proprietary/unlicensed frameworks) must stay private — migration is a per-doc
 classification, not a bulk move.
+
+## 2026-06-02  .ai/ tickets ↔ native task list stay in sync  [D-005]
+Decided: the native Claude Code task list is a **live, bidirectional projection** of
+the `.ai/` ticket system — not the throwaway one-way mirror the earlier framing called
+it. The ticket file stays the durable truth (native tasks are per-session +
+machine-local). Rules:
+- **Single writer:** Claude writes both together — every ticket status/criterion change
+  is paired with the matching `TaskUpdate`, and every native status change is written
+  back to the ticket in the same step.
+- **Hydrate on start:** the native list is ephemeral, so rebuild it from the active
+  ticket(s) at session / `/work` start (`scripts/sync-tasks.mjs` emits the spec).
+- **Prefix:** every kit-managed native task's subject carries its ticket id (`T-001 …`)
+  so ticket-backed tasks are visibly distinct from ad-hoc ones.
+- **Promote orphans:** a native task with no `T-` prefix is unpersisted — capture it to
+  `.ai/INBOX.md` (triage then makes it a ticket) and re-tag the native task. Nothing
+  important lives only in the ephemeral list.
+- **Status map** (config.yml `native_task_sync`): todo→pending, doing→in_progress,
+  review/done→completed. Native has no review/human-gate; the ticket keeps that.
+Rejected: native→ticket via a hook or daemon. Why: there is no task-change hook and the
+native list isn't disk-exposed — but it doesn't matter, because Claude is the **only**
+writer of native tasks, so writing both in lockstep + hydrating on start IS the sync.
+Source: conversation 2026-06-02.

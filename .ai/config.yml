@@ -77,3 +77,23 @@ receipts: one-line
 ids:
   prefix: "T-"
   pad: 3            # T-001, T-002, ...
+
+# ---------------------------------------------------------------------------
+# NATIVE TASK SYNC — the native Claude Code task list is a LIVE projection of
+# the tickets here (DECISIONS D-005). Ticket = durable truth; native = ephemeral,
+# per-session view. Claude is the only writer, so it keeps both in lockstep.
+# ---------------------------------------------------------------------------
+native_task_sync:
+  enabled: true
+  # Prefix each kit-managed native task's subject with its ticket id ("T-001 ..."),
+  # so ticket-backed tasks are visibly distinct from ad-hoc ones.
+  prefix_with_ticket_id: true
+  # An orphan (unprefixed) native task is work living only in the ephemeral list.
+  # Persist it here before re-tagging the native task:  inbox | ticket
+  promote_orphans_to: inbox
+  # ticket status -> native task status (native has no review/human-gate state)
+  status_map:
+    todo: pending
+    doing: in_progress
+    review: completed
+    done: completed

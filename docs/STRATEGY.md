@@ -87,10 +87,18 @@ A backlog nobody drains is a graveyard. The drain runs on Claude's action:
 
 - **Durable (the truth):** the ticket file in `.ai/tickets/`. Travels in git,
   survives everything, cross-machine.
-- **Ephemeral (the live view):** the native Claude Code task list
-  (`TaskCreate`/`TaskUpdate`), mirrored from a ticket's acceptance criteria when
-  work starts. It drives the in-UI progress spinner and is throwaway. It is
-  **per-session and machine-local** — never the handoff layer.
+- **Live view (a projection, kept in sync):** the native Claude Code task list
+  (`TaskCreate`/`TaskUpdate`). It drives the in-UI spinner and is per-session +
+  machine-local, so it's never the handoff layer — but it is a **faithful,
+  bidirectional projection** of the tickets, not a throwaway. Because Claude is the
+  only writer of native tasks, sync is just discipline at write time + a rebuild on
+  start (D-005, `config.yml → native_task_sync`):
+  - Hydrate the native list from the active ticket(s) at session start
+    (`scripts/sync-tasks.mjs`), since native tasks don't survive a session.
+  - Keep both in lockstep: a ticket change updates its native task and vice versa.
+  - Each ticket-backed native task is titled `T-NNN …` so it's distinct from ad-hoc
+    ones; an orphan (unprefixed) task is promoted to `.ai/` so no work lives only in
+    the ephemeral list.
 
 ## Token discipline
 
