@@ -13,13 +13,12 @@ The `(type)` is optional; untyped lines are classified at triage.
 - [2026-06-02] form double-submits on slow network
 -->
 
-- [2026-06-02] (feature) Port all hooks to Node: session-orient (SessionStart), edit+commit scope gate (PreToolUse), flush-on-compact (PreCompact+Stop), pre-write code+doc-class checks, post-write lint/jscpd. Opt-in-aware: exit 0 unless project has .ai/.
+- [2026-06-02] (bug) commit-gate inspects the SESSION repo (process.cwd()), not the repo a `cd X && git commit` actually targets — so committing repo B from a session in repo A guards A's tree (wrong files; over/under-blocks). Resolve the commit's real target (parse leading `cd`/`git -C`, handle MSYS `/d/` vs `D:\` paths) before reading `changed`. Surfaced 2026-06-02 dogfooding the kit from a hustle-or-die session.
 - [2026-06-02] (feature) bootstrap.sh: install the Node hooks globally + compose the private overlay (public kit + ~/.claude/private/ or a private repo).
 - [2026-06-02] (feature) Expand README + STRATEGY: kit is source-of-truth for ALL tooling + a research KB + an agent library, not just the workflow.
-- [2026-06-02] (chore) Migrate existing ~/.claude tooling into the kit (current bash hooks + global CLAUDE.md rules); make ~/.claude a derived install; delete the hand-wired bash hooks once Node ports verify.
+- [2026-06-02] (chore) Migrate the global ~/.claude/CLAUDE.md rules into the kit; make ~/.claude a fully derived install. (Hooks done 2026-06-02: all 8 ported to Node + verified; the legacy bash hooks were deleted from ~/.claude.)
 - [2026-06-02] (chore) Per-doc classify the hustle-or-die docs/research → extract generic cores into research/, leave product-specific behind. Never import anything citing proprietary/unlicensed frameworks.
 - [2026-06-02] (feature) Seed agents/ with the generic agent roles we actually reuse (researcher, code-reviewer, refactorer, test-author).
 - [2026-06-02] (chore) Migrate hustle-or-die's repo-root ROADMAP.md/DECISIONS.md onto the .ai/ model (consume the kit) once the kit's hooks/overlay land.
 - [2026-06-02] (feature) Seed skills/ with generic broadly-useful skills beyond the claude-kit manager (e.g. research-pass, release-checklist, doc-audit).
-- [2026-06-02] (chore) settings.recommended.json: declare the hook wiring (PreToolUse Edit|Write + Bash, SessionStart, PreCompact, Stop) pointing at hooks/*.mjs, once the Node ports land; bootstrap should help-merge it.
 - [2026-06-02] (chore) init-project: gitignore .claude/journal/ (the PreCompact breadcrumb dir) so it doesn't show as untracked in adopted repos.
