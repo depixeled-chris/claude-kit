@@ -14,7 +14,6 @@ The `(type)` is optional; untyped lines are classified at triage.
 -->
 
 - [2026-06-02] (bug) commit-gate inspects the SESSION repo (process.cwd()), not the repo a `cd X && git commit` actually targets — so committing repo B from a session in repo A guards A's tree (wrong files; over/under-blocks). Resolve the commit's real target (parse leading `cd`/`git -C`, handle MSYS `/d/` vs `D:\` paths) before reading `changed`. Surfaced 2026-06-02 dogfooding the kit from a hustle-or-die session.
-- [2026-06-02] (feature) bootstrap.sh: install the Node hooks globally + compose the private overlay (public kit + ~/.claude/private/ or a private repo).
 - [2026-06-02] (feature) Expand README + STRATEGY: kit is source-of-truth for ALL tooling + a research KB + an agent library, not just the workflow.
 - [2026-06-02] (chore) Migrate the global ~/.claude/CLAUDE.md rules into the kit; make ~/.claude a fully derived install. (Hooks done 2026-06-02: all 8 ported to Node + verified; the legacy bash hooks were deleted from ~/.claude.)
 - [2026-06-02] (chore) Per-doc classify the hustle-or-die docs/research → extract generic cores into research/, leave product-specific behind. Never import anything citing proprietary/unlicensed frameworks.

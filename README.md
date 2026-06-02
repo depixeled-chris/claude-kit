@@ -82,7 +82,39 @@ This drops in `.ai/`, appends the contract to `CLAUDE.md`, and guards
 - **Project state** (`.ai/`) travels in the **project repo** — the only reliable
   cross-machine carrier. Auto-memory and native tasks are machine-local; never
   rely on them for handoff.
-- **Machine config** (commands, statusline) travels in **this repo**, symlinked
-  into `~/.claude` by `bootstrap.sh`.
+- **Machine config** (commands, statusline, skills, agents, hooks) travels in
+  **this repo**, symlinked into `~/.claude` by `bootstrap.sh`.
+- **Secrets / proprietary config** travel in a **private overlay** — never here.
+
+## Private overlay (keep secrets out of the public kit)
+
+This repo is public + MIT, so it holds **non-proprietary content only**. Anything
+sensitive — personal `CLAUDE.md` rules, proprietary agents/commands/skills/hooks —
+lives in a separate **private overlay** that `bootstrap.sh` composes on top. The
+boundary is structural: secrets can't reach the MIT repo because they're authored
+somewhere else.
+
+`bootstrap.sh` resolves the overlay in this order, and skips it if none is found:
+
+1. `$CLAUDE_KIT_PRIVATE` — a private repo clone (or any directory)
+2. `~/.claude/private/` — gitignored
+3. none — public kit only
+
+The overlay mirrors the kit's installable layout (flat), all parts optional:
+
+```
+<overlay>/
+├── commands/*.md          agents/*.md          skills/*/          hooks/*.mjs
+├── statusline.sh          # overrides the public statusline
+├── CLAUDE.md              # personal/proprietary global rules
+└── settings.private.json  # merged after settings.recommended.json
+```
+
+Overlay items are linked **after** the public ones, so a private item of the same
+name **wins** — the private layer overrides the public, never the reverse.
+`~/.claude/CLAUDE.md` is composed from an optional public base
+(`user-config/CLAUDE.global.md`) plus the overlay's `CLAUDE.md`; composition stays
+dormant until at least one source exists, so it won't clobber a hand-maintained
+global file. Preview any run with `DRY_RUN=1 ./bootstrap.sh`.
 
 See `docs/STRATEGY.md` for the full reasoning and `docs/DAILY-LOOP.md` to start.
