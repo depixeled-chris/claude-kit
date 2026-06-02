@@ -30,8 +30,9 @@ const changed = [
 ];
 if (!changed.length) process.exit(0);
 
-// Plan-of-record part of the change? (root or .ai/ ROADMAP/DECISIONS, or a ticket)
-if (changed.some((f) => /(^|\/)(ROADMAP|DECISIONS)\.md$/i.test(f) || /\.ai\/tickets\//.test(f))) {
+// Plan-of-record part of the change? A root/legacy ROADMAP|DECISIONS.md, or any of the
+// atomic .ai/ stores (tickets/decisions/questions/notes/inbox — D-009).
+if (changed.some((f) => /(^|\/)(ROADMAP|DECISIONS)\.md$/i.test(f) || /\.ai\/(tickets|decisions|questions|notes|inbox)\//.test(f))) {
   process.exit(0);
 }
 // Commit cites a logged item, or explicitly overrides? R### · T-### / DEC-### / D-### · [no-log:]
