@@ -1,0 +1,27 @@
+---
+id: T-000
+title: <short imperative title>
+type: bug              # any key from .ai/config.yml → classifications
+status: todo           # todo | doing | review | done  (see config.statuses)
+priority: medium       # critical | high | medium | low
+milestone:             # blank = backlog; set to schedule onto ROADMAP.md
+labels: []
+links: []              # related tickets, commits (regressions: causing commit), URLs
+files: []              # repo-root-relative paths this ticket touches
+created: <YYYY-MM-DDThh:mm:ssZ>
+updated: <YYYY-MM-DDThh:mm:ssZ>
+---
+
+## Description
+<what and why>
+
+## Acceptance Criteria
+<!-- Each must be a checkable observation. Claude ticks these as it satisfies them. -->
+- [ ]
+
+## Plan
+<!-- filled in before editing; Claude waits for OK if the plan changes scope -->
+1.
+
+## Notes
+<!-- append-only log of decisions/progress while working — never delete prior notes -->
