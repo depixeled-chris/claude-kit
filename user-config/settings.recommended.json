@@ -24,11 +24,28 @@
         "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/commit-gate.mjs\"" }]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "node \"$HOME/.claude/hooks/lint.mjs\"" },
+          { "type": "command", "command": "node \"$HOME/.claude/hooks/jscpd.mjs\"" }
+        ]
+      }
+    ],
     "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/orient.mjs\"" }] }
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"$HOME/.claude/hooks/orient.mjs\"" },
+          { "type": "command", "command": "node \"$HOME/.claude/hooks/housekeeping.mjs\"" }
+        ]
+      }
     ],
     "PreCompact": [
       { "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/flush.mjs\"" }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/housekeeping.mjs\"" }] }
     ]
   }
 }
