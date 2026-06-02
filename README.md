@@ -22,11 +22,12 @@ round it off and a fresh session resumes cold.
 ## How it works (one minute)
 
 1. **Capture** anything, anytime: `cap bug login loops after SSO`. Lands in
-   `.ai/INBOX.md`. Sub-second, no interruption.
+   `.ai/inbox/` (one file per capture). Sub-second, no interruption.
 2. **Interject while Claude works** — it classifies, routes, and gives a
    one-line receipt, then keeps going. Blocking is the exception (scope change,
    a regression from the current edit, or you saying "stop").
-3. **Triage** drains INBOX into `.ai/tickets/` (a file-based kanban).
+3. **Triage** drains `inbox/` into `tickets/` (a file-based kanban) — every item
+   category (`tickets/ decisions/ questions/ notes/`) is a folder of one-file-per-item.
 4. **Work** a ticket: `/work T-001` → restate acceptance criteria → confirm
    scope → execute, ticking boxes.
 5. **Drain** keeps going between tickets without being asked.
@@ -39,23 +40,20 @@ one-file edit; no code changes.
 ## Layout
 
 ```
-claude-kit/
-├── README.md
-├── bootstrap.sh            # wire into a machine (symlinks commands + statusline)
-├── docs/
-│   ├── STRATEGY.md         # the full model and the why
-│   ├── DAILY-LOOP.md       # one-page cheat sheet
-│   └── GLOSSARY.md         # plain-English Claude Code internals
-├── user-config/            # the per-machine layer (→ ~/.claude)
-│   ├── commands/           # /prime /cap /triage /work /flush
-│   ├── statusline.sh
-│   └── settings.recommended.json
-├── project-template/       # the per-project layer (→ any repo's .ai/)
-│   ├── .ai/                # config.yml, INBOX, ROADMAP, tickets/, QUESTIONS, DECISIONS, SESSION
-│   └── CLAUDE.snippet.md   # the behavioral contract
-└── scripts/
-    ├── cap.mjs             # fast capture
-    └── init-project.mjs    # scaffold .ai/ into a repo
+claude-kit/                     # public plugin + marketplace (MIT)
+├── .claude-plugin/             # plugin.json + marketplace.json — makes it installable
+├── commands/                   # /prime /cap /triage /work /flush
+├── agents/                     # researcher, code-reviewer, refactorer, test-author
+├── skills/                     # claude-kit, release-checklist, doc-audit
+├── hooks/                      # Node enforcement hooks + hooks.json (plugin wiring) + lib.mjs
+├── scripts/                    # cap, init-project, index-tickets, sync-tasks, test-hooks
+├── user-config/                # statusline, settings.recommended.json, CLAUDE.global.md (base)
+├── project-template/           # scaffolded into a repo by init-project
+│   ├── .ai/                    # config.yml + atomic stores: tickets/ decisions/ questions/
+│   │                           #   notes/ inbox/ (+ archive/) + SESSION.md; ROADMAP.md generated
+│   └── CLAUDE.snippet.md       # the behavioral contract
+├── docs/STRATEGY.md            # the full model and the why
+└── bootstrap.sh                # alternative non-plugin install (symlinks into ~/.claude)
 ```
 
 ## Install (as a plugin) — works from anywhere
@@ -92,17 +90,22 @@ Then add the printed `cap` alias to your shell rc and merge
 cd /path/to/your/repo
 node ~/Documents/code/claude-kit/scripts/init-project.mjs
 ```
-This drops in `.ai/`, appends the contract to `CLAUDE.md`, and guards
-`.gitignore`. Commit `.ai/` — it's your cross-machine state carrier.
+With `CLAUDE_DATA` set (the centralized model, D-008), this writes a `.claude-project`
+pointer and links `.ai/` as a gitignored junction into `$CLAUDE_DATA/projects/<name>/`.
+Without `CLAUDE_DATA`, it scaffolds `.ai/` **inside** the repo (committed there) — the
+simpler per-repo mode.
 
 ## What syncs where
 
-- **Project state** (`.ai/`) travels in the **project repo** — the only reliable
-  cross-machine carrier. Auto-memory and native tasks are machine-local; never
-  rely on them for handoff.
-- **Machine config** (commands, statusline, skills, agents, hooks) travels in
-  **this repo**, symlinked into `~/.claude` by `bootstrap.sh`.
-- **Secrets / proprietary config** travel in a **private overlay** — never here.
+- **Workflow data** lives in one private repo, **`claude-kit-data`** (D-008): a
+  `projects/<name>/` per project (its `tickets/ decisions/ …`) plus the private
+  `overlay/`. A project repo holds only a `.claude-project` pointer and a gitignored
+  `.ai` junction into it. Syncing that **one** repo carries every project's state across
+  machines; the `sync-data` hook auto-commits it. *(Per-repo mode instead commits `.ai/`
+  in the project itself.)*
+- **Tooling** (commands, hooks, skills, agents) ships as the **plugin** — installed once
+  per machine; nothing to hand-sync.
+- **Secrets / proprietary config** live in the private overlay, never in this public repo.
 
 ## Private overlay (keep secrets out of the public kit)
 
@@ -134,5 +137,25 @@ name **wins** — the private layer overrides the public, never the reverse.
 (`user-config/CLAUDE.global.md`) plus the overlay's `CLAUDE.md`; composition stays
 dormant until at least one source exists, so it won't clobber a hand-maintained
 global file. Preview any run with `DRY_RUN=1 ./bootstrap.sh`.
+
+## Developing & shipping the plugin
+
+You edit **this repo**; the running plugin is a separate installed copy (dev repo →
+GitHub → marketplace clone → cache/install — runtime uses the cache). So changes don't
+go live until you ship. The loop:
+
+1. **Edit** hooks / scripts / commands here.
+2. **Test** — `npm test` runs `scripts/test-hooks.mjs`: it exercises every hook against
+   mock payloads in throwaway git fixtures and asserts exit codes. Fast, no install
+   needed (it tests the dev-repo hooks directly). Run it before every push.
+3. **Bump** `.claude-plugin/plugin.json` `version` — **required**: `/plugin update` is
+   version-gated, so without a bump it reports "already latest" and ships nothing.
+4. **Commit + push.**
+5. **Update the install:** `/plugin marketplace update claude-kit` →
+   `/plugin update claude-kit@claude-kit` → `/reload-plugins`. (A fresh reinstall pulls
+   latest regardless of version; only `update` needs the bump.)
+
+For integration-testing the real wiring before pushing, add this repo as a **local**
+marketplace (`/plugin marketplace add <path-to-this-repo>`) and install from it.
 
 See `docs/STRATEGY.md` for the full reasoning and `docs/DAILY-LOOP.md` to start.
