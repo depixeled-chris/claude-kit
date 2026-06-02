@@ -1,0 +1,79 @@
+# .ai/config.yml — the brain of the workflow.
+#
+# The router and the drain read THIS file. Adding a classification, a
+# priority, a status, or changing how something is routed is a one-file
+# edit here. No code change, no CLAUDE.md edit — the contract in
+# CLAUDE.md points at this file, so behavior changes when this changes.
+#
+# This is the single source of truth for the taxonomy.
+
+# ---------------------------------------------------------------------------
+# CLASSIFICATIONS
+# When you interject, the input is classified into one of these and routed
+# to `routes_to`. Add your own freely (spike, chore, security, idea, ...).
+#
+#   routes_to:    tickets | backlog | questions | notes | decisions | active-ticket
+#   priority:     default priority assigned at capture (see `priorities`)
+#   blocking:     never | always | when-touching-active | when-caused-by-active
+#                 (when-touching-active  = block only if it concerns the file/area I'm in now)
+#                 (when-caused-by-active = block only if it's a regression from my current change)
+#   link:         optional — extra link the router should attach (e.g. causing-commit)
+#   answerable_by: for questions — who can resolve it [claude, chris]
+# ---------------------------------------------------------------------------
+classifications:
+  bug:          { routes_to: tickets,       priority: high,     blocking: when-touching-active }
+  regression:   { routes_to: tickets,       priority: critical, blocking: when-caused-by-active, link: causing-commit }
+  feature:      { routes_to: backlog,       priority: medium,   blocking: never }
+  tech-debt:    { routes_to: backlog,       priority: low,      blocking: never }
+  question:     { routes_to: questions,     blocking: never,    answerable_by: [claude, chris] }
+  observation:  { routes_to: notes,         blocking: never }
+  decision:     { routes_to: decisions,     blocking: never }
+  scope-change: { routes_to: active-ticket, blocking: always }
+
+# ---------------------------------------------------------------------------
+# PRIORITIES — highest first. Redefine to taste.
+# ---------------------------------------------------------------------------
+priorities: [critical, high, medium, low]
+
+# ---------------------------------------------------------------------------
+# STATUSES — the lifecycle a ticket moves through.
+# Swap for your own vocabulary, e.g. [backlog, next, doing, blocked, shipped].
+# `human_only` statuses are ones Claude must NOT set itself.
+# ---------------------------------------------------------------------------
+statuses:
+  flow: [todo, doing, review, done]
+  human_only: [done]        # Claude moves to review; only Chris marks done.
+
+# ---------------------------------------------------------------------------
+# DRAIN — how the queue empties without Chris driving it.
+# ---------------------------------------------------------------------------
+drain:
+  # When idle / between tickets, pull work in this type order (then by priority).
+  order: [regression, bug, feature, tech-debt]
+  # Respect ROADMAP.md milestone order when a current milestone exists;
+  # fall back to `order` + priority when it doesn't.
+  follow_roadmap: true
+  # How bold Claude is when it picks up the next item unprompted:
+  #   within-patterns-low-risk = do it if it follows established patterns and is low-risk;
+  #                              otherwise surface a one-line "next up, your call".
+  #   surface-only             = never start a new ticket without an explicit go.
+  auto_execute: within-patterns-low-risk
+  # Questions Claude can answer from code/decisions are answered + logged inline.
+  # Questions needing Chris are surfaced BATCHED at natural breaks, not as interruptions.
+  answer_self_questions: true
+  # Unattended backlog grooming (dedupe INBOX, link regressions, propose worklist).
+  # off | loop | cron  — opt-in; costs tokens / needs the machine on.
+  groomer: off
+
+# ---------------------------------------------------------------------------
+# RECEIPTS — how routing is acknowledged so you can catch a misroute fast.
+#   one-line = "→ BUG-024 logged, still on T-001"   | silent = no ack, check the board
+# ---------------------------------------------------------------------------
+receipts: one-line
+
+# ---------------------------------------------------------------------------
+# IDS — ticket id scheme. {seq} is a zero-padded counter.
+# ---------------------------------------------------------------------------
+ids:
+  prefix: "T-"
+  pad: 3            # T-001, T-002, ...

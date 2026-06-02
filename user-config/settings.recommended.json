@@ -1,0 +1,15 @@
+{
+  "$comment": "MERGE these keys into your existing ~/.claude/settings.json. Do NOT replace the file — you already have config there. bootstrap.sh prints this; apply by hand or with jq.",
+
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh"
+  },
+
+  "permissions": {
+    "allow": [
+      "Bash(node *cap.mjs*)",
+      "Bash(node *init-project.mjs*)"
+    ]
+  }
+}
