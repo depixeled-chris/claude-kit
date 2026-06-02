@@ -106,4 +106,17 @@ tasks, keeping both in lockstep IS the sync:
   original's History. Repeat offenders surface in the generated regression index.
 - **Reference files are generated, never the truth:** after a status/regression change
   run `node <kit>/scripts/index-tickets.mjs` to rebuild `.ai/tickets/INDEX.md` (the
-  board) and `.ai/REGRESSIONS.md` (chains) from the ticket frontmatter.
+  board), `.ai/REGRESSIONS.md` (chains), and `.ai/ROADMAP.md` (thin sequence, when
+  `roadmap_mode: generated`) from the ticket frontmatter.
+
+### Where items live (atomic — D-009)
+Every category of items is a **folder of one-file-per-item**, like `tickets/`: never a
+monolith file.
+- `tickets/` (+ `archive/`) · `decisions/` (DEC-NNN.md) · `questions/` (Q-NNN.md) ·
+  `notes/` (N-NNN.md) · `inbox/` (one file per raw capture; `cap` writes here; triage
+  promotes each into the others and deletes it).
+- Singletons stay single: `config.yml`, `SESSION.md`.
+- **Generated views (don't hand-edit):** `tickets/INDEX.md`, `REGRESSIONS.md`,
+  `ROADMAP.md` (in generated mode) — all rebuilt from the folders by `index-tickets.mjs`.
+- Routing a captured item = create the atomic file in the right folder (per
+  `config.yml` `routes_to`), then regenerate the views.

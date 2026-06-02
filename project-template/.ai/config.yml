@@ -77,3 +77,35 @@ receipts: one-line
 ids:
   prefix: "T-"
   pad: 3            # T-001, T-002, ...
+
+# ---------------------------------------------------------------------------
+# ROADMAP — generated | narrative.  generated = thin sequence assembled from ticket
+# frontmatter (milestone + priority) by scripts/index-tickets.mjs; narrative = a
+# hand-curated prose ROADMAP the generator leaves alone. (D-009)
+# ---------------------------------------------------------------------------
+roadmap_mode: generated
+
+# ---------------------------------------------------------------------------
+# NATIVE TASK SYNC (D-005) — native task list is a live projection of tickets/.
+# ---------------------------------------------------------------------------
+native_task_sync:
+  enabled: true
+  prefix_with_ticket_id: true
+  promote_orphans_to: inbox      # an unprefixed native task -> a new inbox/ capture
+  status_map:
+    todo: pending
+    doing: in_progress
+    review: completed
+    done: completed
+
+# ---------------------------------------------------------------------------
+# HISTORY & REGRESSIONS (D-006) — every ticket has an append-only ## History;
+# bugs link recurrences. INDEX/REGRESSIONS/ROADMAP are GENERATED, never hand-kept.
+# ---------------------------------------------------------------------------
+history:
+  events: [created, status, comment, decision, blocker, unblocked, fixed, regressed]
+  archive_done_to: tickets/archive
+regressions:
+  links: [regressed_from, causing_commit, fixed_commit]
+  index_file: REGRESSIONS.md
+  board_file: tickets/INDEX.md
