@@ -98,3 +98,7 @@ Shape (settled with maintainer 2026-06-02): single-file tickets with an append-o
 are `regression` tickets linking `regressed_from`/`causing_commit`/`fixed_commit`;
 `scripts/index-tickets.mjs` generates `tickets/INDEX.md` (board) + `REGRESSIONS.md`
 (chains). Config: `history` + `regressions` blocks in config.yml.
+Deferred (maintainer, 2026-06-02): **agent-assignment attribution** — the prior repo's
+`agent_assignments` (who/which-agent did what) is NOT carried over. History has no agent
+dimension yet; not needed now. Revisit only if multi-agent work needs per-agent
+accountability — then add an `(event)` actor field, don't reintroduce a table.
