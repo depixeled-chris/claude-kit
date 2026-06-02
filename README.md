@@ -58,7 +58,24 @@ claude-kit/
     └── init-project.mjs    # scaffold .ai/ into a repo
 ```
 
-## Setup
+## Install (as a plugin) — works from anywhere
+
+claude-kit is a Claude Code **plugin + marketplace**. Install once and the commands,
+hooks (orient / commit-gate / flush / quality / data-sync), skills, and agents are
+available in **every** session on that machine — no symlinking, no per-repo wiring. From
+any Claude Code session:
+
+```
+/plugin marketplace add depixeled-chris/claude-kit
+/plugin install claude-kit
+```
+
+The `orient` hook then snaps each session into the workflow automatically in any adopted
+repo (one with `.ai/`); `/prime` re-snaps on demand. **Requires Node on `PATH`** (the
+hooks are Node). For the centralized data model (D-008), also set `CLAUDE_DATA` to your
+`claude-kit-data` clone and run `init-project` per repo.
+
+## Setup (alternative: symlink install via bootstrap)
 
 **This machine / a new machine:**
 ```bash

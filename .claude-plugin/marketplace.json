@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-kit",
+  "owner": {
+    "name": "Chris Sparks",
+    "url": "https://github.com/depixeled-chris"
+  },
+  "metadata": {
+    "description": "claude-kit — a repeatable, context-durable Claude Code workflow and tooling."
+  },
+  "plugins": [
+    {
+      "name": "claude-kit",
+      "source": "./",
+      "description": "Capture fast, defer by default, drain automatically, never lose context to compaction. Atomic .ai/ stores with generated indexes, portable Node enforcement hooks, and a shared library of generic agents + skills. Requires Node on PATH.",
+      "author": { "name": "Chris Sparks" },
+      "homepage": "https://github.com/depixeled-chris/claude-kit",
+      "repository": "https://github.com/depixeled-chris/claude-kit",
+      "license": "MIT",
+      "category": "workflow",
+      "keywords": ["workflow", "tickets", "hooks", "commands", "agents", "skills", "context", "compaction"]
+    }
+  ]
+}

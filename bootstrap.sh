@@ -85,7 +85,7 @@ compose_claude_md() {
 }
 
 echo "Public kit -> $CLAUDE  (from $KIT)"
-link_items "$KIT/user-config/commands" "$CLAUDE/commands" md
+link_items "$KIT/commands" "$CLAUDE/commands" md
 link_items "$KIT/agents" "$CLAUDE/agents" md-noreadme
 link_items "$KIT/skills" "$CLAUDE/skills" dirs
 link_items "$KIT/hooks" "$CLAUDE/hooks" mjs
