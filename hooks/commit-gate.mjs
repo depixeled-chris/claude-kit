@@ -12,9 +12,24 @@ const CODE = new Set(
 
 const p = await payload();
 const command = (p.tool_input && p.tool_input.command) || '';
-if (!command.includes('git commit')) process.exit(0);
+if (!/\bgit\s+(?:-C\s+\S+\s+|--?\S+\s+)*commit\b/.test(command)) process.exit(0);
 
-const root = gitRoot();
+// The commit runs in the repo the command targets, not the session cwd: resolve a
+// leading `cd <path>` or `git -C <path>`. Translate an MSYS path (/d/dev/x) to a
+// Windows path (d:/dev/x) so `git -C` accepts it. Falls back to cwd.
+function targetDir(cmd) {
+  let m = cmd.match(/(?:^|&&|;)\s*cd\s+(\S[^&;|]*)/);
+  let path = m ? m[1].trim() : '';
+  if (!path) {
+    m = cmd.match(/git\s+-C\s+("[^"]+"|'[^']+'|\S+)/);
+    path = m ? m[1].trim() : '';
+  }
+  if (!path) return process.cwd();
+  path = path.replace(/^["']|["']$/g, '');
+  return path.replace(/^\/([A-Za-z])\//, '$1:/');
+}
+
+const root = gitRoot(targetDir(command));
 if (!adopted(root)) process.exit(0);
 // Centralized data (D-008): the plan-of-record lives in claude-kit-data, not this repo,
 // so it can't be touched in this commit — the gate is cite-only here.
