@@ -16,7 +16,7 @@ const archiveDir = join(ticketsDir, 'archive');
 const SKIP = new Set(['_TEMPLATE.md', 'INDEX.md']);
 
 function field(fm, key) {
-  const m = fm.match(new RegExp(`^${key}:\\s*(.*)$`, 'm'));
+  const m = fm.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'));
   return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
 }
 

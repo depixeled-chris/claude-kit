@@ -42,7 +42,7 @@ function loadConfig() {
 }
 
 function field(fmText, key) {
-  const m = fmText.match(new RegExp(`^${key}:\\s*(.+)$`, 'm'));
+  const m = fmText.match(new RegExp(`^${key}:[ \\t]*(.+)$`, 'm'));
   return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
 }
 
