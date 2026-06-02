@@ -67,7 +67,8 @@ any Claude Code session:
 
 ```
 /plugin marketplace add depixeled-chris/claude-kit
-/plugin install claude-kit
+/plugin install claude-kit@claude-kit       # plugin@marketplace
+/reload-plugins                              # apply without restarting
 ```
 
 The `orient` hook then snaps each session into the workflow automatically in any adopted
