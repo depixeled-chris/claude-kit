@@ -6,10 +6,14 @@ status: todo           # todo | doing | review | done  (see config.statuses)
 priority: medium       # critical | high | medium | low
 milestone:             # blank = backlog; set to schedule onto ROADMAP.md
 labels: []
-links: []              # related tickets, commits (regressions: causing commit), URLs
 files: []              # repo-root-relative paths this ticket touches
+links: []              # related tickets / URLs
 created: <YYYY-MM-DDThh:mm:ssZ>
 updated: <YYYY-MM-DDThh:mm:ssZ>
+# --- bugs / regressions only (drive REGRESSIONS.md) ---
+regressed_from:        # T-### this is a recurrence of (set on a regression ticket)
+causing_commit:        # sha that introduced the bug
+fixed_commit:          # sha that fixed it (set when status -> review/done)
 ---
 
 ## Description
@@ -23,5 +27,13 @@ updated: <YYYY-MM-DDThh:mm:ssZ>
 <!-- filled in before editing; Claude waits for OK if the plan changes scope -->
 1.
 
-## Notes
-<!-- append-only log of decisions/progress while working — never delete prior notes -->
+## History
+<!-- APPEND-ONLY, oldest first. One line per event; NEVER edit or delete a prior line —
+     this is the task's audit trail. Format:  - [YYYY-MM-DD HH:MM] (event) detail
+     events: created | status | comment | decision | blocker | unblocked | fixed | regressed
+       (status)    todo → doing            (a transition)
+       (comment)   free-text progress / why
+       (decision)  what was chosen — cross-cut ones also go in DECISIONS.md
+       (blocker)   <title> — open          (unblocked) <title> — <resolution>
+       (fixed)     <sha>                    (regressed) → T-040   (recurred as) -->
+- [<YYYY-MM-DD HH:MM>] (created)

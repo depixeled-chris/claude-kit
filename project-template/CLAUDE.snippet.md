@@ -55,11 +55,13 @@ On "work T-001" (or when I pull it from the drain):
    list as a task titled `T-NNN <criterion>` (TaskCreate, with blockedBy for
    ordering) — the prefix marks it as ticket-backed. **The ticket file is truth;**
    the native list is a live projection kept in lockstep (see Native task sync).
-4. As each criterion is satisfied, check its box `[x]` in the ticket and append
-   to `## Notes` (a log — never delete prior notes).
-5. When all criteria pass: set `status: review`, stop, summarize the diff.
-6. Chris sets `status: done` after merge. **Never set a `statuses.human_only`
-   status myself.**
+4. As each criterion is satisfied, check its box `[x]` and append a `## History`
+   line. Log every status change, comment, decision, and blocker there **as it
+   happens** (append-only — never edit a prior line): it's the task's audit trail.
+5. When all criteria pass: set `status: review`, record `(fixed) <sha>` + the
+   `fixed_commit` frontmatter in History, stop, summarize the diff.
+6. Chris sets `status: done` after merge (a `statuses.human_only` status — **never
+   set it myself**). On done, the ticket moves to `.ai/tickets/archive/`.
 
 ### Backlog vs roadmap
 - **Backlog** = tickets with `status: todo` and no `milestone`. Everything
@@ -93,3 +95,15 @@ tasks, keeping both in lockstep IS the sync:
 - **Promote orphans:** a native task with no `T-` prefix is unpersisted work — capture
   it to `.ai/INBOX.md` (per `promote_orphans_to`), then re-title the native task with
   the id triage assigns. Nothing important is left living only in the ephemeral list.
+
+### History & regression tracking
+- **Every ticket** keeps an append-only `## History` (timestamped events:
+  `status | comment | decision | blocker | unblocked | fixed | regressed`, per
+  `config.history.events`). Never edit or delete a prior line — it's the audit trail.
+  Cross-cutting decisions also go in `.ai/DECISIONS.md`.
+- **A recurring bug is a `regression` ticket, not a reopen:** set `regressed_from:
+  <original id>` and `causing_commit:`; add a `(regressed) → T-NNN` line to the
+  original's History. Repeat offenders surface in the generated regression index.
+- **Reference files are generated, never the truth:** after a status/regression change
+  run `node <kit>/scripts/index-tickets.mjs` to rebuild `.ai/tickets/INDEX.md` (the
+  board) and `.ai/REGRESSIONS.md` (chains) from the ticket frontmatter.

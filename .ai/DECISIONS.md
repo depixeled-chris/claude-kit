@@ -78,3 +78,23 @@ Rejected: native→ticket via a hook or daemon. Why: there is no task-change hoo
 native list isn't disk-exposed — but it doesn't matter, because Claude is the **only**
 writer of native tasks, so writing both in lockstep + hydrating on start IS the sync.
 Source: conversation 2026-06-02.
+
+## 2026-06-02  Tasks carry history; bugs carry regression tracking — markdown, not a DB  [D-006]
+Decided: every ticket carries an **append-only history** (timestamped audit trail of
+status changes, comments, decisions, blockers/questions), and bugs carry **regression
+tracking** (a recurrence links to the original + the causing/fixing commits; repeat
+offenders are visible in a reference file). It stays **markdown + folder hierarchy +
+generated index/reference files** — no SQLite/DB.
+Rejected: a SQLite/Prisma store (the approach in the prior `D:\dev\workflow` repo, last
+touched 2025-11). Why: a DB isn't transparent or diff-able, drifts from the files, and
+adds a process; that repo already kept the real state in markdown (`work/active|completed/
+<id>/` with `agents/*.md` work-history, `context/decisions.md`, `context/blockers.md`)
+and even logged a self-question "should we keep markdown files?" — the DB was redundant.
+Gleaned the **fields** from its schema (agent_assignments = who/what/when/status;
+blockers = type blocker|question, open→resolved; decisions per task) and drop the DB.
+Source: conversation 2026-06-02; prior art D:\dev\workflow (commit de12897).
+Shape (settled with maintainer 2026-06-02): single-file tickets with an append-only
+`## History` section; done tickets archive to `.ai/tickets/archive/`; bug recurrences
+are `regression` tickets linking `regressed_from`/`causing_commit`/`fixed_commit`;
+`scripts/index-tickets.mjs` generates `tickets/INDEX.md` (board) + `REGRESSIONS.md`
+(chains). Config: `history` + `regressions` blocks in config.yml.

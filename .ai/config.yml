@@ -97,3 +97,19 @@ native_task_sync:
     doing: in_progress
     review: completed
     done: completed
+
+# ---------------------------------------------------------------------------
+# HISTORY & REGRESSIONS (DECISIONS D-006). Every ticket carries an append-only
+# ## History audit log; bugs link recurrences so regressions are tracked. Markdown
+# only — INDEX.md / REGRESSIONS.md are GENERATED reference files, not the truth.
+# ---------------------------------------------------------------------------
+history:
+  # event vocabulary for "- [YYYY-MM-DD HH:MM] (event) detail" lines in ## History
+  events: [created, status, comment, decision, blocker, unblocked, fixed, regressed]
+  # done tickets move here (relative to .ai/) so the active board stays small
+  archive_done_to: tickets/archive
+regressions:
+  # frontmatter links on a recurrence ticket (type: regression)
+  links: [regressed_from, causing_commit, fixed_commit]
+  index_file: REGRESSIONS.md       # generated chains: original -> recurrences
+  board_file: tickets/INDEX.md     # generated ticket board (id/type/status/title)

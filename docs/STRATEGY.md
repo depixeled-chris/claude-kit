@@ -100,6 +100,25 @@ A backlog nobody drains is a graveyard. The drain runs on Claude's action:
     ones; an orphan (unprefixed) task is promoted to `.ai/` so no work lives only in
     the ephemeral list.
 
+## Task history & regressions
+
+Every ticket carries an append-only `## History` — a timestamped audit trail of status
+changes, comments, decisions, and blockers — so "what happened and why" survives in the
+file, not the chat. Decisions that cross tickets also land in `DECISIONS.md`; the
+ticket's History is the local log.
+
+A recurring bug is tracked as a **`regression` ticket**, not a silent reopen: it links
+`regressed_from:` the original and records the `causing_commit:`, and the original gets
+a `(regressed) → T-NNN` history line. That makes **repeat offenders visible** — the
+generated `REGRESSIONS.md` shows the chain `original → recurrence → …`, longest first.
+
+It's all markdown — no database. A prior iteration (the `workflow` repo) mirrored this
+into SQLite/Prisma and found the DB redundant: the markdown `work/active|completed/<id>/`
+tree was already the source, and a DB isn't diff-able, drifts from the files, and adds a
+process. So the reference files (`tickets/INDEX.md`, `REGRESSIONS.md`) are **generated**
+from the tickets by `scripts/index-tickets.mjs` — fast lookup without becoming a second
+source of truth. Done tickets archive to `tickets/archive/` to keep the active board small.
+
 ## Token discipline
 
 - Search via subagents; they read many files and return a paragraph, keeping the
