@@ -2,6 +2,9 @@
 description: Pick up a ticket — restate acceptance criteria, confirm scope, then execute
 argument-hint: <ticket-id>
 ---
+If no ticket id is given, do NOT guess one — tell the maintainer to use `/drain` (auto-pull
+the next item) and stop. With an id, work exactly that ONE ticket and stop at `review`.
+
 Work ticket $ARGUMENTS per the contract:
 1. Read `.ai/tickets/$ARGUMENTS*.md` and restate its acceptance criteria.
 2. Confirm scope before editing files. Wait for OK if the plan changes scope or
