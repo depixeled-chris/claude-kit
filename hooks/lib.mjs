@@ -102,6 +102,33 @@ export function watchRepos(root) {
   return [];
 }
 
+// Cross-project lineage from a repo's .ai/lineage.yml — how this project relates to others
+// (the engine it builds on, an ancestor it descends from, sibling apps, dead repos to avoid).
+// Surfaced on resume so a blank context reads it instead of reconstructing it. Tolerant
+// line-by-line parse (no YAML dep), mirroring watchRepos. Returns [] on any error.
+export function readLineage(root) {
+  let lines;
+  try {
+    lines = readFileSync(join(root, '.ai', 'lineage.yml'), 'utf8').split(/\r?\n/);
+  } catch {
+    return [];
+  }
+  const items = [];
+  let cur = null;
+  for (const ln of lines) {
+    const start = ln.match(/^[ \t]*-[ \t]+name:[ \t]*["']?(.+?)["']?[ \t]*$/);
+    if (start) {
+      cur = { name: start[1].trim(), role: '', note: '', url: '', path: '' };
+      items.push(cur);
+      continue;
+    }
+    if (!cur) continue;
+    const kv = ln.match(/^[ \t]+([a-z]+):[ \t]*["']?(.*?)["']?[ \t]*$/);
+    if (kv && Object.prototype.hasOwnProperty.call(cur, kv[1])) cur[kv[1]] = kv[2].trim();
+  }
+  return items;
+}
+
 // Machine-local project registry: maps each project name -> its repo path ON THIS MACHINE,
 // plus the central data root when one is in use. NOT committed anywhere — repo paths are
 // machine-specific (Windows drive letters vs macOS paths) while the .ai data syncs across

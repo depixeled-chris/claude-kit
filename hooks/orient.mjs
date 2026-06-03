@@ -2,9 +2,9 @@
 // SessionStart — inject the on-disk record into a fresh/compacted context so work
 // never starts blind. No-ops unless the repo has adopted .ai/.
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
-import { git, gitRoot, adopted, projectName, formatWip, watchRepos, recordProject, WIP_FILES, WIP_COMMITS } from './lib.mjs';
+import { git, gitRoot, adopted, projectName, formatWip, watchRepos, readLineage, recordProject, WIP_FILES, WIP_COMMITS } from './lib.mjs';
 
 const COMMITS = 12;
 const SESSION_LINES = 40;
@@ -33,6 +33,26 @@ const tail = (f, n) => {
   } catch {
     return '';
   }
+};
+// Recent decisions when the project uses a decisions/ DIRECTORY (one file per decision)
+// rather than a legacy DECISIONS.md. Returns id — title lines for the latest n by id.
+const recentDecisions = (n) => {
+  let files;
+  try {
+    files = readdirSync(join(root, '.ai', 'decisions')).filter((f) => f.endsWith('.md') && !/^(README|_TEMPLATE)/i.test(f)).sort();
+  } catch {
+    return '';
+  }
+  return files.slice(-n).map((f) => {
+    try {
+      const t = readFileSync(join(root, '.ai', 'decisions', f), 'utf8');
+      const id = (t.match(/^id:[ \t]*(.+)$/m) || [])[1];
+      const title = (t.match(/^title:[ \t]*(.+)$/m) || [])[1];
+      return `  ${id ? id.trim() + ' — ' : ''}${title ? title.trim() : f.replace(/\.md$/, '')}`;
+    } catch {
+      return `  ${f.replace(/\.md$/, '')}`;
+    }
+  }).join('\n');
 };
 
 const out = [];
@@ -82,10 +102,22 @@ if (roadmap) {
   out.push('--- Plan-of-record (ROADMAP) ---');
   out.push(head(roadmap, ROADMAP_LINES));
 }
-if (decisions) {
+const decisionsDir = recentDecisions(8);
+if (decisionsDir) {
+  out.push('');
+  out.push('--- Decisions (recent — one file per decision) ---');
+  out.push(decisionsDir);
+} else if (decisions) {
   out.push('');
   out.push('--- DECISIONS (recent) ---');
   out.push(tail(decisions, DECISIONS_LINES));
+}
+
+const lineage = readLineage(root);
+if (lineage.length) {
+  out.push('');
+  out.push('--- Lineage (how this project relates to other repos — trust over memory) ---');
+  for (const l of lineage) out.push(`  [${l.role || '?'}] ${l.name}${l.note ? ' — ' + l.note : ''}`);
 }
 out.push(`
 --- PROCESS RULES (enforced by hooks) ---
