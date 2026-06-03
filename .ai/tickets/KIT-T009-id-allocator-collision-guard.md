@@ -39,7 +39,13 @@ SQLite — it can serve from the markdown scan today; the DB just makes it O(1)"
       exists (local + non-centralized adopted repos). Fails open on a scan error.
 - [x] `sync-data.mjs` blocks the auto-commit of the centralized data repo on a collision —
       the path that actually let HOD-T045 persist (project `.ai` is a junction). Fails open.
-- [x] Automated test `scripts/id-utils.test.mjs` (12 cases) wired into `npm test`; green.
+- [x] No id-count ceiling (maintainer raised "999 isn't big enough"): `pad` is COSMETIC ONLY
+      — `nextId` widens past it (HOD-T999 → HOD-T1000) and `compareIds` sorts NUMERICALLY, so
+      `index-tickets` ordering doesn't break at the width boundary (a string sort put T1000
+      before T999). Documented in the id-utils header; covered by the tests below.
+- [x] Automated test `scripts/id-utils.test.mjs` (19 cases) wired into `npm test`; green —
+      incl. "nextId past the pad width widens (no 999 ceiling)" + "compareIds: 1000 sorts
+      after 999" + "lexical sort WOULD get the boundary wrong" (proves the bug it fixes).
 - [x] Live HOD-T045 collision resolved: re-keyed `world-gen-into-core` → `HOD-T049` using
       the new allocator; `check-ids` reports HOD clean.
 
@@ -58,6 +64,10 @@ Done — see History.
   criteria early via the markdown scan, as that ticket's note authorizes.
 - Follow-up (not done here): point triage/work/template prompts at `next-id.mjs` so the
   agent stops hand-picking ids — see History.
+- 2026-06-03: Maintainer flagged "999 isn't a big enough number for bigger projects." Fixed
+  by making `pad` cosmetic, not a limit: `nextId` widens past it and added numeric-aware
+  `compareIds` (used by `index-tickets`) so sort order survives the 999→1000 width boundary.
+  +6 tests. (Initial suite was 12; now 19 with these + the POSIX-path test below.)
 - 2026-06-03: Cross-platform — id tooling is pure Node (runs on any OS). Fixed reported
   paths to be POSIX-style on every OS (`path.join` was emitting backslashes on Windows);
   added a test asserting no backslashes. The remaining OS assumption is `bootstrap.sh`
