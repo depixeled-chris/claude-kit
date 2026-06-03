@@ -140,22 +140,25 @@ global file. Preview any run with `DRY_RUN=1 ./bootstrap.sh`.
 
 ## Developing & shipping the plugin
 
-You edit **this repo**; the running plugin is a separate installed copy (dev repo →
-GitHub → marketplace clone → cache/install — runtime uses the cache). So changes don't
-go live until you ship. The loop:
+The runtime reads an installed *copy*, not this repo — so there are two distinct loops.
+Don't run the publish loop on every edit.
 
-1. **Edit** hooks / scripts / commands here.
-2. **Test** — `npm test` runs `scripts/test-hooks.mjs`: it exercises every hook against
-   mock payloads in throwaway git fixtures and asserts exit codes. Fast, no install
-   needed (it tests the dev-repo hooks directly). Run it before every push.
-3. **Bump** `.claude-plugin/plugin.json` `version` — **required**: `/plugin update` is
-   version-gated, so without a bump it reports "already latest" and ships nothing.
-4. **Commit + push.**
-5. **Update the install:** `/plugin marketplace update claude-kit` →
-   `/plugin update claude-kit@claude-kit` → `/reload-plugins`. (A fresh reinstall pulls
-   latest regardless of version; only `update` needs the bump.)
+**Inner loop — fast, no install, no session impact:**
+- `npm test` → `scripts/test-hooks.mjs` runs every hook against mock payloads in
+  throwaway git fixtures and asserts exit codes. Run before every push.
+- `claude plugin validate .` checks the plugin + marketplace manifests.
 
-For integration-testing the real wiring before pushing, add this repo as a **local**
-marketplace (`/plugin marketplace add <path-to-this-repo>`) and install from it.
+**Dev loop — live in your session, one command:** run `node scripts/dev-link.mjs` **once**
+to point the installed plugin at this working repo (junction). After that the entire loop
+is: **edit the repo → `/reload-plugins`.** No marketplace update, no version bump, no
+reinstall. (`node scripts/dev-link.mjs --unlink` restores the frozen snapshot.)
+
+**Publish loop — occasional, for *other* machines / consumers:**
+1. `npm test` green; **bump `.claude-plugin/plugin.json` `version`** (required — `/plugin
+   update` is version-gated; no bump ships nothing).
+2. `claude plugin tag` (tags the release, verifies plugin.json + marketplace agree).
+3. Commit + push.
+4. Consumers: `claude plugin marketplace update claude-kit` → `claude plugin update
+   claude-kit@claude-kit` (or the `/plugin …` equivalents) → restart/`/reload-plugins`.
 
 See `docs/STRATEGY.md` for the full reasoning and `docs/DAILY-LOOP.md` to start.
