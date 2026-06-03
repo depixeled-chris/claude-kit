@@ -1,0 +1,1 @@
+# Silence claude-kit-kit missing-tool warnings: this repo lints via node --check + the hook test suite; eslint not used. Reviewed 2026-06-03.
