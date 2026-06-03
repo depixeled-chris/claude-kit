@@ -21,6 +21,11 @@ the DB is a **derived, disposable, gitignored** index hydrated ONE-WAY from the 
 Pairs with the relationship graph in [[KIT-D012]] — its value is realized once that graph
 (hierarchy, provenance, artifact links) exists, so it sequences AFTER KIT-T003.
 
+Drivers (maintainer 2026-06-03): all of query-speed + full-text + integrity — AND, notably,
+**agent retrieval**: it's cheaper for Claude to *query* the cache (e.g. "open tickets under
+HOD-R045", "bugs introduced by X", FTS) than to open many files into context. The cache is a
+retrieval layer, not just a speedup.
+
 ## Acceptance Criteria
 - [ ] `scripts/hydrate-db.mjs` parses every store across all scopes (incl. LAB) into SQLite:
       items (id, scope, type, status, priority, title, parent), links (from, rel, to), aka,
@@ -30,16 +35,20 @@ Pairs with the relationship graph in [[KIT-D012]] — its value is realized once
 - [ ] **No write-back**: nothing writes the DB as truth; all edits go to markdown + re-hydrate.
 - [ ] **Optional + fallback**: survey/hooks still work from markdown when the DB (or sqlite) is
       absent — the cache only accelerates; it is never a hard dependency.
-- [ ] Engine is `node:sqlite` (Node 22+, zero install) unless a benchmark forces otherwise; the
-      DB tool stays out of the hot-path enforcement hooks.
+- [ ] **Engine cascade** (maintainer decided): use `better-sqlite3` if installed, else
+      `node:sqlite` (Node 22+); if neither, queries fall back to an in-memory markdown scan
+      (hydration needs one of the two). DB tooling stays out of the hot-path enforcement hooks.
+- [ ] **Query interface** — a thin `scripts/q.mjs` with named/canned queries (open items,
+      children-of, back-links, doc-trail, FTS) + ad-hoc SQL, returning compact results, so an
+      agent or human queries the cache instead of opening files.
 - [ ] Hydration runs on a hook after `.ai` changes + a lazy staleness check (rebuild if any
       store file is newer than the DB).
 - [ ] Provides at least: hierarchy rollup, back-link, cross-project rundown, and FTS queries;
       plus an integrity check (orphaned parent / dangling link / status mismatch).
 
-## Open questions (discuss before build)
-- Primary driver — query speed, full-text search, or integrity validation? (shapes priority)
-- Confirm `node:sqlite` (Node 22+) is acceptable as the floor, vs allowing better-sqlite3.
+## Decided (2026-06-03)
+- Drivers: all of speed + FTS + integrity, plus agent-retrieval (query, don't open).
+- Engine: prefer `better-sqlite3`, fall back to `node:sqlite`, then markdown scan.
 
 ## Notes
 - 2026-06-03: Captured from design discussion. Sequenced AFTER KIT-T003 (the graph) — building
