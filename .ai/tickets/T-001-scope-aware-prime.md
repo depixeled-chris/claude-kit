@@ -98,3 +98,6 @@ The behavior, settled in conversation 2026-06-03:
   21/21 (8 new), and test isolation left the real registry untouched. Version 0.1.3 → 0.1.4.
   Two of my own pre-write hook blocks (bare 12/10 in lib; ticket-id digits in regex literals)
   were fixed at the root, not bypassed. Status → review.
+- 2026-06-03: Added `/status` (commands/status.md) — the read-only twin of `/prime`. Same
+  survey engine, but a mid-flight glance: shows the briefing and stops, never resumes or starts
+  work. Version 0.1.4 → 0.1.5.
