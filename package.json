@@ -6,6 +6,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node scripts/test-hooks.mjs && node hooks/request-gate.test.mjs && node scripts/id-utils.test.mjs"
+    "test": "node scripts/test-hooks.mjs && node hooks/request-gate.test.mjs && node scripts/id-utils.test.mjs && node scripts/code-graph.test.mjs"
   }
 }
