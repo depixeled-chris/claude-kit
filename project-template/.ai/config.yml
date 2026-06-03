@@ -109,3 +109,10 @@ regressions:
   links: [regressed_from, causing_commit, fixed_commit]
   index_file: REGRESSIONS.md
   board_file: tickets/INDEX.md
+
+# ---------------------------------------------------------------------------
+# WATCH_REPOS — extra repo paths (relative to the project root) the orient hook
+# includes in its resume working-tree survey, e.g. a backport target. Surfaces
+# their uncommitted + unpushed state so local-only work elsewhere is never lost.
+# ---------------------------------------------------------------------------
+watch_repos: []
