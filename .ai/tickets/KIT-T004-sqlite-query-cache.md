@@ -30,8 +30,11 @@ retrieval layer, not just a speedup.
 - [ ] `scripts/hydrate-db.mjs` parses every store across all scopes (incl. LAB) into SQLite:
       items (id, scope, type, status, priority, title, parent), links (from, rel, to), aka,
       artifacts (path, produced_by, informs), history events.
-- [ ] DB is **gitignored** and machine-local; a full rebuild is cheap and idempotent
-      (`rm` + re-hydrate reproduces it exactly).
+- [ ] **Never checked in.** Always **rebuildable** from the markdown/source files — a full
+      rebuild is cheap + idempotent (`rm` + re-hydrate reproduces it exactly).
+- [ ] **Location: relative to the claude-kit install**, e.g. `<kit-root>/.cache/workflow.db`
+      (via `$CLAUDE_PLUGIN_ROOT`) — NOT in `~/.claude`, NOT in any project repo. Gitignored
+      there (`.cache/` already added to claude-kit `.gitignore`).
 - [ ] **No write-back**: nothing writes the DB as truth; all edits go to markdown + re-hydrate.
 - [ ] **Optional + fallback**: survey/hooks still work from markdown when the DB (or sqlite) is
       absent — the cache only accelerates; it is never a hard dependency.

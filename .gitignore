@@ -6,3 +6,6 @@ CLAUDE.local.md
 
 # plugin runtime marker (appears because dev-link junctions the install dir to this repo)
 .in_use/
+
+# derived SQLite query cache (KIT-T004) — never checked in; always rebuildable from markdown
+.cache/
