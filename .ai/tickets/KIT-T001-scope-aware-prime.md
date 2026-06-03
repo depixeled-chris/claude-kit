@@ -1,12 +1,12 @@
 ---
-id: T-001
+id: KIT-T001
 title: Scope-aware /prime — lazy default, "what needs me?" briefing, named deep-dive
 type: feature
 status: review
 priority: high
 milestone:
 labels: [prime, orient, multi-project]
-links: [D-010]
+links: [KIT-D010]
 files:
   - commands/prime.md
   - hooks/orient.mjs
@@ -82,11 +82,11 @@ The behavior, settled in conversation 2026-06-03:
   (usually one project in play) and go deep there only;
   (3) the one thing the no-arg default must do thoroughly is surface **open items, especially
   those needing the maintainer's action**.
-- Builds on [[D-010]] (git working-tree state is part of the tracked record; orient already
+- Builds on [[KIT-D010]] (git working-tree state is part of the tracked record; orient already
   surfaces per-project temperature incl. `watch_repos`).
 - Surfaced while capturing: claude-kit's own notebook had ZERO tickets (template only) and an
   unfilled SESSION — its work had been logged under decisions + the game's (pilot) notebook.
-  This is T-001, the first real claude-kit ticket; SESSION filled at the same time.
+  This is KIT-T001, the first real claude-kit ticket; SESSION filled at the same time.
 - Status stays `todo` pending the maintainer's go to build.
 - 2026-06-03: BUILT. `lib.mjs` gained projectName/wipSummary/formatWip/watchRepos +
   readRegistry/recordProject (machine-local `~/.claude/claude-kit-projects.json`,

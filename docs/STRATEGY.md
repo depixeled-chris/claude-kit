@@ -38,7 +38,7 @@ you say steers Claude immediately (blocking). Here, anything you say is captured
 to the right place and Claude keeps working; blocking is the exception.
 
 For each interjection Claude: **classify → route → one-line receipt → continue.**
-The receipt (`→ BUG-024 logged (high), still on T-001`) is your audit trail — a
+The receipt (`→ BUG-024 logged (high), still on KIT-T001`) is your audit trail — a
 misroute is corrected in three words instead of discovered later.
 
 Blocking fires only when the classification's `blocking` rule in `config.yml`
@@ -92,7 +92,7 @@ A backlog nobody drains is a graveyard. The drain runs on Claude's action:
   machine-local, so it's never the handoff layer — but it is a **faithful,
   bidirectional projection** of the tickets, not a throwaway. Because Claude is the
   only writer of native tasks, sync is just discipline at write time + a rebuild on
-  start (D-005, `config.yml → native_task_sync`):
+  start (KIT-D005, `config.yml → native_task_sync`):
   - Hydrate the native list from the active ticket(s) at session start
     (`scripts/sync-tasks.mjs`), since native tasks don't survive a session.
   - Keep both in lockstep: a ticket change updates its native task and vice versa.

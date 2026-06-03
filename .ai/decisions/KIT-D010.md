@@ -1,5 +1,5 @@
 ---
-id: D-010
+id: KIT-D010
 title: "git working-tree state is part of the tracked record; orient surfaces it on resume"
 date: 2026-06-03
 ---

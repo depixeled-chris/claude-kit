@@ -17,7 +17,7 @@ cap question why is the TTL hardcoded?
 cap just a thought about the cache layer        # untyped → classified at triage
 ```
 Or mid-session, just say it — Claude routes it and gives a one-line receipt:
-`→ BUG-024 logged (high), still on T-001`.
+`→ BUG-024 logged (high), still on KIT-T001`.
 
 ## Triage (start of day, or when INBOX piles up)
 ```
@@ -28,7 +28,7 @@ prioritized worklist.
 
 ## Work
 ```
-/work T-001
+/work KIT-T001
 ```
 Claude restates acceptance criteria, **confirms scope**, sets `doing`, mirrors
 criteria to the native task list, executes ticking boxes, then sets `review` and

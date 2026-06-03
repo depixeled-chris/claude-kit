@@ -1,5 +1,5 @@
 ---
-id: D-001
+id: KIT-D001
 title: "claude-kit is the single source of truth for all Claude tooling"
 date: 2026-06-02
 ---

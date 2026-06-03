@@ -28,7 +28,7 @@ round it off and a fresh session resumes cold.
    a regression from the current edit, or you saying "stop").
 3. **Triage** drains `inbox/` into `tickets/` (a file-based kanban) — every item
    category (`tickets/ decisions/ questions/ notes/`) is a folder of one-file-per-item.
-4. **Work** a ticket: `/work T-001` → restate acceptance criteria → confirm
+4. **Work** a ticket: `/work KIT-T001` → restate acceptance criteria → confirm
    scope → execute, ticking boxes.
 5. **Drain** keeps going between tickets without being asked.
 6. **Flush** before any compact/clear writes state to `.ai/SESSION.md`.
@@ -71,7 +71,7 @@ any Claude Code session:
 
 The `orient` hook then snaps each session into the workflow automatically in any adopted
 repo (one with `.ai/`); `/prime` re-snaps on demand. **Requires Node on `PATH`** (the
-hooks are Node). For the centralized data model (D-008), also set `CLAUDE_DATA` to your
+hooks are Node). For the centralized data model (KIT-D008), also set `CLAUDE_DATA` to your
 `claude-kit-data` clone and run `init-project` per repo.
 
 ## Setup (alternative: symlink install via bootstrap)
@@ -90,14 +90,14 @@ Then add the printed `cap` alias to your shell rc and merge
 cd /path/to/your/repo
 node ~/Documents/code/claude-kit/scripts/init-project.mjs
 ```
-With `CLAUDE_DATA` set (the centralized model, D-008), this writes a `.claude-project`
+With `CLAUDE_DATA` set (the centralized model, KIT-D008), this writes a `.claude-project`
 pointer and links `.ai/` as a gitignored junction into `$CLAUDE_DATA/projects/<name>/`.
 Without `CLAUDE_DATA`, it scaffolds `.ai/` **inside** the repo (committed there) — the
 simpler per-repo mode.
 
 ## What syncs where
 
-- **Workflow data** lives in one private repo, **`claude-kit-data`** (D-008): a
+- **Workflow data** lives in one private repo, **`claude-kit-data`** (KIT-D008): a
   `projects/<name>/` per project (its `tickets/ decisions/ …`) plus the private
   `overlay/`. A project repo holds only a `.claude-project` pointer and a gitignored
   `.ai` junction into it. Syncing that **one** repo carries every project's state across

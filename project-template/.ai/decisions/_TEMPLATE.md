@@ -1,5 +1,5 @@
 ---
-id: DEC-000
+id: KEY-D000
 title: <short title>
 date: <YYYY-MM-DD>
 supersedes:        # DEC-### this replaces, or blank

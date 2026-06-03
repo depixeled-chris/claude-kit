@@ -72,11 +72,14 @@ drain:
 receipts: one-line
 
 # ---------------------------------------------------------------------------
-# IDS — ticket id scheme. {seq} is a zero-padded counter.
+# IDS — scheme is <KEY>-<TYPE><NUM> (KIT-D011). key = project key (HOD, KIT, ...),
+# type = store letter (ticket=T, decision=D, note=N, question=Q), num = padded counter.
+# init-project sets `key` + `prefix` from the project (KIT-T002); until then, edit them here.
 # ---------------------------------------------------------------------------
 ids:
-  prefix: "T-"
-  pad: 3            # T-001, T-002, ...
+  key: "KEY"
+  prefix: "KEY-T"
+  pad: 3            # KEY-T001, KEY-T002, ...
 
 # ---------------------------------------------------------------------------
 # ROADMAP — generated | narrative.  generated = thin sequence assembled from ticket

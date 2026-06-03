@@ -1,5 +1,5 @@
 ---
-id: D-006
+id: KIT-D006
 title: "Tasks carry history; bugs carry regression tracking — markdown, not a DB"
 date: 2026-06-02
 ---

@@ -1,5 +1,5 @@
 ---
-id: D-009
+id: KIT-D009
 title: "Every item-category is atomic files in a folder, like tickets — no monolith stores"
 date: 2026-06-02
 ---

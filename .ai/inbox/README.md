@@ -1,6 +1,6 @@
 # inbox/ — raw capture
 
-One file per captured idea (atomic — D-009), fire-and-forget. `cap` writes them here;
+One file per captured idea (atomic — KIT-D009), fire-and-forget. `cap` writes them here;
 **triage** promotes each into `tickets/` / `decisions/` / `questions/` / `notes/` and
 then deletes the inbox file. Nothing durable lives here — it's the intake buffer that
 drains.

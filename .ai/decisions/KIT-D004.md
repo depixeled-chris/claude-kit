@@ -1,5 +1,5 @@
 ---
-id: D-004
+id: KIT-D004
 title: "The kit is also the cross-project research KB + non-proprietary agent library"
 date: 2026-06-02
 ---

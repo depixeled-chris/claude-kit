@@ -10,13 +10,13 @@ supersedes it and reference the old id.
 Format:
 
 ```
-## YYYY-MM-DD  <short title>  [D-001]
+## YYYY-MM-DD  <short title>  [KIT-D001]
 Decided: <the choice>.
 Rejected: <the alternative>. Why: <reason>.
 ```
 
 <!-- example:
-## 2026-06-01  Refresh trigger strategy  [D-001]
+## 2026-06-01  Refresh trigger strategy  [KIT-D001]
 Decided: proactive refresh at t-5min via timer.
 Rejected: refresh-on-401. Why: causes a failed request + retry storm under
 concurrency; user sees a flicker. Don't revisit unless we drop the timer infra.

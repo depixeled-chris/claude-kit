@@ -1,5 +1,5 @@
 ---
-id: N-000
+id: KEY-N000
 title: <short title>
 created: <YYYY-MM-DD>
 links: []          # related tickets / decisions

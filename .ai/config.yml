@@ -72,11 +72,16 @@ drain:
 receipts: one-line
 
 # ---------------------------------------------------------------------------
-# IDS — ticket id scheme. {seq} is a zero-padded counter.
+# IDS — scheme is <KEY>-<TYPE><NUM>, so an id reads in a cross-project rundown.
+#   key   = the project key (prefixes every id; HOD, KIT, ...)
+#   type  = the store letter: ticket=T, decision=D, note=N, question=Q
+#   num   = zero-padded counter
+# e.g. KIT-T001 (ticket), KIT-D010 (decision). `prefix` is the ticket prefix.
 # ---------------------------------------------------------------------------
 ids:
-  prefix: "T-"
-  pad: 3            # T-001, T-002, ...
+  key: "KIT"
+  prefix: "KIT-T"
+  pad: 3            # KIT-T001, KIT-T002, ...
 
 # ---------------------------------------------------------------------------
 # NATIVE TASK SYNC — the native Claude Code task list is a LIVE projection of

@@ -1,11 +1,11 @@
 ---
-id: D-007
+id: KIT-D007
 title: "Commit AND push at every task boundary, referencing the work item"
 date: 2026-06-02
 ---
 
 Decided: at each task boundary, **commit and push** — not just commit — and reference the
-work item in the message (`implements T-007` / `D-006`). Pushing between tasks (not only
+work item in the message (`implements T-007` / `KIT-D006`). Pushing between tasks (not only
 committing) keeps the remote as a recoverable rewind point from any machine.
 Rejected: batching a whole session into one commit, or committing without pushing. Why:
 a local-only commit dies with the working copy/machine, and one big commit gives no

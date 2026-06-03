@@ -1,5 +1,5 @@
 ---
-id: D-002
+id: KIT-D002
 title: "Public kit + private overlay"
 date: 2026-06-02
 ---

@@ -15,7 +15,7 @@ _none yet_
 ## Upcoming
 <!--
 ## M1 — Auth hardening
-- [ ] T-001 refresh-token rotation
+- [ ] KIT-T001 refresh-token rotation
 - [ ] T-004 single-flight refresh lock
 
 ## M2 — Onboarding polish

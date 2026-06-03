@@ -67,8 +67,8 @@ try {
     hook('commit-gate.mjs', { tool_input: { command: `cd ${tgt} && git commit -m x` } }, clean).code === 2);
   ok('commit-gate: git -C target, no cite -> block',
     hook('commit-gate.mjs', { tool_input: { command: `git -C ${tgt} commit -m x` } }, clean).code === 2);
-  ok('commit-gate: cite (R045) bypasses',
-    hook('commit-gate.mjs', { tool_input: { command: `cd ${tgt} && git commit -m R045` } }, clean).code === 0);
+  ok('commit-gate: cite (HOD-T045) bypasses',
+    hook('commit-gate.mjs', { tool_input: { command: `cd ${tgt} && git commit -m HOD-T045` } }, clean).code === 0);
   ok('commit-gate: clean cwd passes',
     hook('commit-gate.mjs', { tool_input: { command: 'git commit -m x' } }, clean).code === 0);
   ok('commit-gate: non-commit no-ops',

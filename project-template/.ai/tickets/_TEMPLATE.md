@@ -1,5 +1,5 @@
 ---
-id: T-000
+id: KEY-T000
 title: <short imperative title>
 type: bug              # any key from .ai/config.yml → classifications
 status: todo           # todo | doing | review | done  (see config.statuses)

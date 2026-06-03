@@ -21,7 +21,7 @@ For each interjection I:
 2. **Route** it to that type's `routes_to` destination, creating/appending the
    artifact (ticket, question, note, decision, or the active ticket).
 3. **Receipt**: per `config.receipts`, emit one line so a misroute is caught in
-   three words — e.g. `→ BUG-024 logged (high), still on T-001`.
+   three words — e.g. `→ BUG-024 logged (high), still on KIT-T001`.
 4. **Continue** the current task.
 
 **Block only when** the classification's `blocking` rule fires:
@@ -49,8 +49,8 @@ the receipt, and continue — do not halt to ask.
   still holds?") instead of re-debating. Settled stays settled.
 
 ### Working a ticket
-On "work T-001" (or when I pull it from the drain):
-1. Read `.ai/tickets/T-001*.md`; **restate the acceptance criteria**.
+On "work KIT-T001" (or when I pull it from the drain):
+1. Read `.ai/tickets/KIT-T001*.md`; **restate the acceptance criteria**.
 2. **Confirm scope before editing files** (Chris's standing rule). Within an
    already-approved ticket, proceed through the plan without re-asking per file.
 3. Set `status: doing`. Mirror each acceptance criterion into the native task

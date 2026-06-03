@@ -9,6 +9,6 @@ created: <YYYY-MM-DD>
 
 **Resolution:** <answer + date, filled when resolved; set status: resolved>
 
-<!-- One question per file (atomic — D-009). IDs Q-NNN. Claude answers the
+<!-- One question per file (atomic — KIT-D009). IDs Q-NNN. Claude answers the
      answerable_by: claude ones from code/decisions and sets status: resolved; chris-only
      ones are surfaced batched at natural breaks. -->

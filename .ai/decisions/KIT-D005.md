@@ -1,5 +1,5 @@
 ---
-id: D-005
+id: KIT-D005
 title: ".ai/ tickets ↔ native task list stay in sync"
 date: 2026-06-02
 ---
@@ -13,7 +13,7 @@ machine-local). Rules:
   back to the ticket in the same step.
 - **Hydrate on start:** the native list is ephemeral, so rebuild it from the active
   ticket(s) at session / `/work` start (`scripts/sync-tasks.mjs` emits the spec).
-- **Prefix:** every kit-managed native task's subject carries its ticket id (`T-001 …`)
+- **Prefix:** every kit-managed native task's subject carries its ticket id (`KIT-T001 …`)
   so ticket-backed tasks are visibly distinct from ad-hoc ones.
 - **Promote orphans:** a native task with no `T-` prefix is unpersisted — capture it to
   `.ai/INBOX.md` (triage then makes it a ticket) and re-tag the native task. Nothing

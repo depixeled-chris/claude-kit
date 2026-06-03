@@ -1,5 +1,5 @@
 ---
-id: D-003
+id: KIT-D003
 title: "Enforcement hooks are portable Node, installed globally but opt-in-aware"
 date: 2026-06-02
 ---

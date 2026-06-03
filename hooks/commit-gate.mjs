@@ -50,25 +50,26 @@ if (!changed.length) process.exit(0);
 if (changed.some((f) => /(^|\/)(ROADMAP|DECISIONS)\.md$/i.test(f) || /\.ai\/(tickets|decisions|questions|notes|inbox)\//.test(f))) {
   process.exit(0);
 }
-// Commit cites a logged item, or explicitly overrides? R### · T-### / DEC-### / D-### · [no-log:]
-if (/\bR\d{2,}\b|\bT-\d+\b|\bD(?:EC)?-\d+\b|\[no-log/.test(command)) process.exit(0);
+// Commit cites a logged item, or explicitly overrides? Scheme <KEY>-<TYPE><NUM> (HOD-T045,
+// KIT-D010), type letter one of T/D/N/Q · or [no-log:].
+if (/\b[A-Z]{2,}-[TDNQ]\d+\b|\[no-log/.test(command)) process.exit(0);
 
 // Does the change actually touch code? (docs/config-only commits are fine)
 const touchesCode = changed.some((f) => CODE.has((f.split('.').pop() || '').toLowerCase()));
 if (!touchesCode) process.exit(0);
 
 const blockedLine = centralized
-  ? 'BLOCKED: code commit with no ticket citation (workflow data is centralized — D-008).'
+  ? 'BLOCKED: code commit with no ticket citation (workflow data is centralized — KIT-D008).'
   : 'BLOCKED: this commit changes code but does not touch the plan-of-record.';
 const options = centralized
   ? [
-      "  - cite the ticket in the message (e.g. 'implements R045' / 'T-007'), or",
+      "  - cite the ticket in the message (e.g. 'implements HOD-T045' / 'KIT-T007'), or",
       "  - if genuinely not trackable work, include '[no-log: <reason>]'.",
     ]
   : [
       '  - update the plan-of-record (ROADMAP / a .ai/ticket) in this commit, or',
       '  - record a decision in DECISIONS, or',
-      "  - cite the item in the message (e.g. 'implements R041' / 'T-007'), or",
+      "  - cite the item in the message (e.g. 'implements HOD-T041' / 'KIT-T007'), or",
       "  - if genuinely not trackable work, include '[no-log: <reason>]'.",
     ];
 process.stderr.write(
