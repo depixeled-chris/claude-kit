@@ -15,6 +15,7 @@ const ALLOWED = new Set(['-1', '0', '1', '2']);
 const NATIVE_LINTED = new Set(['rs', 'py', 'go', 'sh', 'bash', 'zsh']);
 const DOC = new Set(['md', 'markdown', 'mdx', 'txt', 'rst', 'adoc']);
 const DATA = new Set(['json', 'jsonl', 'yaml', 'yml', 'toml', 'xml', 'csv', 'ini', 'cfg']);
+const MARKUP = new Set(['html', 'htm', 'xhtml', 'svg']); // markup, not logic — numbers in text/attrs aren't magic constants
 
 const p = await payload();
 const file = (p.tool_input && p.tool_input.file_path) || '';
@@ -51,7 +52,7 @@ if (DOC.has(ext)) {
   }
   process.exit(0);
 }
-if (DATA.has(ext)) process.exit(0); // config/data is not source
+if (DATA.has(ext) || MARKUP.has(ext)) process.exit(0); // config/data/markup is not logic-source
 
 const isTest = /(\.test\.|\.spec\.|\/__tests__\/|\/tests?\/)/.test(norm);
 const isMig = /\/(migrations|alembic\/versions)\//.test(norm);

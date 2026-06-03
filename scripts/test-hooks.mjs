@@ -60,6 +60,8 @@ try {
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.json', content: '{ "n": 1337 }' } }, clean).code === 0);
   ok('pre-write: doc never blocks',
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.md', content: '# note 1337\n' } }, clean).code === 0);
+  ok('pre-write: markup (.html) skips code checks (regression: brand "GTA 7")',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/i.html', content: '<title>GTA 7 — Guns, Traffic & Anarchy</title>\n' } }, clean).code === 0);
 
   // orient / flush emit in adopted repos, stay silent otherwise
   ok('orient: adopted repo emits orientation', /ORIENTATION/.test(hook('orient.mjs', { hook_event_name: 'SessionStart' }, clean).out));
