@@ -53,8 +53,9 @@ claude-kit/                     # public plugin + marketplace (MIT)
 │   │                           #   notes/ inbox/ (+ archive/) + SESSION.md; ROADMAP.md generated
 │   └── CLAUDE.snippet.md       # the behavioral contract
 ├── docs/STRATEGY.md            # the full model and the why
-└── bootstrap.sh                # installs CLAUDE.md + private overlay (what a plugin can't);
-                                #   LINK_TOOLING=1 also symlinks tooling, for non-plugin machines
+└── bootstrap.mjs               # cross-platform installer (Win/mac/Linux): CLAUDE.md +
+                                #   private overlay (what a plugin can't). bootstrap.sh is a
+                                #   thin POSIX wrapper. LINK_TOOLING=1 also symlinks tooling.
 ```
 
 ## Install — two mechanisms, one rule
@@ -65,10 +66,10 @@ not install the **tooling** twice (KIT-D013):
 | What | Installed by | Notes |
 | --- | --- | --- |
 | **Tooling** — commands, hooks, skills, agents | the **plugin** (canonical) | auto-wired via `hooks/hooks.json`; nothing to symlink |
-| **`~/.claude/CLAUDE.md`** + **private overlay** + statusline | **`bootstrap.sh`** | a plugin can't write `~/.claude/CLAUDE.md` or pull in your private overlay |
+| **`~/.claude/CLAUDE.md`** + **private overlay** + statusline | **`bootstrap.mjs`** | a plugin can't write `~/.claude/CLAUDE.md` or pull in your private overlay |
 
 > ⚠️ **The rule:** install the tooling **once**. Use the **plugin** (recommended) **or**
-> `LINK_TOOLING=1 ./bootstrap.sh` (legacy non-plugin install) — **never both**. Running
+> `LINK_TOOLING=1 node bootstrap.mjs` (legacy non-plugin install) — **never both**. Running
 > both symlinks the same hooks/commands the plugin already provides, so every hook fires
 > twice and commands appear twice. This is the failure KIT-D013 exists to prevent.
 
@@ -94,16 +95,17 @@ overlay, so run bootstrap once for those — by default it does **not** touch th
 ```bash
 git clone <this-repo> ~/Documents/code/claude-kit   # or wherever
 cd ~/Documents/code/claude-kit
-./bootstrap.sh                                       # CLAUDE.md + overlay + statusline only
+node bootstrap.mjs                                   # CLAUDE.md + overlay + statusline only
 ```
-
-Then add the printed `cap` alias to your shell rc. (No `settings.json` hook wiring needed —
-the plugin wires the hooks.)
+`bootstrap.mjs` is the cross-platform installer (Windows, macOS, Linux — Node is already
+required). On a POSIX shell `./bootstrap.sh` still works (it's a thin wrapper that calls
+`node bootstrap.mjs`). Then add the printed `cap` shortcut to your shell profile. (No
+`settings.json` hook wiring needed — the plugin wires the hooks.)
 
 **Not using the plugin?** Do the legacy full symlink install instead, and wire the hooks
 yourself:
 ```bash
-LINK_TOOLING=1 ./bootstrap.sh                        # also symlinks commands/hooks/skills/agents
+LINK_TOOLING=1 node bootstrap.mjs                    # also symlinks commands/hooks/skills/agents
 # then merge user-config/settings.recommended.json into ~/.claude/settings.json
 ```
 
@@ -130,7 +132,7 @@ simpler per-repo mode.
   in the project itself.)*
 - **Tooling** (commands, hooks, skills, agents) ships as the **plugin** — installed once
   per machine; nothing to hand-sync. Do **not** also symlink it via bootstrap (KIT-D013).
-- **`~/.claude/CLAUDE.md` + private overlay + statusline** are installed by `bootstrap.sh`
+- **`~/.claude/CLAUDE.md` + private overlay + statusline** are installed by `bootstrap.mjs`
   (the plugin can't reach them) — the one part you run per machine alongside the plugin.
 - **Secrets / proprietary config** live in the private overlay, never in this public repo.
 
@@ -138,11 +140,11 @@ simpler per-repo mode.
 
 This repo is public + MIT, so it holds **non-proprietary content only**. Anything
 sensitive — personal `CLAUDE.md` rules, proprietary agents/commands/skills/hooks —
-lives in a separate **private overlay** that `bootstrap.sh` composes on top. The
+lives in a separate **private overlay** that `bootstrap.mjs` composes on top. The
 boundary is structural: secrets can't reach the MIT repo because they're authored
 somewhere else.
 
-`bootstrap.sh` resolves the overlay in this order, and skips it if none is found:
+`bootstrap.mjs` resolves the overlay in this order, and skips it if none is found:
 
 1. `$CLAUDE_KIT_PRIVATE` — a private repo clone (or any directory)
 2. `~/.claude/private/` — gitignored
@@ -163,7 +165,7 @@ name **wins** — the private layer overrides the public, never the reverse.
 `~/.claude/CLAUDE.md` is composed from an optional public base
 (`user-config/CLAUDE.global.md`) plus the overlay's `CLAUDE.md`; composition stays
 dormant until at least one source exists, so it won't clobber a hand-maintained
-global file. Preview any run with `DRY_RUN=1 ./bootstrap.sh`.
+global file. Preview any run with `DRY_RUN=1 node bootstrap.mjs`.
 
 ## Developing & shipping the plugin
 

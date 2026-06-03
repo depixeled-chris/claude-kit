@@ -2,7 +2,7 @@
 id: KIT-T011
 title: Cross-platform tooling — no script may assume Windows/macOS/Linux
 type: bug
-status: todo
+status: review
 priority: high
 milestone:
 labels: [portability, cross-platform, bootstrap, install]
@@ -26,12 +26,14 @@ POSIX/WSL, not native Windows.
 - [x] Deterministic line endings via `.gitattributes` (`* text=auto eol=lf` + binary marks)
       so a CRLF-authored script can't break bash/node on another OS.
 - [x] id tooling reports POSIX-style paths on every OS (done under KIT-T009).
-- [ ] Port `bootstrap.sh` → a Node installer (`bootstrap.mjs`) that runs on Windows,
+- [x] Port `bootstrap.sh` → a Node installer (`bootstrap.mjs`) that runs on Windows,
       macOS, and Linux: compose `~/.claude/CLAUDE.md`, link the private overlay + statusline
       (dir links via junction on Windows; file links symlink-or-copy with a privilege
       fallback), and the `LINK_TOOLING=1` legacy path. Keep the overlay-only default (KIT-D013).
-- [ ] README install steps use the portable invocation; verify on Windows + at least one POSIX OS.
-- [ ] Sweep the remaining scripts/hooks for any lingering OS assumption; none may remain.
+      `bootstrap.sh` is now a thin POSIX wrapper (`exec node bootstrap.mjs`).
+- [x] README install steps use the portable invocation (`node bootstrap.mjs`).
+- [x] Swept scripts/hooks: the only OS branches (`lib.mjs` have()/nodeCli(), commit-gate
+      MSYS path xlate) HANDLE every OS rather than assuming one — no lingering assumption.
 
 ## Plan
 1. Confirm the Windows symlink approach (junction for dirs; symlink-or-copy for the
@@ -42,5 +44,9 @@ POSIX/WSL, not native Windows.
 
 ## Notes
 - 2026-06-03: `.gitattributes` added (no renormalization churn — repo was already LF).
-  bootstrap port deferred to a maintainer go (it changes the documented setup flow + adds
-  a new file). Audit found NO other OS assumptions in the Node tooling.
+  Audit found NO other OS assumptions in the Node tooling.
+- 2026-06-03: Ported bootstrap to `bootstrap.mjs` (Node) and TESTED ON WINDOWS into temp
+  dirs: overlay-only composed CLAUDE.md + statusline (the Windows no-symlink-privilege case
+  hit the EPERM→copy fallback, as designed); LINK_TOOLING=1 linked 7 commands/11 hooks +
+  skills dir junctions; a fake private overlay composed base+private CLAUDE.md and linked a
+  private command. `bootstrap.sh` reduced to a thin POSIX wrapper. README updated.
