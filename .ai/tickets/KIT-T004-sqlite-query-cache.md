@@ -48,6 +48,11 @@ retrieval layer, not just a speedup.
       store file is newer than the DB).
 - [ ] Provides at least: hierarchy rollup, back-link, cross-project rundown, and FTS queries;
       plus an integrity check (orphaned parent / dangling link / status mismatch).
+- [ ] **Next-ID allocation**: an O(1) `next-id <scope> <type>` query (`max(num)+1` over `items`)
+      so capture tooling assigns the next ticket/decision/note ID without scanning the dir; flags
+      gaps + collisions as part of the integrity check. The dir-scan it replaces is the concrete
+      pain that surfaced this, and cheap on-the-fly ID assignment is a prerequisite for the
+      request-capture ratchet (log a request mid-turn without a filesystem walk).
 
 ## Decided (2026-06-03)
 - Drivers: all of speed + FTS + integrity, plus agent-retrieval (query, don't open).
@@ -56,3 +61,8 @@ retrieval layer, not just a speedup.
 ## Notes
 - 2026-06-03: Captured from design discussion. Sequenced AFTER KIT-T003 (the graph) — building
   it now would be speculative; today's data is small enough for in-memory markdown scans.
+- 2026-06-03: Added next-ID allocation criterion. Surfaced in the HOD session — assigning a
+  ticket ID still required a `ls tickets/ | tail` dir scan; ties into the request-capture ratchet
+  (KIT, design pending), which needs cheap ID assignment to log requests on the fly. Note: next-ID
+  doesn't have to wait for SQLite — `index-tickets.mjs`/INDEX.md can serve it from the markdown
+  scan today; the DB just makes it O(1). Flagged so it lands wherever ID assignment is centralized.
