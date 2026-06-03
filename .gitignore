@@ -3,3 +3,6 @@
 .ai/SECRETS*
 CLAUDE.local.md
 .claude/settings.local.json
+
+# plugin runtime marker (appears because dev-link junctions the install dir to this repo)
+.in_use/
