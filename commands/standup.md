@@ -2,7 +2,7 @@
 description: Mid-flight glance — show the cross-project "what needs me?" briefing without resuming or changing anything
 argument-hint: "[project ...]"
 ---
-Read-only status check. Run the survey and SHOW it — do **not** confirm scope, do **not**
+Read-only standup. Run the survey and SHOW it — do **not** confirm scope, do **not**
 continue, pick up, or change any in-progress work. This is a glance, not a resume.
 
 ```

@@ -101,3 +101,5 @@ The behavior, settled in conversation 2026-06-03:
 - 2026-06-03: Added `/status` (commands/status.md) — the read-only twin of `/prime`. Same
   survey engine, but a mid-flight glance: shows the briefing and stops, never resumes or starts
   work. Version 0.1.4 → 0.1.5.
+- 2026-06-03: Renamed `/status` → `/standup` (commands/standup.md). `/status` is a built-in
+  Claude Code command, so the plugin name was shadowed. Version 0.1.6 → 0.1.7.
