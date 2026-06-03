@@ -1,0 +1,14 @@
+# Deterministic line endings regardless of each machine's git config (core.autocrlf),
+# so a script authored on Windows never ships CRLF that breaks bash/node on Linux/macOS.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending-normalized.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
