@@ -66,3 +66,7 @@ retrieval layer, not just a speedup.
   (KIT, design pending), which needs cheap ID assignment to log requests on the fly. Note: next-ID
   doesn't have to wait for SQLite — `index-tickets.mjs`/INDEX.md can serve it from the markdown
   scan today; the DB just makes it O(1). Flagged so it lands wherever ID assignment is centralized.
+- 2026-06-03: The next-ID allocation + collision/integrity criteria LANDED EARLY (markdown
+  scan) under **KIT-T009** — `scripts/{id-utils,next-id,check-ids}.mjs` + guards in
+  index-tickets/commit-gate/sync-data. This DB ticket now only needs to make those O(1) and
+  add the FTS/graph/retrieval queries (still sequenced after KIT-T003). Re-scope when reached.

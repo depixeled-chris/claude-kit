@@ -4,7 +4,9 @@ description: Drain INBOX.md into tickets/questions/decisions and report a priori
 Drain `.ai/INBOX.md`:
 1. Classify each line against `.ai/config.yml` → classifications.
 2. Promote it to its destination — create/append a ticket (use
-   `.ai/tickets/_TEMPLATE.md`), a question, a note, or a decision.
+   `.ai/tickets/_TEMPLATE.md`), a question, a note, or a decision. **Allocate the id
+   with `node <kit>/scripts/next-id.mjs <store>` — never hand-pick one** (that is what
+   collided two files on one id; KIT-T009). Name the file `<id>-<slug>.md`.
 3. Dedupe against existing tickets; for regressions, link the likely causing
    commit. Skip anything already captured.
 4. Delete promoted lines from INBOX.md.

@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
-# bootstrap.sh — wire claude-kit into a machine. Idempotent and conservative:
-# it ADDS to ~/.claude (symlinks commands, statusline, skills, agents, hooks) and
-# never overwrites your settings.json. Run after cloning the repo.
+# bootstrap.sh — install the parts of claude-kit that a Claude Code PLUGIN cannot.
 #
-#   ./bootstrap.sh                 # public kit (+ private overlay if present)
-#   DRY_RUN=1 ./bootstrap.sh       # print what it would link, change nothing
+# Canonical install path = the PLUGIN (KIT-D013): the public tooling — commands,
+# hooks, skills, agents — ships and auto-wires as the claude-kit plugin (see README
+# "Install"). bootstrap installs ONLY what a plugin can't reach:
+#   - the composed ~/.claude/CLAUDE.md (public base + private overlay)
+#   - the PRIVATE overlay's own tooling (not in the public plugin)
+#   - the statusline
+# Running the plugin AND a full bootstrap symlink of the SAME public tooling
+# double-registers it (hooks fire twice, duplicate commands) — the bug that
+# surfaced 2026-06-03. So public-tooling symlinking is OFF by default.
+#
+#   ./bootstrap.sh                 # overlay mode: CLAUDE.md + private overlay + statusline
+#   LINK_TOOLING=1 ./bootstrap.sh  # ALSO symlink the public tooling — ONLY if NOT using
+#                                  # the plugin (the legacy non-plugin install path)
+#   DRY_RUN=1 ./bootstrap.sh       # print what it would do, change nothing
 #
 # Private overlay (D-002): anything sensitive — personal CLAUDE.md rules,
 # proprietary agents/commands/skills/hooks — lives OUTSIDE this public MIT repo,
@@ -24,6 +34,9 @@ set -euo pipefail
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE="${CLAUDE_HOME:-$HOME/.claude}"
 DRY_RUN="${DRY_RUN:-0}"
+# OFF by default: the plugin owns the public tooling (KIT-D013). Set to 1 only on a
+# machine that does NOT install the plugin, to symlink the public tooling instead.
+LINK_TOOLING="${LINK_TOOLING:-0}"
 mkdir -p "$CLAUDE"/{commands,agents,skills,hooks}
 
 link() { # link <src> <dst> — back up a real file, then symlink
@@ -84,11 +97,18 @@ compose_claude_md() {
   echo "  composed $out"
 }
 
-echo "Public kit -> $CLAUDE  (from $KIT)"
-link_items "$KIT/commands" "$CLAUDE/commands" md
-link_items "$KIT/agents" "$CLAUDE/agents" md-noreadme
-link_items "$KIT/skills" "$CLAUDE/skills" dirs
-link_items "$KIT/hooks" "$CLAUDE/hooks" mjs
+if [ "$LINK_TOOLING" = "1" ]; then
+  echo "Public tooling (LINK_TOOLING=1, non-plugin install) -> $CLAUDE  (from $KIT)"
+  echo "  WARNING: if the claude-kit PLUGIN is also installed, this DOUBLE-registers"
+  echo "  the same hooks/commands. Use the plugin OR LINK_TOOLING=1, never both (KIT-D013)."
+  link_items "$KIT/commands" "$CLAUDE/commands" md
+  link_items "$KIT/agents" "$CLAUDE/agents" md-noreadme
+  link_items "$KIT/skills" "$CLAUDE/skills" dirs
+  link_items "$KIT/hooks" "$CLAUDE/hooks" mjs
+else
+  echo "Public tooling: provided by the PLUGIN (KIT-D013) — not symlinked."
+  echo "  (Not using the plugin? Re-run with LINK_TOOLING=1 for the legacy symlink install.)"
+fi
 link "$KIT/user-config/statusline.sh" "$CLAUDE/statusline.sh"
 chmod +x "$KIT/user-config/statusline.sh" "$KIT/scripts/"*.mjs 2>/dev/null || true
 
@@ -123,8 +143,13 @@ echo
 echo "Add this to your shell rc (~/.zshrc on mac, ~/.bashrc on Linux/WSL):"
 echo "  $CAP_LINE"
 echo
-echo "Then merge user-config/settings.recommended.json into $CLAUDE/settings.json"
-echo "(it enables the statusline + wires the hooks + pre-allows the cap/init scripts)."
+if [ "$LINK_TOOLING" = "1" ]; then
+  echo "Non-plugin install: merge user-config/settings.recommended.json into $CLAUDE/settings.json"
+  echo "(it enables the statusline + WIRES the hooks + pre-allows the cap/init scripts)."
+else
+  echo "Plugin install: hooks/commands come from the plugin (no settings.json hook wiring needed)."
+  echo "For the statusline only, enable it in $CLAUDE/settings.json (see user-config/settings.recommended.json)."
+fi
 echo
 echo "Per project (inside the repo):  node $KIT/scripts/init-project.mjs"
 echo "  with CLAUDE_DATA set, it writes .claude-project + links .ai into"

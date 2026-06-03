@@ -5,6 +5,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { payload, git, gitRoot, adopted } from './lib.mjs';
+import { checkIds } from '../scripts/id-utils.mjs';
 
 const CODE = new Set(
   'ts tsx js jsx mjs cjs rs py go java rb php cs swift kt c cc cpp cxx h hpp css scss sass less vue svelte sql'.split(' '),
@@ -44,6 +45,27 @@ const changed = [
   ]),
 ];
 if (!changed.length) process.exit(0);
+
+// ID integrity: if this commit touches the markdown stores, refuse it when the
+// stores hold a duplicate id or a frontmatter/filename mismatch. This runs BEFORE
+// the plan-of-record early-allow below so touching a ticket can't bypass it. The
+// centralized layout (.ai is a junction into the data repo) is guarded separately
+// by sync-data; here `root`'s own .ai is scanned. Fail open on any scan error.
+if (changed.some((f) => /(^|\/)(?:\.ai\/)?(?:tickets|decisions|notes|questions)\/[^/]+\.md$/.test(f))) {
+  try {
+    const { duplicates, mismatches } = checkIds(root);
+    if (duplicates.length || mismatches.length) {
+      const lines = ['', 'BLOCKED: .ai id integrity check failed.', ''];
+      for (const d of duplicates) lines.push(`  DUPLICATE ${d.id}: ${d.files.join('  ·  ')}`);
+      for (const m of mismatches) lines.push(`  MISMATCH ${m.file}: id '${m.fmId}' != filename '${m.fileId}'`);
+      lines.push('', 'Re-key the offending file (scripts/next-id.mjs <store>) so every id is unique, then commit.', '');
+      process.stderr.write(lines.join('\n'));
+      process.exit(2);
+    }
+  } catch {
+    /* integrity scan is best-effort — never wedge a commit on a scan error */
+  }
+}
 
 // Plan-of-record part of the change? A root/legacy ROADMAP|DECISIONS.md, or any of the
 // atomic .ai/ stores (tickets/decisions/questions/notes/inbox — D-009).

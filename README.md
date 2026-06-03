@@ -53,15 +53,28 @@ claude-kit/                     # public plugin + marketplace (MIT)
 │   │                           #   notes/ inbox/ (+ archive/) + SESSION.md; ROADMAP.md generated
 │   └── CLAUDE.snippet.md       # the behavioral contract
 ├── docs/STRATEGY.md            # the full model and the why
-└── bootstrap.sh                # alternative non-plugin install (symlinks into ~/.claude)
+└── bootstrap.sh                # installs CLAUDE.md + private overlay (what a plugin can't);
+                                #   LINK_TOOLING=1 also symlinks tooling, for non-plugin machines
 ```
 
-## Install (as a plugin) — works from anywhere
+## Install — two mechanisms, one rule
 
-claude-kit is a Claude Code **plugin + marketplace**. Install once and the commands,
-hooks (orient / commit-gate / flush / quality / data-sync), skills, and agents are
-available in **every** session on that machine — no symlinking, no per-repo wiring. From
-any Claude Code session:
+claude-kit installs in **two complementary** parts. They do **not** overlap, and you must
+not install the **tooling** twice (KIT-D013):
+
+| What | Installed by | Notes |
+| --- | --- | --- |
+| **Tooling** — commands, hooks, skills, agents | the **plugin** (canonical) | auto-wired via `hooks/hooks.json`; nothing to symlink |
+| **`~/.claude/CLAUDE.md`** + **private overlay** + statusline | **`bootstrap.sh`** | a plugin can't write `~/.claude/CLAUDE.md` or pull in your private overlay |
+
+> ⚠️ **The rule:** install the tooling **once**. Use the **plugin** (recommended) **or**
+> `LINK_TOOLING=1 ./bootstrap.sh` (legacy non-plugin install) — **never both**. Running
+> both symlinks the same hooks/commands the plugin already provides, so every hook fires
+> twice and commands appear twice. This is the failure KIT-D013 exists to prevent.
+
+### 1. Tooling — install the plugin (recommended)
+
+From any Claude Code session:
 
 ```
 /plugin marketplace add depixeled-chris/claude-kit
@@ -71,21 +84,33 @@ any Claude Code session:
 
 The `orient` hook then snaps each session into the workflow automatically in any adopted
 repo (one with `.ai/`); `/prime` re-snaps on demand. **Requires Node on `PATH`** (the
-hooks are Node). For the centralized data model (KIT-D008), also set `CLAUDE_DATA` to your
-`claude-kit-data` clone and run `init-project` per repo.
+hooks are Node).
 
-## Setup (alternative: symlink install via bootstrap)
+### 2. CLAUDE.md + private overlay — run bootstrap (even with the plugin)
 
-**This machine / a new machine:**
+The plugin can't install your global `~/.claude/CLAUDE.md` contract or your private
+overlay, so run bootstrap once for those — by default it does **not** touch the tooling:
+
 ```bash
 git clone <this-repo> ~/Documents/code/claude-kit   # or wherever
 cd ~/Documents/code/claude-kit
-./bootstrap.sh                                       # links commands + statusline, prints the cap alias
+./bootstrap.sh                                       # CLAUDE.md + overlay + statusline only
 ```
-Then add the printed `cap` alias to your shell rc and merge
-`user-config/settings.recommended.json` into `~/.claude/settings.json`.
 
-**A project:**
+Then add the printed `cap` alias to your shell rc. (No `settings.json` hook wiring needed —
+the plugin wires the hooks.)
+
+**Not using the plugin?** Do the legacy full symlink install instead, and wire the hooks
+yourself:
+```bash
+LINK_TOOLING=1 ./bootstrap.sh                        # also symlinks commands/hooks/skills/agents
+# then merge user-config/settings.recommended.json into ~/.claude/settings.json
+```
+
+For the centralized data model (KIT-D008), set `CLAUDE_DATA` to your `claude-kit-data`
+clone and run `init-project` per repo (below).
+
+### 3. Per project
 ```bash
 cd /path/to/your/repo
 node ~/Documents/code/claude-kit/scripts/init-project.mjs
@@ -104,7 +129,9 @@ simpler per-repo mode.
   machines; the `sync-data` hook auto-commits it. *(Per-repo mode instead commits `.ai/`
   in the project itself.)*
 - **Tooling** (commands, hooks, skills, agents) ships as the **plugin** — installed once
-  per machine; nothing to hand-sync.
+  per machine; nothing to hand-sync. Do **not** also symlink it via bootstrap (KIT-D013).
+- **`~/.claude/CLAUDE.md` + private overlay + statusline** are installed by `bootstrap.sh`
+  (the plugin can't reach them) — the one part you run per machine alongside the plugin.
 - **Secrets / proprietary config** live in the private overlay, never in this public repo.
 
 ## Private overlay (keep secrets out of the public kit)

@@ -1,4 +1,5 @@
 ---
+# id: NEVER hand-pick — allocate with `node <kit>/scripts/next-id.mjs tickets` (KIT-T009).
 id: KEY-T000
 title: <short imperative title>
 type: bug              # any key from .ai/config.yml → classifications
