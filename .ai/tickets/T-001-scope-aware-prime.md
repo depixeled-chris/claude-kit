@@ -2,7 +2,7 @@
 id: T-001
 title: Scope-aware /prime — lazy default, "what needs me?" briefing, named deep-dive
 type: feature
-status: todo
+status: review
 priority: high
 milestone:
 labels: [prime, orient, multi-project]
@@ -42,24 +42,24 @@ The behavior, settled in conversation 2026-06-03:
 
 ## Acceptance Criteria
 <!-- Each must be a checkable observation. -->
-- [ ] `/prime` with no argument produces a cross-project briefing whose FIRST section is
+- [x] `/prime` with no argument produces a cross-project briefing whose FIRST section is
       "waiting on you" — decisions pending, tickets in `review`, blocked-on-maintainer items —
       aggregated across all tracked projects.
-- [ ] The no-arg briefing is lazy: it deep-reads only the detected active project (session's
+- [x] The no-arg briefing is lazy: it deep-reads only the detected active project (session's
       folder), and lists other projects' open work as one-line status, not full detail.
-- [ ] `/prime <project> [project…]` does a full resume (SESSION + active ticket + working-tree
+- [x] `/prime <project> [project…]` does a full resume (SESSION + active ticket + working-tree
       temperature) of each named project even when run from a different folder.
-- [ ] The briefing is human-readable (a person skims it and knows their day); it is not a raw
+- [x] The briefing is human-readable (a person skims it and knows their day); it is not a raw
       concatenation of note files.
-- [ ] Each project's open work is read from the synced shared notebook; each project's git
+- [x] Each project's open work is read from the synced shared notebook; each project's git
       working-tree status (uncommitted + unpushed, incl. `watch_repos`) is included **when that
       project's repo is known on this machine**.
-- [ ] A machine-local project→repo map fills itself in automatically whenever `orient` runs
+- [x] A machine-local project→repo map fills itself in automatically whenever `orient` runs
       inside a tracked project. Projects not yet opened on this machine still appear in the
       briefing (notebook only), flagged "no local repo here."
-- [ ] The machine-local map is NOT committed to the synced data repo (repo paths are
+- [x] The machine-local map is NOT committed to the synced data repo (repo paths are
       machine-specific — Windows drive letters vs macOS paths).
-- [ ] `npm test` covers the survey + the registry self-heal.
+- [x] `npm test` covers the survey + the registry self-heal.
 
 ## Plan
 <!-- filled in before editing; waits for OK if scope changes -->
@@ -88,3 +88,13 @@ The behavior, settled in conversation 2026-06-03:
   unfilled SESSION — its work had been logged under decisions + the game's (pilot) notebook.
   This is T-001, the first real claude-kit ticket; SESSION filled at the same time.
 - Status stays `todo` pending the maintainer's go to build.
+- 2026-06-03: BUILT. `lib.mjs` gained projectName/wipSummary/formatWip/watchRepos +
+  readRegistry/recordProject (machine-local `~/.claude/claude-kit-projects.json`,
+  env-overridable via `CLAUDE_KIT_REGISTRY` for tests). `orient.mjs` self-heals the registry
+  and now reuses the shared formatters (no duplication). `scripts/survey.mjs` is the engine
+  (lazy briefing / named deep-dive). `commands/prime.md` rewritten to drive it. Verified live
+  against the real registry: lazy run surfaced R031-in-review + the Rust A–D decisions + the
+  backport block + gta7's 4 unpushed commits; named run gave a clean deep resume. `npm test`
+  21/21 (8 new), and test isolation left the real registry untouched. Version 0.1.3 → 0.1.4.
+  Two of my own pre-write hook blocks (bare 12/10 in lib; ticket-id digits in regex literals)
+  were fixed at the root, not bypassed. Status → review.

@@ -16,13 +16,15 @@ Capture the agreed design for a scope-aware `/prime` as claude-kit's first real 
 - [ ] `npm test` covers survey + registry
 
 ## Current state
-Design fully settled in conversation (see T-001 Notes for the maintainer's reframings).
-Ticket T-001 written; status `todo`. NOTHING built yet — awaiting the maintainer's go.
+T-001 BUILT and verified — status `review`. lib.mjs (registry + shared wip/format helpers),
+orient.mjs (self-heals registry), scripts/survey.mjs (lazy briefing + named deep-dive),
+commands/prime.md (rewritten). `npm test` 21/21. Version 0.1.4. Awaiting maintainer review
+(+ `/plugin update` on other machines to ship the new prime).
 
 ## Next 3 steps
-1. On "go": lib.mjs registry helpers → orient self-heal → scripts/survey.mjs → prime.md rewrite.
-2. Add test coverage (survey + registry); bump plugin version.
-3. Commit citing T-001; push.
+1. Maintainer: try `/prime` (lazy) and `/prime <name>` (deep); set T-001 `done` if good.
+2. On other machines, `/plugin update` to pull 0.1.4 (dev-link is live here already).
+3. Then back to hustle-or-die: Rust migration A–D decisions (gated on maintainer).
 
 ## Exact commands / facts (verbatim — do not paraphrase)
 - claude-kit is LOCAL-mode (.ai/ lives in-repo; no .claude-project). IDs: T-### (pad 3).

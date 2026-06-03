@@ -4,8 +4,8 @@
 // exits: code 2 = block, 0 = allow.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, appendFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { existsSync, readFileSync, appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join, dirname, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { createRequire } from 'node:module';
 
@@ -43,6 +43,102 @@ export function gitRoot(cwd = process.cwd()) {
 // Every hook no-ops on unadopted repos, so the global install never interferes.
 export function adopted(root) {
   return !!root && (existsSync(join(root, '.ai')) || existsSync(join(root, 'ROADMAP.md')));
+}
+
+// A project's canonical name: the .claude-project pointer (centralized projects) else the
+// repo's directory name (local projects).
+export function projectName(root) {
+  try {
+    const m = readFileSync(join(root, '.claude-project'), 'utf8').match(/^project:[ \t]*(.+)$/m);
+    if (m) return m[1].trim();
+  } catch {
+    /* no pointer — a local project; fall back to the dir name */
+  }
+  return basename(root);
+}
+
+// Working-tree temperature for a repo: uncommitted (porcelain) + unpushed (local-only)
+// commits, as raw lists — callers format. git/push-state is part of the tracked record:
+// a resume must see what isn't yet committed or pushed, anywhere (D-010).
+export function wipSummary(repoRoot) {
+  const dirty = git(['-C', repoRoot, 'status', '--porcelain']).trim();
+  const unpushed = git(['-C', repoRoot, 'log', '--branches', '--not', '--remotes', '--oneline']).trim();
+  return {
+    clean: !dirty && !unpushed,
+    dirty: dirty ? dirty.split('\n') : [],
+    unpushed: unpushed ? unpushed.split('\n') : [],
+  };
+}
+
+// Multi-line working-tree readout for one repo, shared by orient (single-project resume)
+// and survey (cross-project deep view) so the format is defined once.
+export const WIP_FILES = 12; // uncommitted files listed before collapsing to "+N more"
+export const WIP_COMMITS = 10; // unpushed commits listed
+export function formatWip(label, repoRoot, files = WIP_FILES, commits = WIP_COMMITS) {
+  const s = wipSummary(repoRoot);
+  if (s.clean) return `${label}: clean + pushed`;
+  const lines = [`${label}:`];
+  if (s.dirty.length) {
+    lines.push(`  ${s.dirty.length} uncommitted —`);
+    s.dirty.slice(0, files).forEach((l) => lines.push(`    ${l}`));
+    if (s.dirty.length > files) lines.push(`    …+${s.dirty.length - files} more`);
+  }
+  if (s.unpushed.length) {
+    lines.push(`  ${s.unpushed.length} unpushed (local-only) commit(s) —`);
+    s.unpushed.slice(0, commits).forEach((l) => lines.push(`    ${l}`));
+  }
+  return lines.join('\n');
+}
+
+// watch_repos from a repo's .ai/config.yml (paths relative to the repo root) — extra repos
+// (e.g. a backport target) whose working-tree state a resume should also surface.
+export function watchRepos(root) {
+  try {
+    const m = readFileSync(join(root, '.ai', 'config.yml'), 'utf8').match(/watch_repos:[ \t]*\[([^\]]*)\]/);
+    if (m) return m[1].split(',').map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+  } catch {
+    /* no config / no key */
+  }
+  return [];
+}
+
+// Machine-local project registry: maps each project name -> its repo path ON THIS MACHINE,
+// plus the central data root when one is in use. NOT committed anywhere — repo paths are
+// machine-specific (Windows drive letters vs macOS paths) while the .ai data syncs across
+// machines, so a path written on one machine would be a lie on the other. Self-healed by
+// orient whenever a project is opened (T-001). Best-effort: a read returns an empty registry
+// on any error; a write never throws.
+// CLAUDE_KIT_REGISTRY overrides the path so the test harness can isolate from the real one.
+export const REGISTRY = process.env.CLAUDE_KIT_REGISTRY || join(homedir(), '.claude', 'claude-kit-projects.json');
+
+export function readRegistry() {
+  try {
+    const r = JSON.parse(readFileSync(REGISTRY, 'utf8'));
+    return { dataRoot: r.dataRoot || null, projects: r.projects || {} };
+  } catch {
+    return { dataRoot: null, projects: {} };
+  }
+}
+
+export function recordProject(name, repoRoot, dataRoot) {
+  if (!name || !repoRoot) return;
+  try {
+    const reg = readRegistry();
+    let changed = false;
+    if (reg.projects[name] !== repoRoot) {
+      reg.projects[name] = repoRoot;
+      changed = true;
+    }
+    if (dataRoot && reg.dataRoot !== dataRoot) {
+      reg.dataRoot = dataRoot;
+      changed = true;
+    }
+    if (!changed) return;
+    mkdirSync(dirname(REGISTRY), { recursive: true });
+    writeFileSync(REGISTRY, JSON.stringify(reg, null, 2) + '\n');
+  } catch {
+    /* registry is best-effort — never break a hook */
+  }
 }
 
 // Generated/dependency trees no quality check should touch.

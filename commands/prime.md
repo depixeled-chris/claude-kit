@@ -1,18 +1,41 @@
 ---
-description: Resume work — load handoff state and the active ticket, confirm scope, continue
+description: Catch up — cross-project "what needs me?" briefing by default, or a deep resume of named project(s)
+argument-hint: "[project ...]"
 ---
-Resume this project. Read `.ai/SESSION.md`, then the active ticket in
-`.ai/tickets/` it names (if any), then the source files SESSION.md points to.
-Read `.ai/config.yml` for the workflow rules and `.ai/DECISIONS.md` for settled
-points.
+`/prime` catches us BOTH up after a gap — a freshly-wiped you (Claude) and a human whose
+memory has faded over a night's sleep. It reads the on-disk record (which outranks any
+summary or memory) and produces a briefing a person can skim.
 
-**Take the working-tree temperature** — git state is part of the record, not
-separate from it. Review what the `orient` hook surfaced (uncommitted + unpushed +
-local-only branches across the project, its data repo, and `watch_repos`); or run
-`git status` + check for unpushed commits/branches yourself. **Reconcile** any
-uncommitted / unpushed / local-only work against the plan: a context clear can land
-mid-work, so don't assume "pushed = done" or that the written record is the whole
-truth. Surface drift (work on disk that the plan doesn't mention, or vice-versa).
+## Gather the facts
+Run the survey script and read its output:
 
-Restate the goal and the next 3 steps, confirm scope, then continue. Do not re-read
-whole directories — follow the pointers in SESSION.md only.
+```
+node "<KIT>/scripts/survey.mjs" $ARGUMENTS
+```
+
+Resolve `<KIT>` (the claude-kit repo/plugin root) as: `$CLAUDE_PLUGIN_ROOT` if set, else the
+`claude-kit` entry in `~/.claude/claude-kit-projects.json`. (`$ARGUMENTS` = any project names
+the user passed.)
+
+## Two modes
+
+**No project named → be LAZY, but thorough about "what needs me?"**
+Present the survey as a human briefing, in this order:
+1. **Waiting on you** — verbatim, first. Decisions pending, tickets in `review`, blocked-on-you
+   items, aggregated across every project. This is the part that must be complete.
+2. **Open work by project** — the one-line-per-project summary. Don't expand it.
+3. **Active project** — the deep view of the project you're sitting in (the `→` one). Restate
+   its goal and the next 3 steps; confirm scope before doing work.
+Do **not** deep-read the other projects — that's the whole point of lazy.
+
+**One or more projects named → deep resume of each.**
+Full SESSION + open tickets + working-tree state for the named project(s), even if you're
+sitting in a different folder. Restate goal + next steps, confirm scope, continue.
+
+## Reconcile git against the plan (D-010)
+The survey includes each project's working-tree temperature (uncommitted + unpushed, incl.
+`watch_repos`). git state is part of the record — surface drift (work on disk the plan omits,
+or "done" work that's actually unpushed); never assume "pushed = done."
+
+A project shown as "no local repo on this machine" appears from synced notes only — its git
+state can't be read here; say so rather than implying it's clean.

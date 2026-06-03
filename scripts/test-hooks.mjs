@@ -9,14 +9,28 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const HOOKS = join(dirname(fileURLToPath(import.meta.url)), '..', 'hooks');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const HOOKS = join(ROOT, 'hooks');
+const SCRIPTS = join(ROOT, 'scripts');
 const fixtures = [];
 let pass = 0;
 let fail = 0;
 
+// Isolate every spawned hook/script from the real ~/.claude registry — orient self-heals it,
+// so without this the suite would pollute the maintainer's registry with throwaway fixtures.
+const TMP_REG = join(mkdtempSync(join(tmpdir(), 'kit-reg-')), 'registry.json');
+fixtures.push(dirname(TMP_REG));
+const ENV = { ...process.env, CLAUDE_KIT_REGISTRY: TMP_REG };
+
 function hook(name, payload, cwd) {
-  const r = spawnSync(process.execPath, [join(HOOKS, name)], { input: JSON.stringify(payload), cwd, encoding: 'utf8' });
+  const r = spawnSync(process.execPath, [join(HOOKS, name)], { input: JSON.stringify(payload), cwd, encoding: 'utf8', env: ENV });
   return { code: r.status, out: `${r.stdout || ''}${r.stderr || ''}` };
+}
+function survey(args, cwd, regPath) {
+  const r = spawnSync(process.execPath, [join(SCRIPTS, 'survey.mjs'), ...args], {
+    cwd, encoding: 'utf8', env: { ...process.env, CLAUDE_KIT_REGISTRY: regPath },
+  });
+  return `${r.stdout || ''}${r.stderr || ''}`;
 }
 function ok(name, cond) {
   if (cond) { pass++; console.log('  ok    ' + name); }
@@ -32,6 +46,15 @@ function adopted(withCode) {
   const d = repo();
   mkdirSync(join(d, '.ai'));
   if (withCode) writeFileSync(join(d, 'foo.ts'), 'function f() { return doStuff(42); }\n');
+  return d;
+}
+function surveyRepo() {
+  const d = repo();
+  writeFileSync(join(d, '.claude-project'), 'project: proj\n');
+  mkdirSync(join(d, '.ai', 'tickets'), { recursive: true });
+  writeFileSync(join(d, '.ai', 'tickets', 'T-001-r.md'), '---\nid: T-001\ntitle: A review item\nstatus: review\n---\n');
+  writeFileSync(join(d, '.ai', 'tickets', 'T-002-d.md'), '---\nid: T-002\ntitle: A doing item\nstatus: doing\n---\n');
+  writeFileSync(join(d, '.ai', 'SESSION.md'), '# S\n\n### NEEDS CHRIS\n- decide the thing\n');
   return d;
 }
 
@@ -68,6 +91,31 @@ try {
   ok('flush: adopted repo emits flush reminder', /COMPACTION|flush/i.test(hook('flush.mjs', { hook_event_name: 'PreCompact' }, clean).out));
   const bare = repo();
   ok('orient: non-adopted repo is silent', hook('orient.mjs', {}, bare).out.trim() === '');
+
+  // survey (T-001) — lazy "what needs me?" briefing + named deep-dive
+  const sreg = join(mkdtempSync(join(tmpdir(), 'kit-sreg-')), 'registry.json');
+  fixtures.push(dirname(sreg));
+  const proj = surveyRepo();
+  writeFileSync(sreg, JSON.stringify({ dataRoot: null, projects: { proj } }));
+
+  const lazy = survey([], proj, sreg);
+  ok('survey: lazy briefing leads with "waiting on you"', /WAITING ON YOU/.test(lazy));
+  ok('survey: lazy surfaces a review ticket as waiting', lazy.includes('in review — awaiting'));
+  ok('survey: lazy surfaces SESSION "needs" flags', lazy.includes('decide the thing'));
+  ok('survey: lazy has per-project open-work counts', /Open work by project/.test(lazy) && lazy.includes('doing,'));
+
+  const deep = survey(['proj'], proj, sreg);
+  ok('survey: named arg gives a deep resume', deep.includes('deep resume: proj'));
+  ok('survey: deep view lists open tickets', deep.includes('A doing item'));
+  ok('survey: unknown project is flagged, not crashed', survey(['nope'], proj, sreg).includes('unknown project'));
+
+  // registry self-heal round-trips through readRegistry (isolated path via env)
+  process.env.CLAUDE_KIT_REGISTRY = join(mkdtempSync(join(tmpdir(), 'kit-rt-')), 'r.json');
+  fixtures.push(dirname(process.env.CLAUDE_KIT_REGISTRY));
+  const lib = await import('../hooks/lib.mjs');
+  lib.recordProject('alpha', '/repo/alpha', '/data');
+  const rr = lib.readRegistry();
+  ok('registry: recordProject round-trips name + dataRoot', rr.projects.alpha === '/repo/alpha' && rr.dataRoot === '/data');
 } finally {
   for (const d of fixtures) {
     try { rmSync(d, { recursive: true, force: true }); } catch { /* best effort */ }
