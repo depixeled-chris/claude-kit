@@ -1,0 +1,93 @@
+// Automated test for the request-capture ratchet (hooks/request-gate.mjs).
+// Spins up throwaway adopted repos + fake transcripts and asserts the gate's
+// branches: block on un-captured request, allow on receipt/capture/no-signal/
+// stop_hook_active/missing-transcript/unadopted. Run: node hooks/request-gate.test.mjs
+
+import { spawnSync, execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+
+const HOOK = fileURLToPath(new URL('./request-gate.mjs', import.meta.url));
+const STORES = ['inbox', 'tickets', 'decisions', 'questions', 'notes'];
+let failures = 0;
+
+function makeRepo({ adopt = true } = {}) {
+  const dir = mkdtempSync(join(tmpdir(), 'rg-'));
+  execFileSync('git', ['init', '-q'], { cwd: dir });
+  if (adopt) for (const s of STORES) mkdirSync(join(dir, '.ai', s), { recursive: true });
+  return dir;
+}
+
+function writeTranscript(dir, userText, assistantText, userTs = '2026-01-01T00:00:00.000Z') {
+  const file = join(dir, 'transcript.jsonl');
+  writeFileSync(file, [
+    JSON.stringify({ type: 'user', message: { role: 'user', content: userText }, timestamp: userTs }),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: assistantText }] } }),
+  ].join('\n') + '\n');
+  return file;
+}
+
+function run(dir, payload) {
+  const r = spawnSync(process.execPath, [HOOK], { cwd: dir, input: JSON.stringify(payload), encoding: 'utf8' });
+  return { code: r.status, err: r.stderr || '' };
+}
+
+function expect(name, actual, wanted) {
+  const ok = actual === wanted;
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}  (exit=${actual}, want=${wanted})`);
+  if (!ok) failures++;
+}
+
+// 1. request signal + no receipt + empty stores -> BLOCK (exit 2)
+{
+  const d = makeRepo();
+  const tx = writeTranscript(d, "I'd like a command to do that in the future", 'Sure, here is the answer.', new Date().toISOString());
+  expect('blocks un-captured request', run(d, { transcript_path: tx }).code, 2);
+}
+// 2. request signal + receipt token in reply -> ALLOW
+{
+  const d = makeRepo();
+  const tx = writeTranscript(d, 'can you add a questionnaire command', '→ KIT-T009 filed (todo). Done.', new Date().toISOString());
+  expect('allows when reply has a receipt', run(d, { transcript_path: tx }).code, 0);
+}
+// 3. request signal + [no-capture] dismissal -> ALLOW
+{
+  const d = makeRepo();
+  const tx = writeTranscript(d, 'we should eventually refactor this', 'Handled inline. [no-capture: done this turn]', new Date().toISOString());
+  expect('allows on [no-capture]', run(d, { transcript_path: tx }).code, 0);
+}
+// 4. no request signal -> ALLOW
+{
+  const d = makeRepo();
+  const tx = writeTranscript(d, 'what does this function do?', 'It clamps the value.', new Date().toISOString());
+  expect('allows non-request message', run(d, { transcript_path: tx }).code, 0);
+}
+// 5. signal but something captured to a store this turn -> ALLOW
+{
+  const d = makeRepo();
+  writeFileSync(join(d, '.ai', 'inbox', '2026-06-03-1200-thing.md'), '(idea) something');
+  const tx = writeTranscript(d, "I'd like X in the future", 'Logged it.', '2026-06-03T00:00:00.000Z');
+  expect('allows when a store file was just written', run(d, { transcript_path: tx }).code, 0);
+}
+// 6. stop_hook_active -> ALLOW (loop-proof)
+{
+  const d = makeRepo();
+  const tx = writeTranscript(d, "I'd like a new feature", 'no receipt here', new Date().toISOString());
+  expect('allows when stop_hook_active (no loop)', run(d, { transcript_path: tx, stop_hook_active: true }).code, 0);
+}
+// 7. missing transcript -> ALLOW (fail-open)
+{
+  const d = makeRepo();
+  expect('allows on missing transcript', run(d, { transcript_path: join(d, 'nope.jsonl') }).code, 0);
+}
+// 8. unadopted repo (no .ai) -> ALLOW
+{
+  const d = makeRepo({ adopt: false });
+  const tx = writeTranscript(d, "I'd like a thing in the future", 'no receipt', new Date().toISOString());
+  expect('no-ops on unadopted repo', run(d, { transcript_path: tx }).code, 0);
+}
+
+console.log(failures ? `\n${failures} FAILED` : '\nALL PASS');
+process.exit(failures ? 1 : 0);
