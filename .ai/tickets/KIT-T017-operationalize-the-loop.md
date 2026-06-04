@@ -31,8 +31,9 @@ first, "(Recommended)" at the FRONT of the label), never buried in prose.
 - 2026-06-04: From the live session where the drain went idle between waves and decisions were made
   unilaterally instead of surfaced.
 - 2026-06-04 SPEC: `/prime` + `/drain` are the PRIMARY command path — "everything, for the most part."
-  The maintainer mostly runs /prime (resume: orient + SESSION + TaskList reattach) then /drain, and
-  /drain runs the whole loop with no other commands needed:
+  The maintainer mostly runs /prime (resume: orient + SESSION + TaskList reattach) then /drain.
+  /drain KICKS OFF the loop (it's the entry point); the loop then runs CONTINUOUSLY — no other
+  commands needed — until the maintainer stops it or a genuine decision is required:
   - TAKE FEEDBACK: capture each maintainer interjection as its own item (no conflation), route it, continue.
   - PRESENT QUESTIONNAIRES: batch genuine maintainer-only decisions to AskUserQuestion ("(Recommended)"
     front-of-label), never prose.
