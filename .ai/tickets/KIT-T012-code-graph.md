@@ -57,9 +57,11 @@ hand-maintained `CODEMAP.md` should become a GENERATED view over the graph (kill
 - [x] Query interface (canned: `importers-of`, `defines`, `surface`) returning compact JSON —
       agent retrieval without opening files. (Verified: `importers-of id-utils.mjs` → the 6 real importers.)
 - [x] Tests over a multi-language fixture (deterministic graph + query correctness); 10 cases, in `npm test`.
-- [ ] Automated maintenance: a hook regenerates/updates on code change + staleness check.
-      **DECISION-GATED**: adds a hook that runs on every code edit across ALL adopted repos —
-      maintainer should weigh the perf/behavior impact before it's wired repo-wide.
+- [x] Automated maintenance: `hooks/code-graph.mjs` (Stop hook, once per turn — not per-edit)
+      rebuilds the graph only when STALE (a source file newer than the cache), into a
+      MACHINE-LOCAL cache (`~/.claude/cache/code-graph/<key>.json`, never in the repo, so no
+      project needs to gitignore it). Opt-in-aware + fail-open. Wired into hooks.json +
+      settings.recommended.json. `CLAUDE_CODE_GRAPH_CACHE` overrides for tests. +2 hook tests.
 - [x] CODEMAP **verified** (not generated) from the graph — `--codemap-check <file>` flags
       UNDOCUMENTED (code files absent from CODEMAP) + STALE (code-path entries pointing at no
       file), exit 1 on drift. Chose verify over full-generate: generating would destroy

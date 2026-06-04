@@ -4,7 +4,7 @@
 // hooks directly (no install needed), so it's the fast pre-ship gate. exit 0 = all pass.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -91,6 +91,21 @@ try {
   ok('flush: adopted repo emits flush reminder', /COMPACTION|flush/i.test(hook('flush.mjs', { hook_event_name: 'PreCompact' }, clean).out));
   const bare = repo();
   ok('orient: non-adopted repo is silent', hook('orient.mjs', {}, bare).out.trim() === '');
+
+  // code-graph (KIT-T012): Stop hook refreshes a machine-local graph cache for an adopted
+  // repo; isolated from the real ~/.claude via CLAUDE_CODE_GRAPH_CACHE. (Assert on cache-dir
+  // contents, not a guessed filename — the cache key comes from git's normalized path.)
+  const jsonCount = (dir) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).length : 0);
+  const cgAdoptedCache = mkdtempSync(join(tmpdir(), 'kit-cg-a-'));
+  const cgBareCache = mkdtempSync(join(tmpdir(), 'kit-cg-b-'));
+  fixtures.push(cgAdoptedCache, cgBareCache);
+  const cgRun = (cwd, cache) => spawnSync(process.execPath, [join(HOOKS, 'code-graph.mjs')], {
+    input: '{}', cwd, encoding: 'utf8', env: { ...ENV, CLAUDE_CODE_GRAPH_CACHE: cache },
+  });
+  ok('code-graph: refreshes a machine-local cache for an adopted repo',
+    cgRun(adopted(true), cgAdoptedCache).status === 0 && jsonCount(cgAdoptedCache) === 1);
+  ok('code-graph: non-adopted repo writes no cache',
+    cgRun(bare, cgBareCache).status === 0 && jsonCount(cgBareCache) === 0);
 
   // survey (T-001) — lazy "what needs me?" briefing + named deep-dive
   const sreg = join(mkdtempSync(join(tmpdir(), 'kit-sreg-')), 'registry.json');

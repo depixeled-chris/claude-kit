@@ -184,11 +184,17 @@ function resolveImport(spec, fromFileAbs, root, fileSet) {
   return null;
 }
 
+// Absolute paths of the source files for a repo (git-aware when possible, else a walk).
+// Exported so the maintenance hook can stat them for a cheap staleness check without
+// reading + parsing every file.
+export function listSourceFiles(root) {
+  const absRoot = resolve(root);
+  return gitFiles(absRoot) || walk(absRoot);
+}
+
 export function buildGraph(root) {
   const absRoot = resolve(root);
-  // git-aware list (respects .gitignore, skips submodule internals) when available;
-  // otherwise a plain recursive walk.
-  const paths = gitFiles(absRoot) || walk(absRoot);
+  const paths = listSourceFiles(absRoot);
   const files = paths.map((f) => extractFile(f, absRoot)).sort((a, b) => a.path.localeCompare(b.path));
   const fileSet = new Set(files.map((f) => f.path));
   const edges = [];
