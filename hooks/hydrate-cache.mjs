@@ -7,17 +7,21 @@
 //
 // Mirrors hooks/code-graph.mjs's lazy-staleness pattern. The DB location follows the
 // ticket: <kit-root>/.cache/workflow.db (gitignored), not a machine-local dir.
+//
+// CROSS-SCOPE (KIT-T031): hydrate ALL registered scopes into the one shared DB — never just
+// gitRoot(), which made the single shared cache last-writer-wins per repo. We still gate on
+// the current repo being adopted (the Stop hook only fires inside a tracked project), but the
+// rebuild itself unions every scope so a query from any cwd sees them all.
 
 import { gitRoot, adopted } from './lib.mjs';
 
 try {
-  const root = gitRoot();
-  if (!adopted(root)) process.exit(0);
+  if (!adopted(gitRoot())) process.exit(0);
 
   const { hydrate, defaultDbPath } = await import('../scripts/hydrate-db.mjs');
-  const r = await hydrate({ root, dbPath: defaultDbPath(), ifStale: true });
+  const r = await hydrate({ dbPath: defaultDbPath(), ifStale: true }); // no root → all scopes
   if (r && r.ok && !r.skipped) {
-    process.stderr.write(`[hydrate-cache] refreshed ${r.items} items -> ${r.dbPath}\n`);
+    process.stderr.write(`[hydrate-cache] refreshed ${r.items} items across ${r.scopes} scope(s) -> ${r.dbPath}\n`);
   }
 } catch {
   process.exit(0); // fail-open — the cache is never a hard dependency

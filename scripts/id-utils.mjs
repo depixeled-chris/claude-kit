@@ -21,12 +21,14 @@ export const STORE_TYPE = { tickets: 'T', decisions: 'D', notes: 'N', questions:
 // Generated/reference files in a store dir that are not items.
 const SKIP = new Set(['_TEMPLATE.md', 'README.md', 'INDEX.md', 'REGRESSIONS.md', 'ROADMAP.md']);
 
-// config.yml is read line-wise (no YAML dep), mirroring the other tooling.
-export function readIdConfig(root) {
+// config.yml is read line-wise (no YAML dep), mirroring the other tooling. `aiDir`
+// overrides the default <root>/.ai derivation, so a central-data store (where the
+// notebook dir IS the .ai dir) can be read directly (KIT-T031).
+export function readIdConfig(root, aiDir = join(root, '.ai')) {
   let key = '';
   let pad = 3;
   try {
-    const cfg = readFileSync(join(root, '.ai', 'config.yml'), 'utf8');
+    const cfg = readFileSync(join(aiDir, 'config.yml'), 'utf8');
     const km = cfg.match(/^[ \t]*key:[ \t]*["']?([A-Za-z]+)["']?/m);
     if (km) key = km[1];
     const pm = cfg.match(/^[ \t]*pad:[ \t]*(\d+)/m);
@@ -55,9 +57,10 @@ function idFromFilename(f) {
 }
 
 // Every item across every store: { id, store, sub, file, fmId, fileId }. The
-// canonical id prefers frontmatter, falling back to the filename.
-export function scanStores(root) {
-  const ai = join(root, '.ai');
+// canonical id prefers frontmatter, falling back to the filename. `aiDir` overrides
+// the <root>/.ai derivation for central-data stores (KIT-T031).
+export function scanStores(root, aiDir = join(root, '.ai')) {
+  const ai = aiDir;
   const items = [];
   for (const store of Object.keys(STORE_TYPE)) {
     // `sub` is kept POSIX (forward-slash) so reported paths read identically on every

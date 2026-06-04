@@ -110,3 +110,11 @@ retrieval layer, not just a speedup.
     `rm` + re-hydrate is bit-identical on logical content; fallback parity via `--no-db`; 15 new tests green,
     full suite 75/0. FIX during build: switched FTS5 from contentless (`content=''`, which returns no
     snippet/columns) to a standalone FTS table.
+- 2026-06-04 BUGFIX (KIT-T031): the "every store across ALL scopes" AC was VIOLATED in practice —
+  hydration was single-root (CLI default `process.cwd()`, Stop hook `gitRoot()`), so the one shared DB was
+  last-writer-wins per repo (in HOD it held only HOD's 73 items; `next-id KIT` returned 1, integrity
+  false-flagged KIT-T023). Fixed under KIT-T031: `hydrate()` now defaults to a cross-scope UNION over every
+  registered project + claude-kit's own .ai (new `projectAiDirs()` in lib.mjs reusing `readRegistry`; an
+  `aiDir` override threaded through collectItems/scanStores/readIdConfig for central-data stores). `--root`
+  still forces single-scope; `q.mjs` auto-hydrate + the `hydrate-cache.mjs` Stop hook are now cross-scope.
+  Live: 124 items, HOD 73 / KIT 51 in one DB; +2 cross-scope tests (db-cache 17/0).

@@ -89,11 +89,13 @@ export function parseItem(absPath, store) {
 
 // The full dataset the hydrator (and the markdown-scan fallback) consume: every item
 // across every store under one kit/data root, with scope+num split out for next-id.
-export function collectItems(root) {
-  const { key } = readIdConfig(root);
-  const ai = join(root, '.ai');
+// `aiDir` overrides the <root>/.ai derivation so a central-data store (where the notebook
+// dir IS the .ai dir) hydrates directly — the basis for cross-scope hydration (KIT-T031).
+export function collectItems(root, aiDir = join(root, '.ai')) {
+  const { key } = readIdConfig(root, aiDir);
+  const ai = aiDir;
   const items = [];
-  for (const it of scanStores(root)) {
+  for (const it of scanStores(root, aiDir)) {
     const abs = join(ai, it.sub, it.file);
     const parsed = parseItem(abs, it.store);
     const id = parsed.id || it.id;

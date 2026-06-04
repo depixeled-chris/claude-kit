@@ -143,6 +143,67 @@ if (!engine) {
     db.close();
     assert.deepEqual(rows.map((r) => r.event), ['created']);
   });
+
+  // ---- cross-scope hydration (KIT-T031) -----------------------------------
+  // The single shared DB must index EVERY registered scope, queryable from any cwd — the bug
+  // was last-writer-wins per repo. Register two projects (distinct synthetic scope keys that
+  // can't collide with the real claude-kit stores hydrationSources also unions in), hydrate
+  // with no --root, and assert BOTH temp scopes are present + queryable in the one DB.
+  await testAsync('cross-scope hydrate unions every registered scope', async () => {
+    const xroot = mkdtempSync(join(tmpdir(), 'kit-xscope-'));
+    const mkScope = (name, key) => {
+      const repo = join(xroot, name);
+      const ai = join(repo, '.ai');
+      mkdirSync(join(ai, 'tickets'), { recursive: true });
+      writeFileSync(join(ai, 'config.yml'), `ids:\n  key: "${key}"\n  pad: 3\n`);
+      writeFileSync(join(ai, 'tickets', `${key}-T001-x.md`),
+        `---\nid: ${key}-T001\ntitle: ${name} ticket\ntype: feature\nstatus: doing\npriority: high\n---\nbody\n`);
+      writeFileSync(join(ai, 'tickets', `${key}-T002-y.md`),
+        `---\nid: ${key}-T002\ntitle: ${name} second\ntype: bug\nstatus: todo\npriority: low\n---\nbody\n`);
+      return repo;
+    };
+    // Synthetic keys (not KIT/HOD) so the assertion is exact even though hydrationSources also
+    // unions in the live claude-kit .ai — proving union, not isolation.
+    const registry = join(xroot, 'registry.json');
+    writeFileSync(registry, JSON.stringify({
+      dataRoot: null,
+      projects: { 'proj-a': mkScope('proj-a', 'XSA'), 'proj-b': mkScope('proj-b', 'XSB') },
+    }));
+
+    // hydrationSources reads the registry through lib.mjs's CLAUDE_KIT_REGISTRY override,
+    // resolved at call time so this in-process set takes effect.
+    const prev = process.env.CLAUDE_KIT_REGISTRY;
+    process.env.CLAUDE_KIT_REGISTRY = registry;
+    const xdb = join(xroot, '.cache', 'workflow.db');
+    try {
+      const r = await hydrate({ dbPath: xdb }); // no root → cross-scope
+      assert.ok(r.ok, 'cross-scope hydrate should succeed');
+      assert.ok(r.scopes >= 3, 'unions both temp scopes + claude-kit itself');
+
+      const db = engine(xdb);
+      const byScope = Object.fromEntries(
+        db.all("SELECT scope, COUNT(*) n FROM items WHERE scope IN ('XSA','XSB') GROUP BY scope")
+          .map((s) => [s.scope, s.n]));
+      const ids = db.all("SELECT id FROM items WHERE scope IN ('XSA','XSB') ORDER BY id").map((x) => x.id);
+      const aNext = db.all("SELECT MAX(num) m FROM items WHERE scope='XSA' AND store='tickets'")[0];
+      db.close();
+
+      assert.equal(byScope.XSA, 2, 'scope XSA present in one DB');
+      assert.equal(byScope.XSB, 2, 'scope XSB present in the SAME DB (cross-scope union)');
+      assert.deepEqual(ids, ['XSA-T001', 'XSA-T002', 'XSB-T001', 'XSB-T002'], 'both scopes queryable');
+      assert.equal((aNext.m || 0) + 1, 3, 'next-id derives from the right scope cross-scope');
+    } finally {
+      if (prev === undefined) delete process.env.CLAUDE_KIT_REGISTRY;
+      else process.env.CLAUDE_KIT_REGISTRY = prev;
+      rmSync(xroot, { recursive: true, force: true });
+    }
+  });
+
+  // --root still isolates to a single scope (regression guard for the override).
+  await testAsync('single-root --root hydrate stays single-scope', async () => {
+    const r = await hydrate({ root, dbPath });
+    assert.equal(r.items, 3, 'explicit --root hydrates only that one store');
+  });
 }
 
 rmSync(root, { recursive: true, force: true });

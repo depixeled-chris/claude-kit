@@ -3,10 +3,15 @@
 // (KIT-T004). The markdown is the single source of truth; this DB is disposable,
 // gitignored, and ONE-WAY hydrated. Nothing ever writes it back to markdown.
 //
-//   node scripts/hydrate-db.mjs                  # hydrate <kit-root>/.cache/workflow.db
-//   node scripts/hydrate-db.mjs --root <dir>     # hydrate from a different .ai root
+//   node scripts/hydrate-db.mjs                  # hydrate ALL scopes -> <kit-root>/.cache/workflow.db
+//   node scripts/hydrate-db.mjs --root <dir>     # hydrate ONE .ai root only (single-scope)
 //   node scripts/hydrate-db.mjs --db <path>      # write the db somewhere else
 //   node scripts/hydrate-db.mjs --if-stale       # skip if no store file is newer than db
+//
+// CROSS-SCOPE (KIT-T031): with no --root, the cache indexes EVERY registered project's
+// stores (the registry's projects + central data, via projectAiDirs()) PLUS claude-kit's
+// own .ai, unioned into the one DB. Scope still comes from each item's id prefix, so a
+// query from any cwd sees all scopes. `--root <dir>` forces a single-scope hydrate.
 //
 // SCHEMA — borrowed in shape from the maintainer's workflow repo
 // (server/prisma/schema.prisma) and ADAPTED to KIT's markdown-as-truth model:
@@ -26,6 +31,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectItems } from './db-parse.mjs';
 import { resolveEngine } from './db-engine.mjs';
+import { projectAiDirs } from '../hooks/lib.mjs';
 
 const KIT_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
@@ -99,9 +105,9 @@ CREATE VIRTUAL TABLE items_fts USING fts5(id UNINDEXED, title, body);
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
 `;
 
-// Newest mtime across every markdown file under .ai — the staleness signal for --if-stale.
-function newestStoreMtime(root) {
-  const ai = join(root, '.ai');
+// Newest mtime across every markdown file under an .ai store dir — the staleness signal
+// for --if-stale. Takes the .ai dir directly so central-data stores (no nested .ai) work.
+function newestMtime(aiDir) {
   let newest = 0;
   const walk = (dir) => {
     let entries;
@@ -116,24 +122,61 @@ function newestStoreMtime(root) {
       else if (e.name.endsWith('.md')) newest = Math.max(newest, statSync(p).mtimeMs);
     }
   };
-  walk(ai);
+  walk(aiDir);
   return newest;
 }
 
-export async function hydrate({ root = process.cwd(), dbPath = defaultDbPath(), ifStale = false } = {}) {
+// The store sources to union into the cache. A single root (`--root`) hydrates just that
+// scope; otherwise EVERY registered project (projectAiDirs) plus claude-kit's own .ai —
+// cross-scope (KIT-T031). De-duped by aiDir so the kit appearing in both the registry and
+// as KIT_ROOT is counted once. Each source: { root, aiDir } — root seeds the scope-key
+// fallback, aiDir is where the markdown lives.
+export function hydrationSources(root) {
+  if (root) return [{ root, aiDir: join(root, '.ai') }];
+  const sources = [{ root: KIT_ROOT, aiDir: join(KIT_ROOT, '.ai') }];
+  for (const { aiDir } of projectAiDirs()) {
+    // root = aiDir's parent for an in-repo store, else aiDir itself (central data has no
+    // nested .ai); collectItems uses aiDir for the markdown and root only for the key.
+    const root = aiDir.endsWith(join('', '.ai')) || /[\\/]\.ai$/.test(aiDir) ? dirname(aiDir) : aiDir;
+    sources.push({ root, aiDir });
+  }
+  const seen = new Set();
+  return sources.filter((s) => {
+    const k = resolve(s.aiDir);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+// `root` defaults to undefined → cross-scope. Pass an explicit root for single-scope.
+export async function hydrate({ root, dbPath = defaultDbPath(), ifStale = false } = {}) {
   const open = await resolveEngine();
   if (!open) {
     return { ok: false, reason: 'no-engine', engine: null };
   }
 
+  const sources = hydrationSources(root);
+
   if (ifStale && existsSync(dbPath)) {
     const dbAge = statSync(dbPath).mtimeMs;
-    if (newestStoreMtime(root) <= dbAge) {
+    const newest = Math.max(0, ...sources.map((s) => newestMtime(s.aiDir)));
+    if (newest <= dbAge) {
       return { ok: true, skipped: true, dbPath };
     }
   }
 
-  const items = collectItems(root);
+  // Union every source; a later scope never overwrites an earlier one's id (scopes are
+  // disjoint by prefix, but dedup on id keeps the INSERT safe if a store is double-listed).
+  const items = [];
+  const seenIds = new Set();
+  for (const s of sources) {
+    for (const it of collectItems(s.root, s.aiDir)) {
+      if (it.id && seenIds.has(it.id)) continue;
+      if (it.id) seenIds.add(it.id);
+      items.push(it);
+    }
+  }
 
   mkdirSync(dirname(dbPath), { recursive: true });
   // Full rebuild each time = idempotent + trivially correct (no diff/merge logic). The DB
@@ -177,10 +220,11 @@ export async function hydrate({ root = process.cwd(), dbPath = defaultDbPath(), 
 
     const now = new Date().toISOString();
     db.run('INSERT INTO meta (key, value) VALUES (?,?)', ['hydrated_at', now]);
-    db.run('INSERT INTO meta (key, value) VALUES (?,?)', ['source_root', resolve(root)]);
+    db.run('INSERT INTO meta (key, value) VALUES (?,?)',
+      ['source_root', sources.map((s) => resolve(s.aiDir)).join(';')]);
     db.run('INSERT INTO meta (key, value) VALUES (?,?)', ['item_count', String(items.length)]);
     db.exec('COMMIT');
-    return { ok: true, dbPath, engine: db.name, items: items.length };
+    return { ok: true, dbPath, engine: db.name, items: items.length, scopes: sources.length };
   } finally {
     db.close();
   }
@@ -188,7 +232,7 @@ export async function hydrate({ root = process.cwd(), dbPath = defaultDbPath(), 
 
 async function main() {
   const args = process.argv.slice(2);
-  let root = process.cwd();
+  let root; // undefined → cross-scope (all registered projects + kit); --root forces single
   let dbPath = defaultDbPath();
   let ifStale = false;
   for (let i = 0; i < args.length; i++) {

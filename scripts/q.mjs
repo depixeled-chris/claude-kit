@@ -28,7 +28,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveEngine } from './db-engine.mjs';
 import { collectItems } from './db-parse.mjs';
-import { hydrate, defaultDbPath } from './hydrate-db.mjs';
+import { hydrate, defaultDbPath, hydrationSources } from './hydrate-db.mjs';
 import { readIdConfig, STORE_TYPE, compareIds } from './id-utils.mjs';
 
 const OPEN = ['todo', 'doing', 'review'];
@@ -36,8 +36,7 @@ const FTS_LIMIT = 25;        // cap FTS hits — a retrieval list, not a full du
 const SNIPPET_COL = 2;       // items_fts column index of `body` for snippet()
 const SNIPPET_TOKENS = 8;    // words of context around an FTS match
 
-function newestStoreMtime(root) {
-  const ai = join(root, '.ai');
+function newestAcross(sources) {
   let newest = 0;
   const walk = (dir) => {
     let entries;
@@ -48,16 +47,18 @@ function newestStoreMtime(root) {
       else if (e.name.endsWith('.md')) newest = Math.max(newest, statSync(p).mtimeMs);
     }
   };
-  walk(ai);
+  for (const s of sources) walk(s.aiDir);
   return newest;
 }
 
-// Open the cache, auto-(re)hydrating when it is missing or stale. Returns a db handle, or
-// null when no SQLite engine exists (caller then uses the markdown fallback).
+// Open the cache, auto-(re)hydrating when it is missing or stale. `root` is undefined for a
+// cross-scope query (all registered scopes) and set only when --root forces single-scope;
+// staleness is checked against exactly the sources that will be hydrated (KIT-T031). Returns
+// a db handle, or null when no SQLite engine exists (caller then uses the markdown fallback).
 async function db(root, dbPath) {
   const open = await resolveEngine();
   if (!open) return null;
-  const stale = !existsSync(dbPath) || statSync(dbPath).mtimeMs < newestStoreMtime(root);
+  const stale = !existsSync(dbPath) || statSync(dbPath).mtimeMs < newestAcross(hydrationSources(root));
   if (stale) await hydrate({ root, dbPath });
   return open(dbPath);
 }
@@ -226,9 +227,11 @@ async function main() {
   // --no-db forces the markdown-scan path (bypass a possibly-stale cache; also proves the
   // fallback works the same as when no SQLite engine is present).
   const noDb = argv.includes('--no-db');
-  let root = process.cwd();
+  // --root forces a single-scope hydrate; absent, the cache is cross-scope (all registered
+  // projects). `cwdRoot` is the local .ai used only for id-formatting (next-id / config key).
   const ri = argv.indexOf('--root');
-  if (ri >= 0) root = argv[ri + 1];
+  const root = ri >= 0 ? argv[ri + 1] : undefined;
+  const cwdRoot = root || process.cwd();
   const FLAGS = new Set(['--json', '--no-db']);
   const rest = argv.filter((a, i) => !FLAGS.has(a) && a !== '--root' && argv[i - 1] !== '--root');
   const [cmd, ...args] = rest;
@@ -247,11 +250,11 @@ async function main() {
   }
 
   if (!handle) {
-    printRows(fallback(cmd, args, root), json);
+    printRows(fallback(cmd, args, cwdRoot), json);
     return;
   }
 
-  const Q = cannedQueries(root);
+  const Q = cannedQueries(cwdRoot);
   const fn = Q[cmd];
   if (!fn) { handle.close(); process.stderr.write(`q: unknown query '${cmd}'.\n`); process.exit(2); }
   const result = cmd === 'fts' ? fn(handle, args.join(' ')) : fn(handle, ...args);
