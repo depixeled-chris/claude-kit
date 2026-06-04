@@ -23,7 +23,7 @@
 | KIT-T017 | feature | todo | high | Operationalize the always-on loop (D017) — drain-never-idle + questionnaire-surfacing discipline |
 | KIT-T018 | feature | todo | high | Enforce provenance-grounded delegation (D018) — triage-to-ticket before delegate; handoff embeds ticket+links |
 | KIT-T019 | feature | todo | high | Subagent bubble-up — agents surface communication to orchestrator AND maintainer (not only at completion) |
-| KIT-T020 | research | doing | high | Research — make agent handoffs more token-efficient (provenance by reference, not inline) |
+| KIT-T020 | research | review | high | Research — make agent handoffs more token-efficient (provenance by reference, not inline) |
 | KIT-T021 | feature | todo | high | RIGID — always alert the maintainer when something lands (commit / push / deploy) |
 | KIT-T022 | feature | todo | high | Hard license guard — block GPL/LGPL/AGPL/unlicensed code from entering a repo; THIRD_PARTY_LICENSES ledger |
 | KIT-T023 | feature | todo | critical | SYSTEM PROBLEM — the durable record is passive; it must actively surface + connect relevant context at decision points |

@@ -2,7 +2,7 @@
 id: KIT-T020
 title: Research — make agent handoffs more token-efficient (provenance by reference, not inline)
 type: research
-status: doing
+status: review
 priority: high
 labels: [research, agents, tokens, provenance]
 links: [KIT-D018, KIT-D017, KIT-T018]
@@ -36,3 +36,6 @@ cost. Tension to resolve: KIT-D018 grounding vs token economy — reference, don
   (c) /clear discipline — SESSION.md is kept live so /clear is ALWAYS safe; clear at task boundaries /
       checkpoints to stay out of the >150k band (KIT-D015 makes this lossless).
   (d) SQLite cache (KIT-T004) "query don't open files" cuts per-turn retrieval tokens.
+
+## Worklog
+- 2026-06-04: status doing→review — research doc landed: 4fee357 (docs/research/token-efficient-handoffs.md; provenance-by-reference-not-paste + recommended handoff template). (reconciliation, KIT-T028)
