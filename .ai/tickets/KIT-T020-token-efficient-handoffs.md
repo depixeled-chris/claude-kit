@@ -27,3 +27,12 @@ cost. Tension to resolve: KIT-D018 grounding vs token economy — reference, don
 
 ## Notes
 - 2026-06-04: Maintainer ask. Should directly shape the KIT-T018 handoff template.
+- 2026-06-04 COST (from /usage: 84% of spend was at >150k context): the orchestrator context
+  staying long is the dominant cost. Levers:
+  (a) RETURN side — agents must WRITE detail to the doc/ticket and return a TERSE summary + pointer,
+      NOT dump full results into the orchestrator's context (big agent results were a top inflater).
+  (b) Orchestrator stays lean — delegate investigation/reads to agents (their context dies with them);
+      don't read big files into the main context.
+  (c) /clear discipline — SESSION.md is kept live so /clear is ALWAYS safe; clear at task boundaries /
+      checkpoints to stay out of the >150k band (KIT-D015 makes this lossless).
+  (d) SQLite cache (KIT-T004) "query don't open files" cuts per-turn retrieval tokens.

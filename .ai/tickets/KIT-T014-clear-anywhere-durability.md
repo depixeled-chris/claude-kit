@@ -3,7 +3,7 @@ id: KIT-T014
 title: Harden /clear-anywhere durability — surface in-flight agents + keep the resume anchor live
 type: feature
 status: todo
-priority: high
+priority: critical
 milestone:
 labels: [hooks, capture, orchestration, durability]
 links: [KIT-D015, KIT-D002, KIT-T006]
@@ -45,3 +45,11 @@ state:
 ## Notes
 - 2026-06-04: Filed from a live session where 3 background fix-agents were in flight and the
   maintainer flagged that a /clear must not lose them. KIT-D015 records the pillar; this hardens it.
+- 2026-06-04 PRIORITY high→critical: this is THE TRUST-ENABLER. Maintainer: "I need to be able to
+  trust this process with /compact and /clear." Today the safety is partly MANUAL (the orchestrator
+  keeps SESSION.md current by hand; orient doesn't auto-list in-flight agents) — so it's reliable
+  only when the operator remembers. Trust requires the GUARANTEE: (1) Stop-nudge blocks ending a turn
+  where real work happened but SESSION.md wasn't touched; (2) orient auto-surfaces in-flight +
+  recently-finished agents (TaskList) every SessionStart; (3) a durable on-disk agent roster. Also
+  add a RESUME DRILL (a test that simulates compact→resume and asserts zero loss) so trust is proven,
+  not asserted. Until this lands, treat /clear as safe ONLY at a committed + SESSION-current checkpoint.
