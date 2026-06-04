@@ -1,6 +1,6 @@
 {
   "name": "claude-kit",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "A repeatable, context-durable Claude Code workflow + tooling, packaged as a plugin.",
   "license": "MIT",
   "private": true,

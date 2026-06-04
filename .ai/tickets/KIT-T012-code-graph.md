@@ -69,7 +69,11 @@ hand-maintained `CODEMAP.md` should become a GENERATED view over the graph (kill
       can't infer. Suffix-aware matching (tolerates CODEMAP dropping `src/`); stale only flags
       code-extension tokens (docs/symbol-mentions aren't false-flagged). +3 tests; low-noise on
       HOD's real CODEMAP. (Full merge-generation possible later if wanted, preserving curated columns.)
-- [ ] (Optional) tree-sitter accuracy upgrade for real call/reference edges — **adds a runtime dep**.
+- [~] tree-sitter accuracy upgrade — RESEARCHED (`research/code-graph-treesitter.md`):
+      cascade (heuristic stays the zero-dep floor; tree-sitter optional precision layer via
+      `tags.scm`). Implementation GATED on two decisions surfaced via questionnaire: accept
+      web-tree-sitter as KIT's first runtime dep, and the grammar-management strategy
+      (bundle-curated / fetch / cli). Recommended: bundle a curated core set.
 - [x] Submodule/.gitignore awareness — file list comes from `git ls-files` (tracked +
       untracked-not-ignored), which respects `.gitignore` and excludes submodule internals;
       falls back to an FS walk in non-git dirs. HOD now 83 files (was 641 incl. rapid-game). +2 tests.
