@@ -9,3 +9,6 @@ CLAUDE.local.md
 
 # derived SQLite query cache (KIT-T004) — never checked in; always rebuildable from markdown
 .cache/
+
+# node deps (none today; the tree-sitter accuracy layer (KIT-T012) will add some — never commit node_modules)
+node_modules/
