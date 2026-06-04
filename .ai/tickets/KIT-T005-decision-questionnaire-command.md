@@ -2,7 +2,7 @@
 id: KIT-T005
 title: Decision-questionnaire command — batch pending decisions into an AskUserQuestion flow, record answers to the decisions store
 type: feature
-status: todo
+status: review
 priority: medium
 milestone:
 labels: [command, decisions, capture]
@@ -27,22 +27,24 @@ Requested by the maintainer 2026-06-03 (HOD session). It surfaced *because* a mu
 review (the Rust-migration A–D forks) was being done by hand; the command makes that repeatable.
 
 ## Acceptance Criteria
-- [ ] `commands/decide.md` — opt-in-aware (no-ops without `.ai/`), like the other claude-kit commands.
-- [ ] **Source pending decisions** from: (a) a named research doc's "Decisions needed" section,
+- [x] `commands/decide.md` — opt-in-aware (no-ops without `.ai/`), like the other claude-kit commands.
+- [x] **Source pending decisions** from: (a) a named research doc's "Decisions needed" section,
       (b) `.ai/questions/` items routed for maintainer, (c) any `decisions` file marked pending.
       Accept an explicit doc/path arg to scope it.
-- [ ] **Present** via AskUserQuestion: one question per decision, options from the doc, the
-      doc's recommendation listed FIRST and tagged "(Recommended)". Batch up to the tool's
-      per-call limit; loop for more.
-- [ ] **Record** each answer as an atomic file in the `decisions` store using the project's
-      key+prefix (ids.key), id auto-allocated via the next-ID mechanism (depends on [[KIT-T004]] /
-      whichever centralizes ID assignment — do NOT dir-scan). Capture: decision, chosen option,
-      why, source doc, date.
-- [ ] **Receipt** per the config receipts convention (one line per recorded decision).
-- [ ] Leaves the research doc's recommendation intact; never edits ROADMAP (mirrors the
-      researcher-agent boundary). If an answer contradicts a recommendation, record the answer
-      verbatim and note the divergence.
-- [ ] Handle the maintainer choosing "Other"/free-text per option — record the custom text.
+- [x] **Present** via AskUserQuestion: one question per decision, options from the doc, the
+      recommendation listed FIRST and tagged "(Recommended)". Batch to the per-call limit (4); loop.
+- [x] **Record** each answer as an atomic file in the `decisions` store, id auto-allocated via
+      the next-ID mechanism (`scripts/next-id.mjs decisions` — landed under KIT-T009; the
+      KIT-T004 dependency is satisfied). Capture: decision, chosen option, why, source doc, date.
+- [x] **Receipt** per the config receipts convention (one line per recorded decision).
+- [x] Leaves the research doc's recommendation intact; never edits ROADMAP. If an answer
+      contradicts a recommendation, record the answer verbatim and note the divergence.
+- [x] Handle the maintainer choosing "Other"/free-text per option — record the custom text.
+
+## Notes
+- 2026-06-03: Built `commands/decide.md`. The next-ID dependency (KIT-T004) was satisfied
+  early by `scripts/next-id.mjs` (KIT-T009), so this unblocked. It's a command (agent-followed
+  prompt), so the "test" is invocation; argument-hint quoted (the cap.md YAML lesson).
 
 ## Notes
 - 2026-06-03: Captured. This request was itself un-logged for an entire session before being
