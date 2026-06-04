@@ -16,7 +16,16 @@ installs them (→ `~/.claude/agents/`); a project may also pin its own under
   note what changed + why (so the improvement carries to every project). Treat a
   recurring correction as a prompt bug to fix at the source, not per-session.
 - Keep tool grants **least-privilege** — a read-only researcher gets read/search
-  tools, not Write/Edit.
+  tools, not Write/Edit. Tight `tools:` frontmatter is also a token lever: unused
+  tool schemas never load into the agent's baseline (KIT-T030, lever 1).
+- **Lean profile (KIT-T030):** each agent body carries a short *Operating context*
+  digest (a handful of invariants + "read the relevant CLAUDE.md section on demand")
+  instead of relying on the full global/project contract being inherited. claude-kit
+  controls the digest and the toolset; whether the harness *also* injects the global
+  CLAUDE.md, the project CLAUDE.md, and the skills catalog into a subagent's context
+  is **harness-level** (no agent-frontmatter knob) — see
+  `docs/research/agent-token-strategy.md` for the measured breakdown and the
+  flagged harness follow-up.
 
 ## Index
 | Agent | Role | Tools |

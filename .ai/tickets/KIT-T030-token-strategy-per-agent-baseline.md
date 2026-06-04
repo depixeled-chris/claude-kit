@@ -47,3 +47,31 @@ This is a distinct dimension from KIT-T020 (handoff prompt) — it's the FIXED b
   CLAUDE.md + per-agent `tools:` (~12-25k); (2) provenance-by-ref + query-the-cache, deps KIT-T026
   (~5-15k); (3) scoped line-range reads + structured returns (~3-10k). Projected ~35-45% baseline
   cut/dispatch. Reconciled w/ T020/T004/T026/T029/T028.
+- 2026-06-04T21:30:00Z: LEVER 1 IMPLEMENTED (claude-kit-controllable parts).
+  LANDED in claude-kit:
+  • Per-agent `tools:` audited across all 4 agents — already least-privilege, confirmed:
+    researcher (Read,Grep,Glob,Bash,WebSearch,WebFetch) + code-reviewer (Read,Grep,Glob,Bash)
+    carry NO Edit/Write; refactorer + test-author keep Edit/Write/Bash (need it). No over-grants
+    to trim; documented the toolset-as-token-lever rationale in agents/README.md.
+  • Digest + pointer (lever 1, option 2 — the full-CLAUDE.md-inheritance replacement claude-kit
+    DOES control): added a short "Operating context (lean)" block to all 4 agent bodies — a
+    handful of invariants + "read the relevant CLAUDE.md section on demand" in place of relying
+    on the whole global+project contract. ~0.3k digest replaces RELIANCE on ~7–30k always-on.
+  • Documented controllable-vs-harness split precisely in docs/research/agent-token-strategy.md
+    (new "What's claude-kit-controllable vs harness-level" section) + agents/README.md.
+  HARNESS-LEVEL (NOT claude-kit-controllable — flagged, not faked):
+  • Skills-catalog injection into subagents (~8–14k, biggest single bucket) — no agent-frontmatter
+    knob; needs a harness setting (per-agent "no skills" / global "subagents omit skills catalog").
+  • Global+project CLAUDE.md AUTO-injection into subagents (~9.4k + up to ~20k) — digest reduces
+    reliance but can't stop the harness injecting it; needs a harness "subagents skip CLAUDE.md" toggle.
+  • Doubled memory index (~0.6k): redundancy = project `@.claude/memory/MEMORY.md` import + harness
+    machine-local auto-memory injection. BOTH live outside claude-kit (the `@import` is in the
+    CONSUMING project's CLAUDE.md, e.g. HOD's; the auto-inject is harness). Symlink makes them
+    byte-identical but still injected twice. Clean dedup = once auto-memory is symlinked to the
+    committed `.claude/memory/`, DROP the project CLAUDE.md `@import` (redundant) — that edit
+    belongs in each consuming project. claude-kit's template never added the `@import`, so nothing
+    to remove here.
+  VERIFY: `npm test` green (23+19+18+15 passed, 0 failed); no hook file touched (only agents/* +
+    docs/research/agent-token-strategy.md changed). Expected baseline cut from the controllable
+    parts alone is modest (~0.3–2k of digest/toolset trim); the projected 35–45% requires the
+    three harness-level injections above — surfaced for a harness-capability decision.

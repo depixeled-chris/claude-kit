@@ -139,6 +139,40 @@ Mechanism options (in order of harness-support confidence):
 Roughly **a 35–45% baseline cut per subagent dispatch**, dominated by Lever 1 (skills catalog
 + CLAUDE.md + per-agent toolsets). Levers 2–3 compound it and shrink the *return* path.
 
+## What's claude-kit-controllable vs harness-level (KIT-T030 implementation)
+
+Lever 1 splits cleanly. claude-kit **does** control, and these landed:
+- **Per-agent `tools:`** — audited all 4 agents; each carries its minimal set (read-only
+  `researcher`/`code-reviewer` get no Edit/Write; `refactorer`/`test-author` keep Edit/Write/Bash).
+  Unused tool schemas never load. This is the one mechanism with zero new infra.
+- **Digest + pointer** (option 2) — each agent body now opens with a short *Operating context*
+  block: the few invariants a scoped agent needs + "read the relevant CLAUDE.md section on
+  demand," instead of leaning on full-contract inheritance. ~0.3k of digest replaces the
+  *reliance* on ~7–30k of always-on contract.
+
+claude-kit **cannot** control these (no agent-frontmatter knob; they are decided by the
+harness when it assembles a subagent's context) — **flagged follow-up, not faked:**
+- **Skills catalog injection** (~8–14k, the single largest bucket). Whether the harness
+  injects the SKILLS CATALOG into a subagent is harness behavior; there is no per-agent
+  field to suppress it. A subagent does not dispatch skills, so this is pure waste — but
+  removing it requires a harness setting (e.g. a per-agent "no skills" flag or a global
+  "subagents omit skills catalog" option). **Ask: does the harness expose this?**
+- **Global + project CLAUDE.md auto-injection** (~9.4k + up to ~20k). Same story: if the
+  harness auto-injects CLAUDE.md into subagents, the digest reduces *reliance* but cannot
+  *prevent* the injection. The digest is the mitigation that works regardless; a harness
+  "subagents skip CLAUDE.md auto-inject" toggle would capture the rest.
+- **Doubled memory index** (~0.6k). The duplication is the project `@.claude/memory/MEMORY.md`
+  import (loaded via the project's CLAUDE.md) **plus** the harness's machine-local auto-memory
+  `MEMORY.md` injection. Both are outside claude-kit: the `@import` lives in the *consuming
+  project's* CLAUDE.md (e.g. HOD's), and the auto-injection is harness behavior. The on-disk
+  symlink fix (documented in HOD `.claude/README.md`) makes the two the **same bytes** but
+  does NOT stop the harness from injecting the index twice. The clean dedup is to drop the
+  redundant source on the consuming side: once the machine-local auto-memory dir is symlinked
+  to the committed `.claude/memory/`, the project's CLAUDE.md `@import` becomes redundant and
+  should be removed (the harness already injects the auto-memory copy). That edit belongs in
+  each consuming project, not claude-kit. **Flagged for the project layer; claude-kit's
+  template never introduced the `@import`, so there is nothing to remove here.**
+
 ## Reconciliation with sibling tickets (no duplication)
 
 - **KIT-T020** (token-efficient handoffs): owns the *handoff-prompt* + provenance-by-reference
