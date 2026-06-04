@@ -54,6 +54,16 @@ first. Recommend B because [reason]."
 - Node.js is available for bulk scripts.
 - Work until interrupted.
 
+# DECISIONS — always a questionnaire, always with a recommendation
+- Anything you need the maintainer to **choose, confirm, prioritize, or pick what's next** is a
+  decision. Deliver it via the **AskUserQuestion** tool (a questionnaire) — NEVER as prose, and
+  never as a "status update" that buries choices in a list. (The `/decide` command automates this.)
+- **EVERY question carries a recommendation.** Put the recommended option FIRST and **prepend
+  `(Recommended)` to the front of its label** (e.g. `"(Recommended) Resume X"`) — front of the
+  LABEL, not the description, or it isn't seen. multiSelect: prepend it to each recommended option.
+- Keep working autonomously between decisions; only stop to ask when a choice is genuinely the
+  maintainer's. When you do, batch related decisions into one questionnaire.
+
 # DEVELOPMENT PRINCIPLES
 - One source of truth for every type/model.
 - Extract reusable UI components early.

@@ -13,9 +13,10 @@ Resolve the maintainer's PENDING decisions as a structured questionnaire — nev
    - any `.ai/decisions/` file marked pending/unresolved.
    Dedupe; skip anything already decided.
 2. **Present** via the **AskUserQuestion** tool — one question per decision, concrete options
-   from the source. **Every question MUST carry a recommendation**: list the recommended
-   option FIRST and tag its label "(Recommended)". Batch up to the tool's per-call limit (4);
-   loop for the rest. Never dump decisions as prose.
+   from the source. **Every question MUST carry a recommendation**: the recommended option goes
+   FIRST and its **label is prefixed `(Recommended)`** (front of the label — e.g.
+   `"(Recommended) Resume X"` — not the description, or it isn't seen). Batch up to the tool's
+   per-call limit (4); loop for the rest. Never dump decisions as prose.
 3. **Record** each answer as an atomic file in `.ai/decisions/`. Allocate the id with the
    next-ID allocator — `node <claude-kit>/scripts/next-id.mjs decisions` (or
    `$CLAUDE_PLUGIN_ROOT/scripts/next-id.mjs`); NEVER hand-pick one. Capture: the decision, the
