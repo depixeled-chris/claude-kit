@@ -2,7 +2,7 @@
 id: KIT-T004
 title: SQLite query cache — derived, gitignored, one-way hydrated from the markdown stores
 type: feature
-status: todo
+status: review
 priority: high
 milestone:
 labels: [cache, query, sqlite, performance]
@@ -10,8 +10,16 @@ links: [KIT-D012, KIT-T003, KIT-T020, KIT-T023, KIT-T024, KIT-T025]
 aka: []
 files:
   - scripts/hydrate-db.mjs
+  - scripts/q.mjs
+  - scripts/db-engine.mjs
+  - scripts/db-parse.mjs
+  - scripts/db-cache.test.mjs
+  - hooks/hydrate-cache.mjs
+  - hooks/hooks.json
+  - user-config/settings.recommended.json
+  - package.json
 created: 2026-06-03T14:20:00Z
-updated: 2026-06-03T14:20:00Z
+updated: 2026-06-04T13:10:00Z
 ---
 
 ## Description
@@ -27,28 +35,28 @@ HOD-R045", "bugs introduced by X", FTS) than to open many files into context. Th
 retrieval layer, not just a speedup.
 
 ## Acceptance Criteria
-- [ ] `scripts/hydrate-db.mjs` parses every store across all scopes (incl. LAB) into SQLite:
+- [x] `scripts/hydrate-db.mjs` parses every store across all scopes (incl. LAB) into SQLite:
       items (id, scope, type, status, priority, title, parent), links (from, rel, to), aka,
       artifacts (path, produced_by, informs), history events.
-- [ ] **Never checked in.** Always **rebuildable** from the markdown/source files — a full
+- [x] **Never checked in.** Always **rebuildable** from the markdown/source files — a full
       rebuild is cheap + idempotent (`rm` + re-hydrate reproduces it exactly).
-- [ ] **Location: relative to the claude-kit install**, e.g. `<kit-root>/.cache/workflow.db`
+- [x] **Location: relative to the claude-kit install**, e.g. `<kit-root>/.cache/workflow.db`
       (via `$CLAUDE_PLUGIN_ROOT`) — NOT in `~/.claude`, NOT in any project repo. Gitignored
       there (`.cache/` already added to claude-kit `.gitignore`).
-- [ ] **No write-back**: nothing writes the DB as truth; all edits go to markdown + re-hydrate.
-- [ ] **Optional + fallback**: survey/hooks still work from markdown when the DB (or sqlite) is
+- [x] **No write-back**: nothing writes the DB as truth; all edits go to markdown + re-hydrate.
+- [x] **Optional + fallback**: survey/hooks still work from markdown when the DB (or sqlite) is
       absent — the cache only accelerates; it is never a hard dependency.
-- [ ] **Engine cascade** (maintainer decided): use `better-sqlite3` if installed, else
+- [x] **Engine cascade** (maintainer decided): use `better-sqlite3` if installed, else
       `node:sqlite` (Node 22+); if neither, queries fall back to an in-memory markdown scan
       (hydration needs one of the two). DB tooling stays out of the hot-path enforcement hooks.
-- [ ] **Query interface** — a thin `scripts/q.mjs` with named/canned queries (open items,
+- [x] **Query interface** — a thin `scripts/q.mjs` with named/canned queries (open items,
       children-of, back-links, doc-trail, FTS) + ad-hoc SQL, returning compact results, so an
       agent or human queries the cache instead of opening files.
-- [ ] Hydration runs on a hook after `.ai` changes + a lazy staleness check (rebuild if any
+- [x] Hydration runs on a hook after `.ai` changes + a lazy staleness check (rebuild if any
       store file is newer than the DB).
-- [ ] Provides at least: hierarchy rollup, back-link, cross-project rundown, and FTS queries;
+- [x] Provides at least: hierarchy rollup, back-link, cross-project rundown, and FTS queries;
       plus an integrity check (orphaned parent / dangling link / status mismatch).
-- [ ] **Next-ID allocation**: an O(1) `next-id <scope> <type>` query (`max(num)+1` over `items`)
+- [x] **Next-ID allocation**: an O(1) `next-id <scope> <type>` query (`max(num)+1` over `items`)
       so capture tooling assigns the next ticket/decision/note ID without scanning the dir; flags
       gaps + collisions as part of the integrity check. The dir-scan it replaces is the concrete
       pain that surfaced this, and cheap on-the-fly ID assignment is a prerequisite for the
@@ -83,3 +91,22 @@ retrieval layer, not just a speedup.
   query services to KIT's model — KEY DIFFERENCE: workflow is DB-as-truth (Prisma); KIT is
   markdown-as-truth + a DERIVED/gitignored cache hydrated one-way (per this ticket). So borrow the
   schema + query/FTS/graph code, NOT the write-back/ORM-as-source. Also seeds KIT-T003 (the graph).
+- 2026-06-04 BUILT (status → review). Files: `scripts/{db-engine,db-parse,hydrate-db,q,db-cache.test}.mjs`,
+  `hooks/hydrate-cache.mjs`, wiring in `hooks/hooks.json` + `user-config/settings.recommended.json` (Stop),
+  `package.json` test. Borrowed from workflow + adapted:
+  - SCHEMA (server/prisma/schema.prisma): workflow's Project+Task → one `items` table keyed by markdown id
+    (scope split out of the id prefix, replacing workflow's Project FK); Comment.parentId threading + Task
+    relations → generalized `links(from,rel,to)` edge table; Document/Decision provenance → `artifacts`;
+    activity.service's UNION-of-events timeline → materialized `history` table; substring search → FTS5.
+  - SERVICES: `open` ← assignments/blockers.service getX(params) WHERE-filter; `children`/`backlinks` ←
+    comments.service parentId tree walk (upward-stored parent, downward-generated view per KIT-D012);
+    `doc-trail` ← activity.service per-task desc timeline; `next-id`/`integrity` realize KIT-T009 as O(1) SQL.
+  - DROPPED (KIT difference): the Prisma ORM, all write-back, DB-as-source. Full drop+rebuild each hydrate;
+    `q.mjs sql` rejects anything but SELECT/WITH/PRAGMA/EXPLAIN.
+  - Engine cascade better-sqlite3 → node:sqlite → markdown scan; ran on node:sqlite (Node 25, better-sqlite3
+    not installed). Every canned query has a db-parse fallback (`q.mjs --no-db` forces it). Hook is Stop-phase,
+    lazy-stale, fail-open — NOT in the PreToolUse/commit-gate hot path.
+  - VERIFIED: hydrated 43 real items; ran open/children/backlinks/fts/next-id/rundown/integrity/sql; proved
+    `rm` + re-hydrate is bit-identical on logical content; fallback parity via `--no-db`; 15 new tests green,
+    full suite 75/0. FIX during build: switched FTS5 from contentless (`content=''`, which returns no
+    snippet/columns) to a standalone FTS table.

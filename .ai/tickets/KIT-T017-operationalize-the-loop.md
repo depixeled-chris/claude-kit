@@ -41,3 +41,6 @@ first, "(Recommended)" at the FRONT of the label), never buried in prose.
     authored prompt — the ticket carries provenance (KIT-D018), project knowledge-agents (KIT-T015)
     hold the domain + guards, so the per-task direction is the delta only. Cuts tokens (KIT-T020).
   - NEVER IDLE + ALERT ON LANDING (KIT-T021) throughout.
+  - NEVER HOLD SILENTLY: if the loop is waiting on maintainer feedback/a decision, PRESENT THE
+    QUESTIONNAIRE IMMEDIATELY (don't sit idle saying "holding") — surfacing the decision IS the
+    non-idle action when work is gated on the maintainer.

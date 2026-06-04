@@ -7,7 +7,7 @@
 | KIT-T001 | feature | review | high | Scope-aware /prime — lazy default, "what needs me?" briefing, named deep-dive |
 | KIT-T002 | feature | todo | medium | init-project sets the project key (ids.key + prefix) for new projects |
 | KIT-T003 | feature | todo | high | Implement the workflow domain model — LAB scope, request/epic types, hierarchy + relationship graph |
-| KIT-T004 | feature | todo | medium | SQLite query cache — derived, gitignored, one-way hydrated from the markdown stores |
+| KIT-T004 | feature | review | high | SQLite query cache — derived, gitignored, one-way hydrated from the markdown stores |
 | KIT-T005 | feature | review | medium | Decision-questionnaire command — batch pending decisions into an AskUserQuestion flow, record answers to the decisions store |
 | KIT-T006 | feature | review | high | Request-capture ratchet — Stop-time gate so accepted requests get logged structurally, not from memory |
 | KIT-T007 | feature | review | medium | Cross-project lineage registry + orient resume-surfacing (decisions dir + lineage) |
@@ -17,7 +17,7 @@
 | KIT-T011 | bug | review | high | Cross-platform tooling — no script may assume Windows/macOS/Linux |
 | KIT-T012 | feature | review | high | Code graph + automated maintenance — a queryable index of the codebase |
 | KIT-T013 | feature | todo | medium | cap --done fast-resolve — log an already-handled item without inbox/triage debt |
-| KIT-T014 | feature | todo | high | Harden /clear-anywhere durability — surface in-flight agents + keep the resume anchor live |
+| KIT-T014 | feature | todo | critical | Harden /clear-anywhere durability — surface in-flight agents + keep the resume anchor live |
 | KIT-T015 | feature | todo | medium | Repeatable project-knowledge-agent pattern — drain suggests + routes to project-local agents |
 | KIT-T016 | feature | todo | high | Enforce the harness-memory→.claude/memory unification (verify/create the link, don't trust setup) |
 | KIT-T017 | feature | todo | high | Operationalize the always-on loop (D017) — drain-never-idle + questionnaire-surfacing discipline |
