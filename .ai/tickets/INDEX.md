@@ -15,7 +15,7 @@
 | KIT-T009 | feature | review | high | Programmatic ID allocation + collision guard (markdown-served carve-out of KIT-T004) |
 | KIT-T010 | bug | review | high | Reconcile bootstrap.sh vs plugin — plugin owns tooling, bootstrap owns CLAUDE.md+overlay |
 | KIT-T011 | bug | review | high | Cross-platform tooling — no script may assume Windows/macOS/Linux |
-| KIT-T012 | feature | doing | high | Code graph + automated maintenance — a queryable index of the codebase |
+| KIT-T012 | feature | review | high | Code graph + automated maintenance — a queryable index of the codebase |
 
 ## Archived (0)
 | id | type | status | priority | title |

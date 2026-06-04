@@ -39,7 +39,7 @@ try {
   }
 
   mkdirSync(cacheDir, { recursive: true });
-  const graph = buildGraph(root);
+  const graph = await buildGraph(root);
   writeFileSync(cacheFile, JSON.stringify(graph));
   process.stderr.write(`[code-graph] refreshed ${graph.files.length} files -> ${cacheFile}\n`);
 } catch {

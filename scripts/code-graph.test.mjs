@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildGraph, importersOf, defines, surface, codemapCheck } from './code-graph.mjs';
+import { buildGraph, importersOf, defines, surface, referencesOf, codemapCheck } from './code-graph.mjs';
 
 let pass = 0;
 let fail = 0;
@@ -27,7 +27,7 @@ writeFileSync(join(root, 'lib.rs'), 'use std::fmt;\npub fn compute() {}\npub str
 // An unknown extension still gets the generic fallback.
 writeFileSync(join(root, 'thing.zig'), 'fn doThing() void {}\n');
 
-const g = buildGraph(root);
+const g = await buildGraph(root);
 
 ok('walks all source files across languages', g.files.length === 5);
 ok('detects language per family', g.files.find((f) => f.path === 'app.py')?.lang === 'python');
@@ -46,8 +46,19 @@ ok('resolved edge is not marked external', utilEdge && utilEdge.external === fal
 const extEdge = g.edges.find((e) => e.from === 'app.py' && e.to === 'os');
 ok('bare import stays an external node', extEdge && extEdge.external === true);
 
+// Precision cascade: when web-tree-sitter is available, supported languages get precise
+// symbols + reference (call) edges; otherwise the heuristic floor (no refs). Guarded so the
+// suite passes either way (the floor is always correct).
+if (g.precise) {
+  ok('precise: tree-sitter reference edge (helper called in main.ts)', referencesOf(g, 'helper').includes('src/main.ts'));
+  ok('precise: TS definition kinds correct', surface(g, 'src/util.ts').some((s) => s.name === 'Widget' && s.kind === 'class'));
+  ok('precise: Rust struct is a type def', surface(g, 'lib.rs').some((s) => s.name === 'Engine' && s.kind === 'type'));
+} else {
+  ok('precision layer skipped (web-tree-sitter absent) — heuristic floor holds', referencesOf(g, 'helper').length === 0);
+}
+
 // Determinism: same repo → identical graph.
-const g2 = buildGraph(root);
+const g2 = await buildGraph(root);
 ok('graph is deterministic', JSON.stringify(g) === JSON.stringify(g2));
 
 // codemap drift check: flags code files missing from CODEMAP + CODEMAP entries with no
@@ -69,7 +80,7 @@ try {
   writeFileSync(join(grepo, 'kept.ts'), 'export function kept() {}\n');
   writeFileSync(join(grepo, 'ignored.ts'), 'export function ignoredSym() {}\n');
   writeFileSync(join(grepo, '.gitignore'), 'ignored.ts\n');
-  const gg = buildGraph(grepo);
+  const gg = await buildGraph(grepo);
   ok('git-aware: tracked file included', defines(gg, 'kept').includes('kept.ts'));
   ok('git-aware: .gitignored file excluded', !gg.files.some((f) => f.path === 'ignored.ts'));
 } catch {
@@ -78,4 +89,6 @@ try {
 
 for (const d of fixtures) { try { rmSync(d, { recursive: true, force: true }); } catch {} }
 console.log(`\ncode-graph: ${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+// Set exitCode and let the loop drain naturally — calling process.exit() while the
+// web-tree-sitter WASM runtime is still closing aborts the process on Windows.
+process.exitCode = fail ? 1 : 0;

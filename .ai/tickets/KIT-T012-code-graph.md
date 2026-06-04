@@ -2,7 +2,7 @@
 id: KIT-T012
 title: Code graph + automated maintenance — a queryable index of the codebase
 type: feature
-status: doing
+status: review
 priority: high
 milestone:
 labels: [code-graph, retrieval, codemap, maintenance]
@@ -69,13 +69,17 @@ hand-maintained `CODEMAP.md` should become a GENERATED view over the graph (kill
       can't infer. Suffix-aware matching (tolerates CODEMAP dropping `src/`); stale only flags
       code-extension tokens (docs/symbol-mentions aren't false-flagged). +3 tests; low-noise on
       HOD's real CODEMAP. (Full merge-generation possible later if wanted, preserving curated columns.)
-- [~] tree-sitter accuracy upgrade — RESEARCHED (`research/code-graph-treesitter.md`) + DECIDED
-      (questionnaire: proceed as a cascade + bundle a curated core set). Build STARTED + de-risked,
-      then paused at a concrete blocker (see History 2026-06-03 tree-sitter) rather than thrash:
-      engine API works; `web-tree-sitter@0.25` has a dylink ABI mismatch with `tree-sitter-wasms@0.1.13`
-      grammars → needs a pinned compatible pair; plus an open consumer-delivery question (do plugins
-      `npm install`? → vendor `.wasm` vs document install). Remaining = pin + deps + vendor decision +
-      per-language queries + cascade loader + tests. node_modules now gitignored.
+- [x] tree-sitter accuracy upgrade — DONE (cascade, KIT-D014). `scripts/treesitter.mjs`: optional
+      precision layer; `buildGraph` is async and uses it when present, else the heuristic floor.
+      Adds precise definition kinds + **reference (call) edges** + a `references-of` query for
+      js/ts/tsx/python/rust/go. Resolutions to the earlier blockers: pinned **web-tree-sitter@0.22.6**
+      (optionalDependency) — the 0.25 dylink mismatch is gone; **vendored** the 6 grammars in-repo
+      (`vendor/tree-sitter-grammars/*.wasm`, 6.7MB, `.gitattributes` binary) so no fetch/build and
+      consumers get them regardless of npm; JS vs TS class-name node differs (identifier vs
+      type_identifier) so the queries are split per grammar; a `dispose()` frees the WASM to avoid a
+      Windows libuv exit-abort (test uses `process.exitCode`, not `process.exit`). 18 code-graph tests
+      (precise asserts guarded so the suite still passes with web-tree-sitter absent). Dogfood:
+      `references-of checkIds` → the 4 real callers.
 - [x] Submodule/.gitignore awareness — file list comes from `git ls-files` (tracked +
       untracked-not-ignored), which respects `.gitignore` and excludes submodule internals;
       falls back to an FS walk in non-git dirs. HOD now 83 files (was 641 incl. rapid-game). +2 tests.

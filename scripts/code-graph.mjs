@@ -19,6 +19,7 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, relative, extname, dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { loadTreeSitter } from './treesitter.mjs';
 
 const SKIP_DIRS = new Set([
   'node_modules', '.git', 'target', 'dist', 'build', '.venv', 'venv', '__pycache__',
@@ -135,37 +136,60 @@ function walk(root, acc = []) {
   return acc;
 }
 
-function extractFile(absPath, root) {
+async function extractFile(absPath, root, ts) {
   const ext = extname(absPath);
   const fam = familyFor(ext);
-  const importRules = [...(fam ? fam.imports : []), ...GENERIC.imports];
-  const defRules = [...(fam ? fam.defs : []), ...GENERIC.defs];
   const text = readFileSync(absPath, 'utf8');
   const lines = text.split(/\r?\n/);
+
+  // Imports stay heuristic (language-agnostic, works well) regardless of tree-sitter.
+  const importRules = [...(fam ? fam.imports : []), ...GENERIC.imports];
   const imports = new Set();
-  const symbols = [];
-  const seenSym = new Set();
-  lines.forEach((line, i) => {
+  for (const line of lines) {
     for (const re of importRules) {
       const m = line.match(re);
       if (m && m[1]) imports.add(m[1]);
     }
-    for (const [re, kind] of defRules) {
-      const m = line.match(re);
-      if (m && m[1]) {
-        const key = `${m[1]}:${i}`;
-        if (!seenSym.has(key)) {
-          seenSym.add(key);
-          symbols.push({ name: m[1], kind, line: i + 1 });
+  }
+
+  // Symbols + references: precise via tree-sitter when available for this language,
+  // else the heuristic def patterns (no references).
+  let symbols = [];
+  let refs = [];
+  let precise = false;
+  if (ts) {
+    const r = await ts.extract(ext, text);
+    if (r) {
+      symbols = r.symbols;
+      refs = r.refs;
+      precise = true;
+    }
+  }
+  if (!precise) {
+    const defRules = [...(fam ? fam.defs : []), ...GENERIC.defs];
+    const seen = new Set();
+    lines.forEach((line, i) => {
+      for (const [re, kind] of defRules) {
+        const m = line.match(re);
+        if (m && m[1]) {
+          const key = `${m[1]}:${i}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            symbols.push({ name: m[1], kind, line: i + 1 });
+          }
         }
       }
-    }
-  });
+    });
+    symbols.sort((a, b) => a.line - b.line);
+  }
+
   return {
     path: relative(root, absPath).split(sep).join('/'),
     lang: fam ? fam.name : ext.replace('.', '') || 'unknown',
     imports: [...imports].sort(),
-    symbols: symbols.sort((a, b) => a.line - b.line),
+    symbols,
+    refs,
+    precise,
   };
 }
 
@@ -192,10 +216,18 @@ export function listSourceFiles(root) {
   return gitFiles(absRoot) || walk(absRoot);
 }
 
-export function buildGraph(root) {
+export async function buildGraph(root) {
   const absRoot = resolve(root);
   const paths = listSourceFiles(absRoot);
-  const files = paths.map((f) => extractFile(f, absRoot)).sort((a, b) => a.path.localeCompare(b.path));
+  const ts = await loadTreeSitter(); // null → heuristic floor
+  // Sequential: the tree-sitter parser is a single shared instance (setLanguage mutates it).
+  const files = [];
+  try {
+    for (const f of paths) files.push(await extractFile(f, absRoot, ts));
+  } finally {
+    if (ts && ts.dispose) ts.dispose(); // free WASM handles (avoid the Windows exit abort)
+  }
+  files.sort((a, b) => a.path.localeCompare(b.path));
   const fileSet = new Set(files.map((f) => f.path));
   const edges = [];
   for (const f of files) {
@@ -206,7 +238,7 @@ export function buildGraph(root) {
     }
   }
   edges.sort((a, b) => a.from.localeCompare(b.from) || String(a.to).localeCompare(String(b.to)));
-  return { root: absRoot.split(sep).join('/'), files, edges };
+  return { root: absRoot.split(sep).join('/'), files, edges, precise: files.some((f) => f.precise) };
 }
 
 // Verify a CODEMAP against the graph instead of generating it: full generation would
@@ -261,8 +293,13 @@ export function surface(graph, path) {
   const f = graph.files.find((x) => x.path === path);
   return f ? f.symbols : [];
 }
+// Files that reference a symbol (precise call/macro edges) — only populated where the
+// tree-sitter layer ran; empty under the heuristic floor.
+export function referencesOf(graph, symbol) {
+  return graph.files.filter((f) => (f.refs || []).includes(symbol)).map((f) => f.path);
+}
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   let root = process.cwd();
   let out = null;
@@ -275,7 +312,7 @@ function main() {
     else if (args[i] === '--codemap-check') codemap = args[++i];
     else if (!args[i].startsWith('--')) root = args[i];
   }
-  const graph = buildGraph(root);
+  const graph = await buildGraph(root);
 
   if (codemap) {
     const { undocumented, stale } = codemapCheck(graph, readFileSync(codemap, 'utf8'));
@@ -292,9 +329,10 @@ function main() {
     let result;
     if (query === 'importers-of') result = importersOf(graph, queryArg);
     else if (query === 'defines') result = defines(graph, queryArg);
+    else if (query === 'references-of') result = referencesOf(graph, queryArg);
     else if (query === 'surface') result = surface(graph, queryArg);
     else {
-      console.error(`unknown query '${query}' (importers-of | defines | surface)`);
+      console.error(`unknown query '${query}' (importers-of | defines | references-of | surface)`);
       process.exit(2);
     }
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
@@ -305,11 +343,17 @@ function main() {
   if (out) {
     mkdirSync(dirname(resolve(out)), { recursive: true });
     writeFileSync(out, json);
-    process.stdout.write(`code-graph: ${graph.files.length} files, ${graph.edges.length} edges -> ${out}\n`);
+    const mode = graph.precise ? 'precise (tree-sitter)' : 'heuristic';
+    process.stdout.write(`code-graph: ${graph.files.length} files, ${graph.edges.length} edges, ${mode} -> ${out}\n`);
   } else {
     process.stdout.write(json + '\n');
   }
 }
 
 // Run main only as a CLI, not when imported by the tests.
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    console.error('code-graph: ' + (e && e.message ? e.message : e));
+    process.exit(1);
+  });
+}
