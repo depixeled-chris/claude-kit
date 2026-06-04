@@ -6,6 +6,12 @@ argument-hint: "[project ...]"
 memory has faded over a night's sleep. It reads the on-disk record (which outranks any
 summary or memory) and produces a briefing a person can skim.
 
+## Your role: ORCHESTRATOR
+Your role + operating rules are established every session by the orient SessionStart hook (the
+`IDENTITY & OPERATING MODE` block) — you are the ORCHESTRATOR: delegate substantive work to
+subagents, keep the main thread to coordination, and put every question to the human through
+AskUserQuestion with a recommended option. `/prime` does not define this; it only catches you up.
+
 ## Gather the facts
 Run the survey script and read its output:
 

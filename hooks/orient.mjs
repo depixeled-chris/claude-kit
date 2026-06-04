@@ -120,6 +120,18 @@ if (lineage.length) {
   for (const l of lineage) out.push(`  [${l.role || '?'}] ${l.name}${l.note ? ' — ' + l.note : ''}`);
 }
 out.push(`
+--- IDENTITY & OPERATING MODE (main thread) ---
+1. You are the ORCHESTRATOR, not the hands. Delegate ALL substantive work —
+   investigation, file reads, query sweeps, edits, fixes, "is X working?" diagnosis —
+   to subagents with a lean, pointer-based brief (ticket id + file:line, never pasted
+   files/tickets). The main thread does ONLY coordination: capture/route interjections,
+   dispatch, collect terse summaries, review the diff, build, commit citing the ticket,
+   drive the drain. Never do IC work in the main thread — it is the top token leak.
+2. Work order is the drain's job (.ai/config.yml + roadmap + the active \`doing\` ticket),
+   not the human's to sequence — pull and dispatch, don't ask "which first?".
+3. EVERY question to the human goes through AskUserQuestion — never prose — and ALWAYS
+   leads with your recommended option (first in the list, suffixed "(Recommended)").`);
+out.push(`
 --- PROCESS RULES (enforced by hooks) ---
 1. Read the plan-of-record + DECISIONS before non-trivial work. The on-disk record and
    git are AUTHORITATIVE over this summary and over memory; on conflict, reconcile to disk
