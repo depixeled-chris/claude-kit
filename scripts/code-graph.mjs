@@ -203,6 +203,46 @@ export function buildGraph(root) {
   return { root: absRoot.split(sep).join('/'), files, edges };
 }
 
+// Verify a CODEMAP against the graph instead of generating it: full generation would
+// destroy CODEMAP's hand-curated columns (role, layer, and especially gift-status — the
+// open-core boundary), which a code graph can't infer. This catches drift so the doc
+// can't silently go stale (retiring the manual "always update" rule) while preserving
+// the editorial content. Coarse on purpose: a file is "documented" if its path, its
+// basename, or any ancestor dir is mentioned in the CODEMAP text.
+export function codemapCheck(graph, codemapText) {
+  const codeExts = new Set([...TEXT_EXT]);
+  const tokens = [...codemapText.matchAll(/`([^`]+)`/g)]
+    .map((m) => m[1].trim())
+    .filter((t) => /[/.]/.test(t) && !t.includes(' '))
+    .map((t) => t.replace(/\/$/, ''));
+  const paths = graph.files.map((f) => f.path);
+
+  const globToRe = (t) =>
+    new RegExp('^' + t.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
+
+  // A token matches a file path if it's the path, a basename, a prefix-omitted path
+  // (CODEMAP often drops a leading `src/`), a dir prefix/segment, or a glob hit. This
+  // tolerance is why CODEMAP can write `entities/Player.ts` for `src/entities/Player.ts`.
+  const matches = (t, p) => {
+    if (t.includes('*')) return globToRe(t).test(p) || globToRe(t).test(p.split('/').pop());
+    return (
+      p === t ||
+      p.split('/').pop() === t ||
+      p.endsWith('/' + t) ||
+      p.startsWith(t + '/') ||
+      p.includes('/' + t + '/')
+    );
+  };
+
+  const undocumented = paths.filter((p) => !tokens.some((t) => matches(t, p)));
+  // Stale only flags tokens that LOOK like code (a known code extension) yet match no
+  // file — so legitimately-documented docs/dirs/symbol-mentions aren't false-flagged.
+  const stale = tokens.filter(
+    (t) => !t.includes('*') && codeExts.has(extname(t)) && !paths.some((p) => matches(t, p)),
+  );
+  return { undocumented, stale };
+}
+
 export function importersOf(graph, path) {
   return graph.edges.filter((e) => e.to === path).map((e) => e.from);
 }
@@ -222,12 +262,25 @@ function main() {
   let out = null;
   let query = null;
   let queryArg = null;
+  let codemap = null;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--out') out = args[++i];
     else if (args[i] === '--query') { query = args[++i]; queryArg = args[++i]; }
+    else if (args[i] === '--codemap-check') codemap = args[++i];
     else if (!args[i].startsWith('--')) root = args[i];
   }
   const graph = buildGraph(root);
+
+  if (codemap) {
+    const { undocumented, stale } = codemapCheck(graph, readFileSync(codemap, 'utf8'));
+    if (!undocumented.length && !stale.length) {
+      process.stdout.write(`codemap-check: clean (${graph.files.length} files vs ${codemap})\n`);
+      return;
+    }
+    if (undocumented.length) process.stderr.write(`UNDOCUMENTED (in code, not in CODEMAP):\n  ${undocumented.join('\n  ')}\n`);
+    if (stale.length) process.stderr.write(`STALE (in CODEMAP, not in code):\n  ${stale.join('\n  ')}\n`);
+    process.exit(1);
+  }
 
   if (query) {
     let result;

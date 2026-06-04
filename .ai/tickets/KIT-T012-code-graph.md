@@ -60,8 +60,13 @@ hand-maintained `CODEMAP.md` should become a GENERATED view over the graph (kill
 - [ ] Automated maintenance: a hook regenerates/updates on code change + staleness check.
       **DECISION-GATED**: adds a hook that runs on every code edit across ALL adopted repos —
       maintainer should weigh the perf/behavior impact before it's wired repo-wide.
-- [ ] CODEMAP generated (or verified) from the graph, retiring the manual "always update" rule.
-      **DECISION-GATED**: changes how CODEMAP works (today a hand-maintained doc with a rule).
+- [x] CODEMAP **verified** (not generated) from the graph — `--codemap-check <file>` flags
+      UNDOCUMENTED (code files absent from CODEMAP) + STALE (code-path entries pointing at no
+      file), exit 1 on drift. Chose verify over full-generate: generating would destroy
+      CODEMAP's hand-curated role/layer/**gift-status** (the open-core boundary), which a graph
+      can't infer. Suffix-aware matching (tolerates CODEMAP dropping `src/`); stale only flags
+      code-extension tokens (docs/symbol-mentions aren't false-flagged). +3 tests; low-noise on
+      HOD's real CODEMAP. (Full merge-generation possible later if wanted, preserving curated columns.)
 - [ ] (Optional) tree-sitter accuracy upgrade for real call/reference edges — **adds a runtime dep**.
 - [x] Submodule/.gitignore awareness — file list comes from `git ls-files` (tracked +
       untracked-not-ignored), which respects `.gitignore` and excludes submodule internals;

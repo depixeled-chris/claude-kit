@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildGraph, importersOf, defines, surface } from './code-graph.mjs';
+import { buildGraph, importersOf, defines, surface, codemapCheck } from './code-graph.mjs';
 
 let pass = 0;
 let fail = 0;
@@ -49,6 +49,15 @@ ok('bare import stays an external node', extEdge && extEdge.external === true);
 // Determinism: same repo → identical graph.
 const g2 = buildGraph(root);
 ok('graph is deterministic', JSON.stringify(g) === JSON.stringify(g2));
+
+// codemap drift check: flags code files missing from CODEMAP + CODEMAP entries with no
+// matching code. `src/util.ts` is documented by the `src/` dir prefix; `src/main.ts` and
+// `app.py`/`lib.rs`/`thing.zig` are undocumented; `gone/old.ts` is stale.
+const codemapText = '| `src/` | the source dir | |\n| `gone/old.ts` | removed module | |\n';
+const cmc = codemapCheck(g, codemapText);
+ok('codemap-check: dir-prefix documents files under it', !cmc.undocumented.includes('src/util.ts') && !cmc.undocumented.includes('src/main.ts'));
+ok('codemap-check: undocumented files flagged', cmc.undocumented.includes('app.py') && cmc.undocumented.includes('lib.rs'));
+ok('codemap-check: stale entry flagged', cmc.stale.includes('gone/old.ts'));
 
 // git-aware: in a git repo, .gitignored files are excluded (the submodule/.gitignore
 // awareness). Falls back to a raw walk in a non-git dir (covered by the cases above).
