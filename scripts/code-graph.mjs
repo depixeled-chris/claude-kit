@@ -18,6 +18,7 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, relative, extname, dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 const SKIP_DIRS = new Set([
   'node_modules', '.git', 'target', 'dist', 'build', '.venv', 'venv', '__pycache__',
@@ -100,6 +101,25 @@ function familyFor(ext) {
   return FAMILIES.find((f) => f.exts.includes(ext)) || null;
 }
 
+// Prefer git for the file list: `ls-files` (tracked) + untracked-but-not-ignored. This
+// respects .gitignore AND excludes submodule internals for free (a submodule is one
+// gitlink entry, not its files). Returns absolute source paths, or null if `root` isn't
+// a git repo / git is unavailable — caller falls back to a raw FS walk.
+function gitFiles(root) {
+  try {
+    const opts = { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] };
+    const tracked = execFileSync('git', ['ls-files'], opts);
+    const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], opts);
+    const rels = (tracked + untracked).split(/\r?\n/).filter(Boolean);
+    if (!rels.length) return null;
+    return rels
+      .filter((r) => TEXT_EXT.has(extname(r)))
+      .map((r) => join(root, r));
+  } catch {
+    return null; // not a git repo, or git missing
+  }
+}
+
 function walk(root, acc = []) {
   for (const e of readdirSync(root, { withFileTypes: true })) {
     if (e.name.startsWith('.') && e.name !== '.ai') {
@@ -166,7 +186,10 @@ function resolveImport(spec, fromFileAbs, root, fileSet) {
 
 export function buildGraph(root) {
   const absRoot = resolve(root);
-  const files = walk(absRoot).map((f) => extractFile(f, absRoot)).sort((a, b) => a.path.localeCompare(b.path));
+  // git-aware list (respects .gitignore, skips submodule internals) when available;
+  // otherwise a plain recursive walk.
+  const paths = gitFiles(absRoot) || walk(absRoot);
+  const files = paths.map((f) => extractFile(f, absRoot)).sort((a, b) => a.path.localeCompare(b.path));
   const fileSet = new Set(files.map((f) => f.path));
   const edges = [];
   for (const f of files) {

@@ -63,7 +63,9 @@ hand-maintained `CODEMAP.md` should become a GENERATED view over the graph (kill
 - [ ] CODEMAP generated (or verified) from the graph, retiring the manual "always update" rule.
       **DECISION-GATED**: changes how CODEMAP works (today a hand-maintained doc with a rule).
 - [ ] (Optional) tree-sitter accuracy upgrade for real call/reference edges — **adds a runtime dep**.
-- [ ] (Polish) submodule/.gitignore awareness (HOD's 641 includes the rapid-game submodule).
+- [x] Submodule/.gitignore awareness — file list comes from `git ls-files` (tracked +
+      untracked-not-ignored), which respects `.gitignore` and excludes submodule internals;
+      falls back to an FS walk in non-git dirs. HOD now 83 files (was 641 incl. rapid-game). +2 tests.
 
 ## Plan
 1. Settle the scope decisions above with the maintainer (depth, languages, store, CODEMAP).

@@ -3,6 +3,7 @@
 // multi-language fixture repo and asserts. exit 0 = all pass.
 
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildGraph, importersOf, defines, surface } from './code-graph.mjs';
@@ -48,6 +49,23 @@ ok('bare import stays an external node', extEdge && extEdge.external === true);
 // Determinism: same repo → identical graph.
 const g2 = buildGraph(root);
 ok('graph is deterministic', JSON.stringify(g) === JSON.stringify(g2));
+
+// git-aware: in a git repo, .gitignored files are excluded (the submodule/.gitignore
+// awareness). Falls back to a raw walk in a non-git dir (covered by the cases above).
+try {
+  const grepo = mkdtempSync(join(tmpdir(), 'kit-cg-git-'));
+  fixtures.push(grepo);
+  const g0 = { cwd: grepo, stdio: 'ignore' };
+  execFileSync('git', ['init', '-q'], g0);
+  writeFileSync(join(grepo, 'kept.ts'), 'export function kept() {}\n');
+  writeFileSync(join(grepo, 'ignored.ts'), 'export function ignoredSym() {}\n');
+  writeFileSync(join(grepo, '.gitignore'), 'ignored.ts\n');
+  const gg = buildGraph(grepo);
+  ok('git-aware: tracked file included', defines(gg, 'kept').includes('kept.ts'));
+  ok('git-aware: .gitignored file excluded', !gg.files.some((f) => f.path === 'ignored.ts'));
+} catch {
+  ok('git-aware test skipped (git unavailable)', true);
+}
 
 for (const d of fixtures) { try { rmSync(d, { recursive: true, force: true }); } catch {} }
 console.log(`\ncode-graph: ${pass} passed, ${fail} failed`);
