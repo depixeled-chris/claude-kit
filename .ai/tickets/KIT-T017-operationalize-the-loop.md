@@ -44,3 +44,7 @@ first, "(Recommended)" at the FRONT of the label), never buried in prose.
   - NEVER HOLD SILENTLY: if the loop is waiting on maintainer feedback/a decision, PRESENT THE
     QUESTIONNAIRE IMMEDIATELY (don't sit idle saying "holding") — surfacing the decision IS the
     non-idle action when work is gated on the maintainer.
+  - ONE BLOCKED THREAD ≠ IDLE: a single item gated on the maintainer (or a Q&A) does NOT license
+    the whole drain to stall. Keep the OTHER unblocked threads (other tickets, other projects)
+    draining in parallel while that one waits. (Recurring failure: single-threading on a conversation
+    while the rest of the queue sat idle.)
