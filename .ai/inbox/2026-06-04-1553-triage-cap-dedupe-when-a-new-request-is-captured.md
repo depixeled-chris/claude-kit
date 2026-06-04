@@ -1,0 +1,1 @@
+(feature) triage/cap DEDUPE: when a new request is captured, detect whether it relates to an existing ticket/inbox item and CONSOLIDATE into it (don't create a duplicate). Belongs with the relationship-graph work (KIT-T003) + capture (KIT-T006)

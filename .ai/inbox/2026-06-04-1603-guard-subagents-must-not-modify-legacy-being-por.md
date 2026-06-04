@@ -1,0 +1,1 @@
+(feature) GUARD: subagents must NOT modify LEGACY/being-ported code (e.g. HOD's TS sim/world-gen migrating to the Rust core). Make the no-touch boundary explicit in every agent handoff/prompt, and ideally a hook/check that flags edits to paths marked legacy. Critical: agents fixing bugs must target the live layer, not churn code that's being retired
