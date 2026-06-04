@@ -89,5 +89,31 @@ function expect(name, actual, wanted) {
   expect('no-ops on unadopted repo', run(d, { transcript_path: tx }).code, 0);
 }
 
+// 9. blunt bug-report request (no polite phrasing) -> BLOCK
+{
+  const d = makeRepo();
+  const tx = writeTranscript(d, "The moon shouldn't be a glowball on a clear day", 'Adjusted.', new Date().toISOString());
+  expect('blocks a blunt bug-report ("shouldn\'t be")', run(d, { transcript_path: tx }).code, 2);
+}
+// 10. blunt "there needs to be" -> BLOCK
+{
+  const d = makeRepo();
+  const tx = writeTranscript(d, 'There needs to be a wider street', 'ok', new Date().toISOString());
+  expect('blocks "there needs to be"', run(d, { transcript_path: tx }).code, 2);
+}
+// 11. "doesn't feel" + only a TICKET edited this turn (not inbox) -> BLOCK (valve is inbox-only)
+{
+  const d = makeRepo();
+  writeFileSync(join(d, '.ai', 'tickets', 'HOD-T001-x.md'), '---\nid: HOD-T001\n---\nedited');
+  const tx = writeTranscript(d, "200MPH doesn't feel like 200MPH", 'tuned the FOV', '2026-06-03T00:00:00.000Z');
+  expect('a ticket edit does NOT release the valve', run(d, { transcript_path: tx }).code, 2);
+}
+// 12. plain question -> ALLOW (no over-match on the broadened signals)
+{
+  const d = makeRepo();
+  const tx = writeTranscript(d, 'how does the streaming ring work?', 'It loads chunks around the player.', new Date().toISOString());
+  expect('allows a plain how/what question', run(d, { transcript_path: tx }).code, 0);
+}
+
 console.log(failures ? `\n${failures} FAILED` : '\nALL PASS');
 process.exit(failures ? 1 : 0);

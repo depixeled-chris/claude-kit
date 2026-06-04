@@ -16,17 +16,35 @@ import { join } from 'node:path';
 import { gitRoot, adopted, payload } from './lib.mjs';
 
 // Built-in defaults — overridable/extendable via `capture.signals` in .ai/config.yml.
+// Two families: polite/future asks AND blunt imperatives / bug reports / feel-tuning (the way
+// a frustrated maintainer ACTUALLY reports — "there needs to be…", "X doesn't feel…",
+// "the moon shouldn't be…", "too narrow", "no way to…", "fix the…"). Missing the blunt family
+// is exactly why a real request slipped the gate. Tuned to avoid plain questions ("what does X do").
 const DEFAULT_SIGNALS = [
+  // polite / future asks
   "i'?d like", "can you (add|make|build|create|write|set ?up)", "could you (add|make|build|create)",
   "we should", "you should (add|make|build)", "in the future", "eventually", "down the (road|line)",
   "don'?t forget", "it would be (nice|good|great)", "let'?s\\b.*\\blater\\b", "remember to",
-  "at some point", "would be (nice|good|worth)", "needs? to be (a )?(ticket|tracked|captured|logged)",
+  "at some point", "would be (nice|good|worth)",
+  // blunt imperatives / bug reports / feel-tuning
+  "there (needs?|should|has|have|is|are|'?s)\\b", "needs? to (be|have|feel|look|work|render|exist)",
+  "should(n'?t)? (be|have|feel|look|render|work|exist)", "do(es)? ?(n'?t| not) (feel|look|work|render|line up|match|exist)",
+  "is ?n'?t (working|right|correct|enough)", "too (slow|fast|narrow|wide|small|big|dark|bright|short|tall|low|high|thin|sparse)\\b",
+  "\\b(is|are) (too|way too|not)\\b", "\\b(is|are|seems?|looks?) broken\\b", "no (easy )?way to\\b",
+  "needs? (a )?(fix|fixing|wider|widening|work)\\b", "fix (this|the|that|it|these|those)\\b",
+  "make (it|them|the|this|these) ", "add (a|an|the|some|more) ", "feels? (like|too|wrong|off)\\b",
+  "should feel", "near .{0,16} enough\\b", "not .{0,16} enough\\b",
 ];
 
 // A reply satisfies the gate if it carries a routing receipt or an explicit dismissal.
 const RECEIPT = /\[no-?capture\b|(?:→|->)\s*[^\n]*\b(logged|filed|captured|routed|recorded|opened|amended)\b|\b[A-Z]{2,}-[A-Z]\d{1,4}\b[^\n]*\b(logged|filed|captured|recorded|amended|created|opened)\b/i;
 
-const STORES = ['inbox', 'tickets', 'decisions', 'questions', 'notes'];
+// The file-valve counts only NEW frictionless captures (the inbox — where `cap` writes). It
+// deliberately does NOT count tickets/decisions/etc., because active work edits those EVERY
+// turn (the active ticket), which would hold the valve permanently open and let a brand-new
+// request slip — exactly the failure this fixes. Capturing straight to a ticket/decision
+// instead releases via the receipt token in the reply (RECEIPT).
+const CAPTURE_STORES = ['inbox'];
 const NON_CAPTURE = /^(README|_TEMPLATE|INDEX|REGRESSIONS)\b/i;
 
 main().catch(() => process.exit(0)); // any failure → allow the stop (fail-open)
@@ -108,7 +126,7 @@ function isToolResult(content) {
 
 function capturedSince(root, ms) {
   const tol = ms - 1500; // small clock skew tolerance
-  for (const store of STORES) {
+  for (const store of CAPTURE_STORES) {
     const dir = join(root, '.ai', store);
     let names;
     try { names = readdirSync(dir); } catch { continue; }

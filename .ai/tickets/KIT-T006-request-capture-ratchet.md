@@ -49,6 +49,13 @@ Three layers:
       reference → `.ai/decisions/` (the dir the project actually uses).
 
 ## Notes
+- 2026-06-04: HARDENED after it let real requests slip in a live session. Two leaks fixed:
+  (1) signals only matched POLITE future-asks; added the blunt/imperative/bug/feel family the
+  maintainer actually uses ("there needs to be", "X doesn't feel like", "shouldn't be", "too
+  narrow", "fix the", "add a", "make it", "not … enough"). (2) the file-valve counted ANY .ai
+  store change — but active work edits the live ticket every turn, holding the valve open;
+  restricted it to NEW inbox captures only (ticket/decision captures release via the receipt
+  token). +4 tests (12 total). Enforcement is the HOOK, not the agent's memory. Plugin 0.1.11→0.1.12.
 - 2026-06-03: Built + tested. Activation needs a session restart / bootstrap re-link (hook
   config loads at session start). `mode: block-once` chosen by maintainer (rigid over warn-only).
 - Open follow-on: the inbox naming defect (cap-writer vs README, captured in inbox) and the
