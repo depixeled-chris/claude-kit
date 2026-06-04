@@ -3,10 +3,10 @@ id: KIT-T004
 title: SQLite query cache — derived, gitignored, one-way hydrated from the markdown stores
 type: feature
 status: todo
-priority: medium
+priority: high
 milestone:
 labels: [cache, query, sqlite, performance]
-links: [KIT-D012]
+links: [KIT-D012, KIT-T003, KIT-T020, KIT-T023, KIT-T024, KIT-T025]
 aka: []
 files:
   - scripts/hydrate-db.mjs
@@ -70,3 +70,16 @@ retrieval layer, not just a speedup.
   scan) under **KIT-T009** — `scripts/{id-utils,next-id,check-ids}.mjs` + guards in
   index-tickets/commit-gate/sync-data. This DB ticket now only needs to make those O(1) and
   add the FTS/graph/retrieval queries (still sequenced after KIT-T003). Re-scope when reached.
+- 2026-06-04: PRIORITY medium→high. Maintainer: "going to be important for performance pretty
+  soon." It's now an ENABLER, not just a speedup: the dedup/supersede/active-surfacing work
+  (KIT-T023/T024/T025) all need to QUERY the stores (similarity, supersede chains, topical lookup),
+  and the agent-retrieval angle ("query the cache, don't open files") directly serves token-efficient
+  handoffs (KIT-T020). Stores are growing (25+ active tickets, index re-scans every run). Still
+  sequences after the graph (KIT-T003), but both are now near-term.
+- 2026-06-04 DIRECTIVE: BORROW from `D:\dev\workflow` (the maintainer's own repo — borrow freely,
+  no license concern). It has a Prisma/SQLite schema (server/prisma/schema.prisma: items/tasks,
+  assignments, blockers, comments, activity, worklogs) + query services (assignments/comments/
+  activity.service.ts) the workflow-orchestrator study already mapped. Adapt its schema shape +
+  query services to KIT's model — KEY DIFFERENCE: workflow is DB-as-truth (Prisma); KIT is
+  markdown-as-truth + a DERIVED/gitignored cache hydrated one-way (per this ticket). So borrow the
+  schema + query/FTS/graph code, NOT the write-back/ORM-as-source. Also seeds KIT-T003 (the graph).
