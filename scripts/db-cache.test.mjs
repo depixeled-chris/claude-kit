@@ -4,7 +4,7 @@
 // hermetic (no dependency on the live claude-kit stores). Skips the SQLite-backed half if
 // no engine is present — the cache is optional, and so is testing it.
 
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
@@ -13,6 +13,7 @@ import { hydrate } from './hydrate-db.mjs';
 import { resolveEngine } from './db-engine.mjs';
 import { query } from './q.mjs';
 import { nextId } from './id-utils.mjs';
+import { reconcileSupersede } from './reconcile-supersede.mjs';
 
 let pass = 0;
 let fail = 0;
@@ -72,6 +73,62 @@ test('num parsed for next-id', () => assert.equal(Math.max(...items.filter((i) =
 // supersede frontmatter parsed (KIT-T024)
 test('supersedes parsed on the newer ticket', () => assert.equal(items.find((i) => i.id === 'TST-T003').supersedes, 'TST-T001'));
 test('superseded_by parsed on the retired ticket', () => assert.equal(items.find((i) => i.id === 'TST-T001').supersededBy, 'TST-T003'));
+
+// ---- auto-reconcile of supersede (KIT-D021/KIT-T024) ----------------------
+// Hermetic temp .ai: declare a supersede on ONLY the `supersedes` side and prove the
+// reconcile auto-writes the reciprocal `superseded_by`, flips the retired ticket to
+// `status: superseded`, is idempotent, and that the retired ticket then drops out of
+// `q.mjs open`. Engine-independent (pure fs + the scan path).
+async function reconcileTests() {
+  const rroot = mkdtempSync(join(tmpdir(), 'kit-recon-'));
+  const rai = join(rroot, '.ai');
+  mkdirSync(join(rai, 'tickets'), { recursive: true });
+  writeFileSync(join(rai, 'config.yml'), 'ids:\n  key: "RCN"\n  pad: 3\n');
+  const oldPath = join(rai, 'tickets', 'RCN-T001-old.md');
+  const newPath = join(rai, 'tickets', 'RCN-T002-new.md');
+  // Old ticket: still `todo`, NO superseded_by pointer (the one-sided case to reconcile).
+  writeFileSync(oldPath,
+    `---\nid: RCN-T001\ntitle: old widget plan\ntype: feature\nstatus: todo\npriority: high\nsuperseded_by:\n---\n## Description\nfirst attempt\n`);
+  // New ticket declares the relationship on the `supersedes` side only.
+  writeFileSync(newPath,
+    `---\nid: RCN-T002\ntitle: better widget plan\ntype: feature\nstatus: todo\npriority: high\nsupersedes: RCN-T001\n---\n## Description\nsecond attempt\n`);
+
+  const field = (text, key) => (text.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm')) || [, ''])[1].trim();
+
+  const first = reconcileSupersede(rroot);
+  test('reconcile reports the changes it made', () =>
+    assert.ok(first.changed.length >= 2, `expected >=2 changes, got ${first.changed.length}`));
+
+  const oldAfter = readFileSync(oldPath, 'utf8');
+  test('reconcile writes the reciprocal superseded_by on the retired ticket', () =>
+    assert.equal(field(oldAfter, 'superseded_by'), 'RCN-T002'));
+  test('reconcile flips the retired ticket to status: superseded', () =>
+    assert.equal(field(oldAfter, 'status'), 'superseded'));
+  test('reconcile leaves the live replacement status untouched', () =>
+    assert.equal(field(readFileSync(newPath, 'utf8'), 'status'), 'todo'));
+
+  // Idempotency: a second run changes nothing and rewrites no bytes.
+  const oldBytes = readFileSync(oldPath, 'utf8');
+  const newBytes = readFileSync(newPath, 'utf8');
+  const second = reconcileSupersede(rroot);
+  test('second reconcile run is a no-op (idempotent)', () =>
+    assert.equal(second.changed.length, 0, `expected 0 changes, got ${second.changed.join('; ')}`));
+  test('idempotent reconcile rewrites no file content', () => {
+    assert.equal(readFileSync(oldPath, 'utf8'), oldBytes);
+    assert.equal(readFileSync(newPath, 'utf8'), newBytes);
+  });
+
+  // The retired ticket is now excluded from the open/drain set (markdown-scan path).
+  await testAsync('retired ticket excluded from q.mjs open after reconcile', async () => {
+    const { rows } = await query('open', [], { root: rroot, noDb: true });
+    const ids = rows.map((r) => r.id);
+    assert.ok(ids.includes('RCN-T002'), 'the live replacement stays open');
+    assert.ok(!ids.includes('RCN-T001'), 'the retired ticket drops out of the drain');
+  });
+
+  rmSync(rroot, { recursive: true, force: true });
+}
+await reconcileTests();
 
 // ---- SQLite-backed (skipped when no engine) -------------------------------
 const engine = await resolveEngine();

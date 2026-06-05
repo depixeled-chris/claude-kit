@@ -11,8 +11,18 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { compareIds } from './id-utils.mjs';
 import { query } from './q.mjs';
+import { reconcileSupersede } from './reconcile-supersede.mjs';
 
 const root = process.argv[2] || process.cwd();
+
+// Auto-reconcile supersede relationships in the markdown BEFORE reading the board (KIT-D021):
+// a one-sided `supersedes:`/`superseded_by:` declaration gets its reciprocal pointer written
+// and the retired ticket flipped to `status: superseded`. Idempotent + safe (only flips TO
+// superseded). This is the deterministic, automatic home — it already runs to rebuild the
+// board, writes markdown, and is OUT of the PreToolUse/commit hot path.
+const recon = reconcileSupersede(root);
+for (const c of recon.changed) process.stdout.write(`reconcile-supersede: ${c}\n`);
+
 const ticketsDir = join(root, '.ai', 'tickets');
 const archiveDir = join(ticketsDir, 'archive');
 const SKIP = new Set(['_TEMPLATE.md', 'INDEX.md']);

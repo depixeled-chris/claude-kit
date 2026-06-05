@@ -41,9 +41,24 @@ maintainer flagged. (Adjacent to the earlier "capture/triage must DEDUPE related
     on stderr (never blocks; id always prints) and documented in triage.md.
   - drain.md: contract says never start a superseded ticket; trust `q.mjs open`.
   - Tests: extended db-cache.test.mjs (+9 supersede/dedup cases, 29 pass); full `npm test` green.
-- 2026-06-04: DESIGN FORK left for maintainer — does superseding auto-flip the old ticket's
-  status, or only require the pointer? Implemented as OPERATOR-SET (suggest-only): the dedup hint
-  surfaces candidates but never mutates a ticket. The active-set exclusion already fires on the
-  pointer alone, so a forgotten status flip is harmless. Did NOT auto-mutate (markdown-is-truth;
-  the cache is read-only). Confirm this is the desired ergonomics or whether triage should
-  auto-set `status: superseded` on the retired ticket when it sets the pointer.
+- 2026-06-04: DESIGN FORK RESOLVED → AUTO per KIT-D021 (automate over manual; suggest-only
+  rejected on reliability grounds). Supersede is now AUTOMATICALLY + IDEMPOTENTLY reconciled in
+  the markdown source of truth: declaring the relationship on EITHER side (`supersedes:` on the
+  newer ticket OR `superseded_by:` on the older) makes the tooling (a) write the reciprocal
+  pointer on the other ticket and (b) flip the retired ticket to `status: superseded`.
+  - SEAM: `scripts/reconcile-supersede.mjs` (new, atomic — one responsibility), invoked from
+    `scripts/index-tickets.mjs` at the TOP of its run, before the board is read/generated. That
+    script is the deterministic, automatic board-reconcile pass: it already reads every ticket,
+    already WRITES markdown (the derived INDEX/SUPERSEDED/ROADMAP), and is OUT of the
+    PreToolUse/commit enforcement hot path. So the flip happens whenever the board is rebuilt
+    (triage/ticket changes), not by a remembered manual step.
+  - This is the TOOLING writing the markdown source of truth (allowed). It is NOT cache
+    write-back — the SQLite cache stays one-way/read-only/fail-open (unchanged).
+  - SAFETY: only ever flips TO `superseded`; never un-flips, never edits a ticket with no
+    supersede pointer on either side, never touches the live replacement's status; archived
+    tickets are excluded. Idempotent — re-running once consistent rewrites nothing.
+  - LOGS what it changed (which ticket flipped, which reciprocal pointer was written) on stdout.
+  - Tests: db-cache.test.mjs +7 reconcile cases (hermetic temp-.ai): one-sided `supersedes`
+    auto-writes reciprocal `superseded_by` + flips status; idempotent second run (no change, no
+    bytes rewritten); retired ticket excluded from `q.mjs open`. Full `npm test` green (36 in
+    db-cache).
