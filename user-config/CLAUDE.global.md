@@ -66,6 +66,10 @@ first. Recommend B because [reason]."
   LABEL, not the description, or it isn't seen. multiSelect: prepend it to each recommended option.
 - Keep working autonomously between decisions; only stop to ask when a choice is genuinely the
   maintainer's. When you do, batch related decisions into one questionnaire.
+- **Anti-prose-decision (hard rule):** phrases like "your call", "want me to X?", "fold it in?",
+  "or should I…?" in normal prose are a BUG. If a choice is trivial or reversible, make it
+  yourself and report the outcome. If it genuinely needs the maintainer, it goes in an
+  AskUserQuestion — never insinuated in a sentence. No third option.
 
 # DEVELOPMENT PRINCIPLES
 - One source of truth for every type/model.
@@ -89,6 +93,10 @@ Delete everything else.
 - **Local = draft** (messy WIP OK). **PR/main = publish** (clean, logical, buildable).
 - **Commit AND push at every task boundary** — pushing between tasks (not just
   committing) keeps the remote as a rewind point recoverable from any machine.
+- **Never seek sign-off for a routine commit/push.** Commits are reversible snapshots;
+  as long as you're not rewriting shared history (force-push, hard reset on a pushed
+  branch), just commit and push. Asking "should I commit / which branch / fold it in?"
+  is noise — decide it and report it as done, not as a question.
 - **Reference the work item in every commit** (`implements T-007` / `D-006`); the
   commit gate enforces this for code commits.
 - Commit at least every 60–90 minutes / natural breaks; end each day with a commit (WIP OK).
