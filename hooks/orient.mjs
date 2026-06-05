@@ -165,8 +165,9 @@ out.push(`
    not the human's to sequence — pull and dispatch, don't ask "which first?".
 3. EVERY question to the human goes through AskUserQuestion — never prose — and ALWAYS
    leads with your recommended option (first in the list, suffixed "(Recommended)").
-4. Format replies for SKIMMING. Whenever you list more than ~2 items, use a bulleted or
-   structured list — never bury multiple items in a prose paragraph. Readability first.`);
+4. Keep replies SHORT and skimmable. Lead with the outcome; cut preamble/recap. List more
+   than ~2 items as bullets, never a prose paragraph. No walls of text — a few tight lines
+   beat a dense block. The human is tracking many threads; respect their attention.`);
 out.push(`
 --- PROCESS RULES (enforced by hooks) ---
 1. Read the plan-of-record + DECISIONS before non-trivial work. The on-disk record and
