@@ -8,9 +8,11 @@
 //   node scripts/q.mjs by-commit <sha>              # tickets caused-by / fixed-by <sha>
 //   node scripts/q.mjs doc-trail <id>               # history events for <id>, newest first
 //   node scripts/q.mjs fts <query...>               # full-text search title+body
+//   node scripts/q.mjs similar <title/labels...>    # likely-duplicate tickets (dedup, suggest-only)
 //   node scripts/q.mjs next-id <scope> <type>       # O(1) next free id (max(num)+1)
 //   node scripts/q.mjs rundown                       # per-scope open-item counts
 //   node scripts/q.mjs regressions                   # regression chain data (index-tickets)
+//   node scripts/q.mjs supersedes                    # supersede chain data (index-tickets)
 //   node scripts/q.mjs integrity                     # orphan parents / dangling links / gaps
 //   node scripts/q.mjs sql "SELECT ..."             # ad-hoc read-only SQL
 //   node scripts/q.mjs --json <cmd> ...             # machine-readable output
@@ -35,8 +37,20 @@ import { readIdConfig, STORE_TYPE, compareIds } from './id-utils.mjs';
 
 const OPEN = ['todo', 'doing', 'review'];
 const FTS_LIMIT = 25;        // cap FTS hits — a retrieval list, not a full dump
+const MIN_TERM_LEN = 2;      // dedup: ignore terms this short or shorter (the, of, a, id)
 const SNIPPET_COL = 2;       // items_fts column index of `body` for snippet()
 const SNIPPET_TOKENS = 8;    // words of context around an FTS match
+
+// Dedup similarity proxy (KIT-T024): turn a proposed title/labels into an FTS OR-query so a
+// candidate matches on ANY shared term (a duplicate rarely shares EVERY word). Extracts plain
+// barewords (no FTS MATCH syntax injected) and ORs the survivors. Empty in -> a query that
+// matches nothing, so a blank proposal surfaces no false candidates.
+const ALNUM_TERM = /[a-z][a-z\d]*/g; // a bareword: leading letter, then letters/digits
+function ftsOrQuery(text) {
+  const terms = (String(text || '').toLowerCase().match(ALNUM_TERM) || [])
+    .filter((t) => t.length > MIN_TERM_LEN);
+  return terms.length ? terms.join(' OR ') : '""';
+}
 
 function newestAcross(sources) {
   let newest = 0;
@@ -87,6 +101,11 @@ const compareOpen = (a, b) =>
   ((a.priority || '') < (b.priority || '') ? -1 : (a.priority || '') > (b.priority || '') ? 1 : 0)
   || compareIds(a.id, b.id);
 
+// A ticket retired by another (KIT-T024): a `superseded` status, or a `superseded_by` pointer
+// to its replacement. Either takes it out of the active/drain set. ONE predicate so the cache
+// SQL (the open WHERE) and the markdown-scan fallback agree on what "active" means.
+const isSuperseded = (i) => i.status === 'superseded' || !!i.supersededBy;
+
 // An item's outbound edges, mirroring the hydrate edge-set (links/parent/regressed_from/
 // introduced_by/caused_by/fixed_by) so the markdown-scan graph queries match the cache.
 const edgesOf = (i) => [
@@ -96,15 +115,22 @@ const edgesOf = (i) => [
   i.introducedBy ? ['introduced_by', i.introducedBy] : null,
   i.causingCommit ? ['caused_by', i.causingCommit] : null,
   i.fixedCommit ? ['fixed_by', i.fixedCommit] : null,
+  i.supersedes ? ['supersedes', i.supersedes] : null,
+  i.supersededBy ? ['superseded_by', i.supersededBy] : null,
 ].filter(Boolean);
 
 // ---- SQLite-backed canned queries -----------------------------------------
 function cannedQueries(root) {
   return {
+    // The active/drain set EXCLUDES superseded tickets (KIT-T024): a `superseded` status OR
+    // any non-archived ticket carrying a `superseded_by` pointer is out — so a forgotten
+    // status flip can't leak a retired duplicate back into the drain.
     open: (db, scope) => db.all(
-      `SELECT id, type, status, priority, title FROM items
-       WHERE status IN (${OPEN.map(() => '?').join(',')}) AND archived = 0
-         ${scope ? 'AND scope = ?' : ''}`,
+      `SELECT i.id, i.type, i.status, i.priority, i.title FROM items i
+       WHERE i.status IN (${OPEN.map(() => '?').join(',')}) AND i.archived = 0
+         AND i.status <> 'superseded'
+         AND NOT EXISTS (SELECT 1 FROM links l WHERE l.from_id = i.id AND l.rel = 'superseded_by')
+         ${scope ? 'AND i.scope = ?' : ''}`,
       scope ? [...OPEN, scope] : [...OPEN]).sort(compareOpen),
 
     children: (db, id) => db.all(
@@ -148,6 +174,27 @@ function cannedQueries(root) {
        LEFT JOIN links cb ON cb.from_id = i.id AND cb.rel = 'caused_by'
        LEFT JOIN links fb ON fb.from_id = i.id AND fb.rel = 'fixed_by'
        WHERE i.store = 'tickets' ORDER BY i.id`),
+
+    // Supersede chain data for index-tickets (KIT-T024): every ticket's outbound supersedes
+    // pointer (newer -> the older one it retires). index-tickets assembles older→newer chains
+    // from these the same way it builds regression chains from regressed_from.
+    supersedes: (db) => db.all(
+      `SELECT i.id, i.status, i.title, s.to_id AS supersedes
+       FROM items i
+       LEFT JOIN links s ON s.from_id = i.id AND s.rel = 'supersedes'
+       WHERE i.store = 'tickets' ORDER BY i.id`),
+
+    // Dedup detector (KIT-T024): FTS-rank likely duplicates of a free-text query (a proposed
+    // ticket's title/labels). SUGGEST-ONLY — returns candidates for the operator to link or
+    // supersede; never auto-merges. Excludes already-superseded tickets from the suggestions.
+    // Shape matches the markdown-scan fallback (id/type/status/title) so the two are at parity —
+    // a dedup hint needs the candidate's id + title, not an FTS snippet.
+    similar: (db, query) => db.all(
+      `SELECT i.id, i.type, i.status, i.title
+       FROM items_fts f JOIN items i ON i.id = f.id
+       WHERE items_fts MATCH ? AND i.store = 'tickets' AND i.archived = 0
+         AND i.status <> 'superseded'
+       ORDER BY rank LIMIT ?`, [ftsOrQuery(query), FTS_LIMIT]),
 
     'next-id': (db, scope, type) => {
       const row = db.all(
@@ -199,7 +246,7 @@ function fallback(cmd, args, root) {
   switch (cmd) {
     case 'open': {
       const scope = args[0];
-      return items.filter((i) => OPEN.includes(i.status) && !i.archived && (!scope || i.scope === scope))
+      return items.filter((i) => OPEN.includes(i.status) && !i.archived && !isSuperseded(i) && (!scope || i.scope === scope))
         .map((i) => ({ id: i.id, type: i.type, status: i.status, priority: i.priority, title: i.title }))
         .sort(compareOpen);
     }
@@ -251,6 +298,28 @@ function fallback(cmd, args, root) {
           fixed_commit: i.fixedCommit || null,
         }))
         .sort((a, b) => compareIds(a.id, b.id));
+    case 'supersedes':
+      return items.filter((i) => i.store === 'tickets')
+        .map((i) => ({ id: i.id, status: i.status, title: i.title, supersedes: i.supersedes || null }))
+        .sort((a, b) => compareIds(a.id, b.id));
+    case 'similar': {
+      // Mirror the cache's FTS OR-match with a term-overlap scan: candidates sharing the most
+      // proposal terms first (suggest-only). Excludes archived + already-superseded tickets.
+      const wanted = new Set((args.join(' ').toLowerCase().match(ALNUM_TERM) || []).filter((t) => t.length > MIN_TERM_LEN));
+      if (!wanted.size) return [];
+      return items
+        .filter((i) => i.store === 'tickets' && !i.archived && i.status !== 'superseded')
+        .map((i) => {
+          const hay = new Set((`${i.title} ${i.body}`.toLowerCase().match(ALNUM_TERM) || []));
+          let overlap = 0;
+          for (const t of wanted) if (hay.has(t)) overlap++;
+          return { row: { id: i.id, type: i.type, status: i.status, title: i.title }, overlap };
+        })
+        .filter((c) => c.overlap > 0)
+        .sort((a, b) => b.overlap - a.overlap || compareIds(a.row.id, b.row.id))
+        .slice(0, FTS_LIMIT)
+        .map((c) => c.row);
+    }
     case 'next-id': {
       const [scope, type] = args;
       const store = storeForType(type);
@@ -293,7 +362,7 @@ export async function query(cmd, args = [], { root, cwdRoot = root || process.cw
     const Q = cannedQueries(cwdRoot);
     const fn = Q[cmd];
     if (!fn) throw new Error(`unknown query '${cmd}'.`);
-    const rows = cmd === 'fts' ? fn(handle, args.join(' ')) : fn(handle, ...args);
+    const rows = (cmd === 'fts' || cmd === 'similar') ? fn(handle, args.join(' ')) : fn(handle, ...args);
     return { rows, cached: true };
   } finally {
     handle.close();
@@ -314,7 +383,7 @@ async function main() {
   const FLAGS = new Set(['--json', '--no-db']);
   const rest = argv.filter((a, i) => !FLAGS.has(a) && a !== '--root' && argv[i - 1] !== '--root');
   const [cmd, ...args] = rest;
-  if (!cmd) { process.stderr.write('usage: q.mjs <open|children|backlinks|by-commit|doc-trail|fts|next-id|rundown|integrity|sql> [args]\n'); process.exit(2); }
+  if (!cmd) { process.stderr.write('usage: q.mjs <open|children|backlinks|by-commit|doc-trail|fts|similar|next-id|rundown|regressions|supersedes|integrity|sql> [args]\n'); process.exit(2); }
 
   const dbPath = defaultDbPath();
 

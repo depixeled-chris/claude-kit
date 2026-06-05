@@ -44,17 +44,21 @@ mkdirSync(join(ai, 'tickets'), { recursive: true });
 mkdirSync(join(ai, 'decisions'), { recursive: true });
 writeFileSync(join(ai, 'config.yml'), 'ids:\n  key: "TST"\n  pad: 3\n');
 writeFileSync(join(ai, 'tickets', 'TST-T001-root.md'),
-  `---\nid: TST-T001\ntitle: root ticket about widgets\ntype: feature\nstatus: doing\npriority: high\nlinks: [TST-D001]\n---\n## Description\nthe widget engine\n`);
+  `---\nid: TST-T001\ntitle: root ticket about widgets\ntype: feature\nstatus: superseded\npriority: high\nlinks: [TST-D001]\nsuperseded_by: TST-T003\n---\n## Description\nthe widget engine\n`);
 // T002 doubles as the regression fixture: regressed_from + causing/fixed commits drive the
 // KIT-T026 by-commit / regressions parity tests (and the introduced_by edge on T001).
 writeFileSync(join(ai, 'tickets', 'TST-T002-child.md'),
   `---\nid: TST-T002\ntitle: child of root\ntype: bug\nstatus: todo\npriority: critical\nparent: TST-T001\naka: [OLD-9]\nregressed_from: TST-T001\ncausing_commit: deadbee\nfixed_commit: cafef00\n---\n## History\n- [2026-06-04 10:00] (created) opened\n`);
 writeFileSync(join(ai, 'decisions', 'TST-D001.md'),
   `---\nid: TST-D001\ntitle: use widgets\ndate: 2026-06-04\n---\n**Decision:** widgets it is\n`);
+// T003 supersedes T001 (KIT-T024): T003 is the live replacement; T001 is retired via
+// superseded_by + status. Drives the supersede-chain + active-set-exclusion tests.
+writeFileSync(join(ai, 'tickets', 'TST-T003-rewrite.md'),
+  `---\nid: TST-T003\ntitle: rewrite the widget engine\ntype: feature\nstatus: todo\npriority: high\nsupersedes: TST-T001\n---\n## Description\na better widget engine\n`);
 
 // ---- pure parse (always runs) ---------------------------------------------
 const items = collectItems(root);
-test('collectItems finds all three items', () => assert.equal(items.length, 3));
+test('collectItems finds all four items', () => assert.equal(items.length, 4));
 test('scope derived from id prefix', () => assert.equal(items.find((i) => i.id === 'TST-T001').scope, 'TST'));
 test('parent edge parsed', () => assert.equal(items.find((i) => i.id === 'TST-T002').parent, 'TST-T001'));
 test('aka parsed', () => assert.deepEqual(items.find((i) => i.id === 'TST-T002').aka, ['OLD-9']));
@@ -63,7 +67,11 @@ test('history event parsed', () => {
   assert.equal(h.length, 1);
   assert.equal(h[0].event, 'created');
 });
-test('num parsed for next-id', () => assert.equal(Math.max(...items.filter((i) => i.store === 'tickets').map((i) => i.num)), 2));
+test('num parsed for next-id', () => assert.equal(Math.max(...items.filter((i) => i.store === 'tickets').map((i) => i.num)), 3));
+
+// supersede frontmatter parsed (KIT-T024)
+test('supersedes parsed on the newer ticket', () => assert.equal(items.find((i) => i.id === 'TST-T003').supersedes, 'TST-T001'));
+test('superseded_by parsed on the retired ticket', () => assert.equal(items.find((i) => i.id === 'TST-T001').supersededBy, 'TST-T003'));
 
 // ---- SQLite-backed (skipped when no engine) -------------------------------
 const engine = await resolveEngine();
@@ -75,7 +83,7 @@ if (!engine) {
   await testAsync('hydrate builds the db', async () => {
     const r = await hydrate({ root, dbPath });
     assert.ok(r.ok && existsSync(dbPath), 'db should exist');
-    assert.equal(r.items, 3);
+    assert.equal(r.items, 4);
   });
 
   // logical dump used to prove idempotency
@@ -99,11 +107,11 @@ if (!engine) {
     assert.equal(dump(), firstDump, 'logical content must match exactly');
   });
 
-  test('open query returns the two open tickets', () => {
+  test('open query returns the two non-superseded open tickets', () => {
     const db = engine(dbPath);
     const rows = db.all("SELECT id FROM items WHERE status IN ('todo','doing','review') AND store='tickets' ORDER BY id");
     db.close();
-    assert.deepEqual(rows.map((r) => r.id), ['TST-T001', 'TST-T002']);
+    assert.deepEqual(rows.map((r) => r.id), ['TST-T002', 'TST-T003'], 'T001 is superseded → not in flow statuses');
   });
 
   test('children-of query (downward view from upward parent)', () => {
@@ -124,21 +132,21 @@ if (!engine) {
     const db = engine(dbPath);
     const rows = db.all("SELECT id FROM items_fts WHERE items_fts MATCH 'engine' ORDER BY id");
     db.close();
-    assert.deepEqual(rows.map((r) => r.id), ['TST-T001'], "'engine' is only in T001's body");
+    assert.deepEqual(rows.map((r) => r.id), ['TST-T001', 'TST-T003'], "'engine' is in T001's and T003's bodies");
   });
 
   test('FTS prefix match spans title + body across items', () => {
     const db = engine(dbPath);
     const rows = db.all("SELECT id FROM items_fts WHERE items_fts MATCH 'widget*' ORDER BY id");
     db.close();
-    assert.deepEqual(rows.map((r) => r.id), ['TST-D001', 'TST-T001'], 'widget* hits the ticket and the decision');
+    assert.deepEqual(rows.map((r) => r.id), ['TST-D001', 'TST-T001', 'TST-T003'], 'widget* hits both tickets and the decision');
   });
 
   test('next-id is max(num)+1', () => {
     const db = engine(dbPath);
     const row = db.all("SELECT MAX(num) m FROM items WHERE scope='TST' AND store='tickets'")[0];
     db.close();
-    assert.equal((row.m || 0) + 1, 3);
+    assert.equal((row.m || 0) + 1, 4);
   });
 
   test('history materialized into the rollup table', () => {
@@ -162,10 +170,11 @@ if (!engine) {
     return { cache, scan };
   };
 
-  await testAsync('parity: open (cache == scan)', async () => {
+  await testAsync('parity: open excludes superseded (cache == scan)', async () => {
     const { cache, scan } = await parity('open', []);
     assert.deepEqual(cache, scan, 'cache-backed open must equal the markdown scan');
-    assert.deepEqual(cache.map((r) => r.id), ['TST-T002', 'TST-T001'], 'critical sorts before high');
+    assert.deepEqual(cache.map((r) => r.id), ['TST-T002', 'TST-T003'],
+      'T001 (superseded) is dropped; critical T002 sorts before high T003');
   });
 
   await testAsync('parity: rundown (cache == scan)', async () => {
@@ -176,7 +185,7 @@ if (!engine) {
   await testAsync('parity: next-id (cache == scan == nextId())', async () => {
     const { cache, scan } = await parity('next-id', ['TST', 'tickets']);
     assert.deepEqual(cache, scan, 'cache-backed next-id must equal the markdown scan');
-    assert.equal(cache[0].id, 'TST-T003', 'next ticket id is max(num)+1, formatted');
+    assert.equal(cache[0].id, 'TST-T004', 'next ticket id is max(num)+1, formatted');
     // and identical to the standalone scan allocator that next-id.mjs falls back to
     assert.equal(cache[0].id, nextId(root, 'tickets'));
   });
@@ -205,6 +214,39 @@ if (!engine) {
       { regressed_from: t2.regressed_from, causing_commit: t2.causing_commit, fixed_commit: t2.fixed_commit },
       { regressed_from: 'TST-T001', causing_commit: 'deadbee', fixed_commit: 'cafef00' },
       'T002 carries its regression chain + commit refs through the cache');
+  });
+
+  // ---- supersede + dedup (KIT-T024) ---------------------------------------
+  await testAsync('parity: supersedes chain data (cache == scan, drives SUPERSEDED.md)', async () => {
+    const { cache, scan } = await parity('supersedes', []);
+    assert.deepEqual(cache, scan, 'cache-backed supersedes must equal the markdown scan');
+    const t3 = cache.find((r) => r.id === 'TST-T003');
+    assert.equal(t3.supersedes, 'TST-T001', 'T003 retires T001');
+    const t2 = cache.find((r) => r.id === 'TST-T002');
+    assert.equal(t2.supersedes, null, 'a normal ticket supersedes nothing');
+  });
+
+  await testAsync('supersede edge hydrated both directions', () => {
+    const db = engine(dbPath);
+    const fwd = db.all("SELECT to_id FROM links WHERE from_id='TST-T003' AND rel='supersedes'");
+    const back = db.all("SELECT to_id FROM links WHERE from_id='TST-T001' AND rel='superseded_by'");
+    db.close();
+    assert.deepEqual(fwd.map((r) => r.to_id), ['TST-T001'], 'newer→older supersedes edge');
+    assert.deepEqual(back.map((r) => r.to_id), ['TST-T003'], 'older→newer superseded_by edge');
+  });
+
+  await testAsync('parity: similar surfaces likely duplicates (cache == scan, suggest-only)', async () => {
+    const { cache, scan } = await parity('similar', ['widget', 'engine']);
+    assert.deepEqual(cache, scan, 'cache-backed similar must equal the markdown scan');
+    const ids = cache.map((r) => r.id);
+    assert.ok(ids.includes('TST-T003'), 'the live widget-engine ticket is surfaced as a candidate');
+    assert.ok(!ids.includes('TST-T001'), 'an already-superseded ticket is NOT suggested as a duplicate');
+    assert.ok(ids.every((id) => id.startsWith('TST-T')), 'only tickets are candidates (decisions excluded)');
+  });
+
+  await testAsync('similar returns nothing for an empty proposal (no false candidates)', async () => {
+    const { cache } = await parity('similar', ['', '']);
+    assert.deepEqual(cache, [], 'a blank proposal surfaces no candidates');
   });
 
   // ---- cross-scope hydration (KIT-T031) -----------------------------------
@@ -265,7 +307,7 @@ if (!engine) {
   // --root still isolates to a single scope (regression guard for the override).
   await testAsync('single-root --root hydrate stays single-scope', async () => {
     const r = await hydrate({ root, dbPath });
-    assert.equal(r.items, 3, 'explicit --root hydrates only that one store');
+    assert.equal(r.items, 4, 'explicit --root hydrates only that one store');
   });
 }
 

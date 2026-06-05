@@ -2,12 +2,14 @@
 id: KIT-T000
 title: <short imperative title>
 type: bug              # any key from .ai/config.yml → classifications
-status: todo           # todo | doing | review | done  (see config.statuses)
+status: todo           # todo | doing | review | done | superseded  (see config.statuses)
 priority: medium       # critical | high | medium | low
 milestone:             # blank = backlog; set to schedule onto ROADMAP.md
 labels: []
 links: []              # related tickets, commits (regressions: causing commit), URLs
 files: []              # repo-root-relative paths this ticket touches
+supersedes:            # ticket id this one RETIRES (set on the NEWER ticket)
+superseded_by:         # ticket id that retired THIS one (drops it from the active board + drain)
 created: <YYYY-MM-DDThh:mm:ssZ>
 updated: <YYYY-MM-DDThh:mm:ssZ>
 ---

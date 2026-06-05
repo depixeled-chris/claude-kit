@@ -73,7 +73,14 @@ export function parseItem(absPath, store) {
     title: scalar(fm, 'title'),
     parent: scalar(fm, 'parent'),
     milestone: scalar(fm, 'milestone'),
+    labels: list(fm, 'labels'),
+    files: list(fm, 'files'),
     aka: list(fm, 'aka'),
+    // supersede edges (KIT-T024): a newer ticket retires an older one. `supersedes` is the
+    // outbound pointer (newer -> older); `superseded_by` the back-pointer (older -> newer).
+    // Mirrors decisions' `supersedes:`. A ticket carrying either is out of the active set.
+    supersedes: scalar(fm, 'supersedes'),
+    supersededBy: scalar(fm, 'superseded_by'),
     links: [...links],
     // provenance edges (KIT-D012) — present once those fields land; harmless when absent
     regressedFrom: scalar(fm, 'regressed_from') || scalar(fm, 'regression_of'),

@@ -43,6 +43,9 @@ priorities: [critical, high, medium, low]
 statuses:
   flow: [todo, doing, review, done]
   human_only: [done]        # Claude moves to review; only Chris marks done.
+  # `superseded` is OFF-FLOW: a newer ticket retired this one (set `superseded_by:` here +
+  # `supersedes:` on the replacement). It drops out of the active board + drain (KIT-T024).
+  off_board: [superseded]
 
 # ---------------------------------------------------------------------------
 # DRAIN — how the queue empties without Chris driving it.

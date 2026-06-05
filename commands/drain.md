@@ -14,6 +14,8 @@ Keep going item-to-item until the queue needs them or they stop.
    - Else pick per `drain`: if `follow_roadmap` and a current milestone exists, take the next
      `todo` in ROADMAP order; otherwise the highest `todo` by type `order` then priority.
    - Skip `review`/`done` and anything `blocked`/gated.
+   - NEVER start a ticket that is `superseded` or carries `superseded_by:` (its work is subsumed
+     by the replacement) — `q.mjs open` already excludes these, so trust that list (KIT-T024).
    - Arg: none = current milestone then backlog · `all` = ignore milestone gating (pure
      priority) · a milestone name = drain only that milestone.
 2. WORK it via the `/work` contract: read the ticket, **restate its acceptance criteria**,

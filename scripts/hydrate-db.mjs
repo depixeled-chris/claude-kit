@@ -209,6 +209,10 @@ export async function hydrate({ root, dbPath = defaultDbPath(), ifStale = false 
       // lookup is an indexed idx_links_to scan (the agent-retrieval cross-ref, KIT-T004).
       edge('caused_by', it.causingCommit);
       edge('fixed_by', it.fixedCommit);
+      // supersede edges (KIT-T024) — newer→older (supersedes) + older→newer (superseded_by),
+      // so a backlinks/chain walk resolves a supersede chain like the regression chains do.
+      edge('supersedes', it.supersedes);
+      edge('superseded_by', it.supersededBy);
 
       if (it.producedBy || it.informs.length) {
         // a work item that produces a doc shows up as an artifact edge; informs is many

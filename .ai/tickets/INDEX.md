@@ -27,7 +27,7 @@
 | KIT-T021 | feature | todo | high | RIGID — always alert the maintainer when something lands (commit / push / deploy) |
 | KIT-T022 | feature | todo | high | Hard license guard — block GPL/LGPL/AGPL/unlicensed code from entering a repo; THIRD_PARTY_LICENSES ledger |
 | KIT-T023 | feature | todo | critical | SYSTEM PROBLEM — the durable record is passive; it must actively surface + connect relevant context at decision points |
-| KIT-T024 | feature | todo | high | Ticket-level supersede + dedup — a new ticket can retire an old one and take it out of the drain |
+| KIT-T024 | feature | review | high | Ticket-level supersede + dedup — a new ticket can retire an old one and take it out of the drain |
 | KIT-T025 | feature | todo | high | General deduplication strategy across the whole workflow (capture → inbox → tickets → decisions → memory) |
 | KIT-T026 | feature | review | high | Make the process CONSUME the SQLite cache (query, don't scan) — orient / drain / next-id / index |
 | KIT-T027 | feature | todo | high | Redesign the .ai store structure as first-class KIT-owned machinery (item model; reassess `notes`; triage/backlog as plugin code) |
@@ -35,6 +35,10 @@
 | KIT-T029 | feature | todo | high | Formal script-based handoff — borrow workflow's begin/end-task scripts so collation is programmatic, not orchestrator-ingested |
 | KIT-T030 | feature | review | critical | TOKEN STRATEGY — cut the per-agent baseline ingestion (subagents start at 58-76k before any work) |
 | KIT-T031 | bug | review | high | Cross-scope cache hydration — one DB indexes every project, queryable from any cwd |
+
+## Superseded (0)
+| id | status | title | superseded by |
+| --- | --- | --- | --- |
 
 ## Archived (0)
 | id | type | status | priority | title |
