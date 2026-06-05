@@ -130,6 +130,21 @@ async function reconcileTests() {
 }
 await reconcileTests();
 
+// ---- cross-store dedup (KIT-T025), scan path (always runs, no engine needed) ---------------
+// `similar --store <s>` must confine candidates to that store so a proposed item dedupes against
+// the store it's being created into, not just tickets. Forced down the markdown-scan path
+// (noDb:true) so this runs in a fallback-only environment too.
+await testAsync('similar --store decisions surfaces the decision, excludes tickets (scan)', async () => {
+  const { rows } = await query('similar', ['--store', 'decisions', 'widgets'], { root, noDb: true });
+  const ids = rows.map((r) => r.id);
+  assert.ok(ids.includes('TST-D001'), 'the matching decision is a candidate in its own store');
+  assert.ok(ids.every((id) => id.startsWith('TST-D')), 'only decisions are candidates (tickets excluded)');
+});
+await testAsync('similar defaults to tickets when no --store (scan, KIT-T024 back-compat)', async () => {
+  const { rows } = await query('similar', ['widget', 'engine'], { root, noDb: true });
+  assert.ok(rows.every((r) => r.id.startsWith('TST-T')), 'default store stays tickets');
+});
+
 // ---- SQLite-backed (skipped when no engine) -------------------------------
 const engine = await resolveEngine();
 if (!engine) {
@@ -304,6 +319,15 @@ if (!engine) {
   await testAsync('similar returns nothing for an empty proposal (no false candidates)', async () => {
     const { cache } = await parity('similar', ['', '']);
     assert.deepEqual(cache, [], 'a blank proposal surfaces no candidates');
+  });
+
+  // Cross-store dedup (KIT-T025): `--store <s>` confines candidates to that store, cache==scan.
+  await testAsync('parity: similar --store decisions confines to decisions (cache == scan)', async () => {
+    const { cache, scan } = await parity('similar', ['--store', 'decisions', 'widgets']);
+    assert.deepEqual(cache, scan, 'cross-store similar must equal the markdown scan');
+    const ids = cache.map((r) => r.id);
+    assert.ok(ids.includes('TST-D001'), 'the matching decision is surfaced in its own store');
+    assert.ok(ids.every((id) => id.startsWith('TST-D')), 'only decisions are candidates (tickets excluded)');
   });
 
   // ---- cross-scope hydration (KIT-T031) -----------------------------------

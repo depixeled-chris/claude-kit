@@ -49,14 +49,16 @@ try {
   const { rows, cached } = await query('next-id', [key, store], { root });
   const id = cached && rows[0] && rows[0].id ? rows[0].id : nextId(root, store);
 
-  // Dedup hint (KIT-T024): for a NEW ticket with a proposed title, surface likely existing
-  // duplicates on stderr — suggest-only, never blocks. Fail-open: a similarity-query error
-  // must never wedge id allocation, so any failure is swallowed.
-  if (proposal && store === 'tickets') {
+  // Dedup hint (KIT-T024, generalized to every store in KIT-T025): for a NEW item with a
+  // proposed title, surface likely existing duplicates IN THE SAME STORE on stderr —
+  // suggest-only, never blocks. Fail-open: a similarity-query error must never wedge id
+  // allocation, so any failure is swallowed.
+  if (proposal) {
     try {
-      const { rows: dups } = await query('similar', proposal.split(/\s+/), { root });
+      const { rows: dups } = await query('similar', ['--store', store, ...proposal.split(/\s+/)], { root });
       if (dups.length) {
-        process.stderr.write(`next-id: ${dups.length} possible duplicate ticket(s) — link or supersede instead of duplicating:\n`);
+        const noun = store.replace(/s$/, '');
+        process.stderr.write(`next-id: ${dups.length} possible duplicate ${noun}(s) — link or supersede instead of duplicating:\n`);
         for (const d of dups.slice(0, DEDUP_HINT_MAX)) process.stderr.write(`  ${d.id} [${d.status}] ${d.title}\n`);
       }
     } catch {

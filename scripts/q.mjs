@@ -8,7 +8,8 @@
 //   node scripts/q.mjs by-commit <sha>              # tickets caused-by / fixed-by <sha>
 //   node scripts/q.mjs doc-trail <id>               # history events for <id>, newest first
 //   node scripts/q.mjs fts <query...>               # full-text search title+body
-//   node scripts/q.mjs similar <title/labels...>    # likely-duplicate tickets (dedup, suggest-only)
+//   node scripts/q.mjs similar <title/labels...>    # likely-duplicate ITEMS (dedup, suggest-only)
+//   node scripts/q.mjs similar --store <s> <text>   # …confined to one store (tickets|decisions|notes|questions)
 //   node scripts/q.mjs next-id <scope> <type>       # O(1) next free id (max(num)+1)
 //   node scripts/q.mjs rundown                       # per-scope open-item counts
 //   node scripts/q.mjs regressions                   # regression chain data (index-tickets)
@@ -50,6 +51,15 @@ function ftsOrQuery(text) {
   const terms = (String(text || '').toLowerCase().match(ALNUM_TERM) || [])
     .filter((t) => t.length > MIN_TERM_LEN);
   return terms.length ? terms.join(' OR ') : '""';
+}
+
+// Dedup is now cross-store (KIT-T025): a proposed item can duplicate one in ANY store, so
+// `similar` confines candidates to the store you are creating into. Both the cache and the
+// markdown-scan paths split a leading `--store <s>` off the free-text proposal here, so the
+// store filter is parsed in ONE place. Default `tickets` keeps KIT-T024 callers unchanged.
+function parseSimilar(text) {
+  const m = String(text || '').match(/^\s*--store\s+(\S+)\s*([\s\S]*)$/);
+  return { store: m ? m[1] : 'tickets', query: (m ? m[2] : text).trim() };
 }
 
 function newestAcross(sources) {
@@ -184,17 +194,20 @@ function cannedQueries(root) {
        LEFT JOIN links s ON s.from_id = i.id AND s.rel = 'supersedes'
        WHERE i.store = 'tickets' ORDER BY i.id`),
 
-    // Dedup detector (KIT-T024): FTS-rank likely duplicates of a free-text query (a proposed
-    // ticket's title/labels). SUGGEST-ONLY — returns candidates for the operator to link or
-    // supersede; never auto-merges. Excludes already-superseded tickets from the suggestions.
-    // Shape matches the markdown-scan fallback (id/type/status/title) so the two are at parity —
-    // a dedup hint needs the candidate's id + title, not an FTS snippet.
-    similar: (db, query) => db.all(
-      `SELECT i.id, i.type, i.status, i.title
-       FROM items_fts f JOIN items i ON i.id = f.id
-       WHERE items_fts MATCH ? AND i.store = 'tickets' AND i.archived = 0
-         AND i.status <> 'superseded'
-       ORDER BY rank LIMIT ?`, [ftsOrQuery(query), FTS_LIMIT]),
+    // Dedup detector (KIT-T024, generalized to all stores in KIT-T025): FTS-rank likely
+    // duplicates of a free-text proposal, confined to the target store. SUGGEST-ONLY —
+    // returns candidates for the operator to link or supersede; never auto-merges. Excludes
+    // already-superseded items. Shape matches the markdown-scan fallback (id/type/status/title)
+    // so the two are at parity — a dedup hint needs the candidate's id + title, not a snippet.
+    similar: (db, raw) => {
+      const { store, query } = parseSimilar(raw);
+      return db.all(
+        `SELECT i.id, i.type, i.status, i.title
+         FROM items_fts f JOIN items i ON i.id = f.id
+         WHERE items_fts MATCH ? AND i.store = ? AND i.archived = 0
+           AND i.status <> 'superseded'
+         ORDER BY rank LIMIT ?`, [ftsOrQuery(query), store, FTS_LIMIT]);
+    },
 
     'next-id': (db, scope, type) => {
       const row = db.all(
@@ -304,11 +317,13 @@ function fallback(cmd, args, root) {
         .sort((a, b) => compareIds(a.id, b.id));
     case 'similar': {
       // Mirror the cache's FTS OR-match with a term-overlap scan: candidates sharing the most
-      // proposal terms first (suggest-only). Excludes archived + already-superseded tickets.
-      const wanted = new Set((args.join(' ').toLowerCase().match(ALNUM_TERM) || []).filter((t) => t.length > MIN_TERM_LEN));
+      // proposal terms first (suggest-only). Excludes archived + already-superseded items, and
+      // confines to the target store (KIT-T025) — same `--store` parse as the cache path.
+      const { store, query } = parseSimilar(args.join(' '));
+      const wanted = new Set((query.toLowerCase().match(ALNUM_TERM) || []).filter((t) => t.length > MIN_TERM_LEN));
       if (!wanted.size) return [];
       return items
-        .filter((i) => i.store === 'tickets' && !i.archived && i.status !== 'superseded')
+        .filter((i) => i.store === store && !i.archived && i.status !== 'superseded')
         .map((i) => {
           const hay = new Set((`${i.title} ${i.body}`.toLowerCase().match(ALNUM_TERM) || []));
           let overlap = 0;
