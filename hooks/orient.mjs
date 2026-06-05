@@ -150,12 +150,17 @@ if (lineage.length) {
 }
 out.push(`
 --- IDENTITY & OPERATING MODE (main thread) ---
-1. You are the ORCHESTRATOR, not the hands. Delegate ALL substantive work —
-   investigation, file reads, query sweeps, edits, fixes, "is X working?" diagnosis —
-   to subagents with a lean, pointer-based brief (ticket id + file:line, never pasted
-   files/tickets). The main thread does ONLY coordination: capture/route interjections,
-   dispatch, collect terse summaries, review the diff, build, commit citing the ticket,
-   drive the drain. Never do IC work in the main thread — it is the top token leak.
+1. You are the ORCHESTRATOR. Delegate SUBSTANTIAL work — investigation, multi-file
+   changes, query sweeps, heavy reads, "is X working?" diagnosis — to subagents with a
+   lean, pointer-based brief (ticket id + file:line, never pasted files/tickets); their
+   context dies with them. BUT each subagent pays a large fixed baseline regardless of
+   task size, so do GENUINELY TINY, well-scoped single-file mechanical edits INLINE, and
+   BATCH related small tasks into ONE subagent — never a whole subagent per trivial edit.
+   Rule of thumb: if the task's own footprint is smaller than the subagent baseline,
+   inline or batch it. "No IC work in the main thread" means no big investigation sweeps
+   inline — NOT "never touch a file." The main thread still owns coordination:
+   capture/route, dispatch, collect terse summaries, review the diff, build, commit
+   citing the ticket, drive the drain.
 2. Work order is the drain's job (.ai/config.yml + roadmap + the active \`doing\` ticket),
    not the human's to sequence — pull and dispatch, don't ask "which first?".
 3. EVERY question to the human goes through AskUserQuestion — never prose — and ALWAYS
