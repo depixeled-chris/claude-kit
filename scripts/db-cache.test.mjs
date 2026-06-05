@@ -11,6 +11,8 @@ import assert from 'node:assert/strict';
 import { collectItems } from './db-parse.mjs';
 import { hydrate } from './hydrate-db.mjs';
 import { resolveEngine } from './db-engine.mjs';
+import { query } from './q.mjs';
+import { nextId } from './id-utils.mjs';
 
 let pass = 0;
 let fail = 0;
@@ -142,6 +144,39 @@ if (!engine) {
     const rows = db.all('SELECT event FROM history WHERE item_id = ?', ['TST-T002']);
     db.close();
     assert.deepEqual(rows.map((r) => r.event), ['created']);
+  });
+
+  // ---- parity: cache-backed == markdown-scan (KIT-T026) -------------------
+  // The consumers we routed to the cache (next-id, orient, drain via q.mjs) MUST get the
+  // SAME answer the markdown scan gives. `query(cmd, args, {root})` uses the cache;
+  // `{root, noDb:true}` forces the db-parse scan — the exact fallback. Equal => correct.
+  // JSON round-trip normalizes shape (node:sqlite hands back null-prototype rows; the scan
+  // builds plain objects) — the same serialization an agent/CLI consumer sees, so equality
+  // here is the equality that matters. Values, keys, and order must match; prototype must not.
+  const norm = (rows) => JSON.parse(JSON.stringify(rows));
+  const parity = async (cmd, args) => {
+    const cache = norm((await query(cmd, args, { root, dbPath })).rows);
+    const scan = norm((await query(cmd, args, { root, dbPath, noDb: true })).rows);
+    return { cache, scan };
+  };
+
+  await testAsync('parity: open (cache == scan)', async () => {
+    const { cache, scan } = await parity('open', []);
+    assert.deepEqual(cache, scan, 'cache-backed open must equal the markdown scan');
+    assert.deepEqual(cache.map((r) => r.id), ['TST-T002', 'TST-T001'], 'critical sorts before high');
+  });
+
+  await testAsync('parity: rundown (cache == scan)', async () => {
+    const { cache, scan } = await parity('rundown', []);
+    assert.deepEqual(cache, scan, 'cache-backed rundown must equal the markdown scan');
+  });
+
+  await testAsync('parity: next-id (cache == scan == nextId())', async () => {
+    const { cache, scan } = await parity('next-id', ['TST', 'tickets']);
+    assert.deepEqual(cache, scan, 'cache-backed next-id must equal the markdown scan');
+    assert.equal(cache[0].id, 'TST-T003', 'next ticket id is max(num)+1, formatted');
+    // and identical to the standalone scan allocator that next-id.mjs falls back to
+    assert.equal(cache[0].id, nextId(root, 'tickets'));
   });
 
   // ---- cross-scope hydration (KIT-T031) -----------------------------------

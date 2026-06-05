@@ -76,15 +76,23 @@ function formatId(root, scope, type, num) {
   return `${scope}-${letter}${String(num).padStart(pad, '0')}`;
 }
 
+// Open-item ordering — ONE comparator both the cache and the markdown-scan paths sort by,
+// so the two are byte-identical (KIT-T026 parity). Priority first (BINARY/code-point order,
+// matching SQLite's default collation), then id NUMERICALLY via compareIds (so KIT-T1000
+// follows KIT-T999 — which a plain text ORDER BY in SQL gets backwards). Applying it in JS
+// on both sides is what removes SQL-text-vs-compareIds as a parity gap.
+const compareOpen = (a, b) =>
+  ((a.priority || '') < (b.priority || '') ? -1 : (a.priority || '') > (b.priority || '') ? 1 : 0)
+  || compareIds(a.id, b.id);
+
 // ---- SQLite-backed canned queries -----------------------------------------
 function cannedQueries(root) {
   return {
     open: (db, scope) => db.all(
       `SELECT id, type, status, priority, title FROM items
        WHERE status IN (${OPEN.map(() => '?').join(',')}) AND archived = 0
-         ${scope ? 'AND scope = ?' : ''}
-       ORDER BY priority, id`,
-      scope ? [...OPEN, scope] : [...OPEN]),
+         ${scope ? 'AND scope = ?' : ''}`,
+      scope ? [...OPEN, scope] : [...OPEN]).sort(compareOpen),
 
     children: (db, id) => db.all(
       'SELECT id, type, status, title FROM items WHERE parent = ? ORDER BY id', [id]),
@@ -160,8 +168,8 @@ function fallback(cmd, args, root) {
     case 'open': {
       const scope = args[0];
       return items.filter((i) => OPEN.includes(i.status) && !i.archived && (!scope || i.scope === scope))
-        .sort((a, b) => compareIds(a.id, b.id))
-        .map((i) => ({ id: i.id, type: i.type, status: i.status, priority: i.priority, title: i.title }));
+        .map((i) => ({ id: i.id, type: i.type, status: i.status, priority: i.priority, title: i.title }))
+        .sort(compareOpen);
     }
     case 'children':
       return items.filter((i) => i.parent === args[0]).map((i) => ({ id: i.id, type: i.type, status: i.status, title: i.title }));
@@ -221,6 +229,28 @@ function printRows(rows, json) {
 const compact = (r) =>
   typeof r === 'string' ? r : Object.values(r).map((v) => (v === null ? '' : String(v))).join('  ');
 
+// Programmatic query surface — the SINGLE entry the process tooling (next-id, survey,
+// orient) shares with the CLI, so cache-vs-scan parity lives in ONE place (KIT-T026).
+// Runs a canned query against the cache, auto-(re)hydrating, and degrades to the
+// db-parse markdown scan when no SQLite engine exists or `noDb` is set — fail-open, the
+// cache is never a hard dependency. `root` forces single-scope; `cwdRoot` keys id-format
+// (next-id) and seeds the fallback scan. Returns the same rows the CLI prints.
+export async function query(cmd, args = [], { root, cwdRoot = root || process.cwd(), noDb = false, dbPath = defaultDbPath() } = {}) {
+  const handle = noDb ? null : await db(root, dbPath);
+  if (!handle) {
+    return { rows: fallback(cmd, args, cwdRoot), cached: false };
+  }
+  try {
+    const Q = cannedQueries(cwdRoot);
+    const fn = Q[cmd];
+    if (!fn) throw new Error(`unknown query '${cmd}'.`);
+    const rows = cmd === 'fts' ? fn(handle, args.join(' ')) : fn(handle, ...args);
+    return { rows, cached: true };
+  } finally {
+    handle.close();
+  }
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const json = argv.includes('--json');
@@ -238,28 +268,19 @@ async function main() {
   if (!cmd) { process.stderr.write('usage: q.mjs <open|children|backlinks|doc-trail|fts|next-id|rundown|integrity|sql> [args]\n'); process.exit(2); }
 
   const dbPath = defaultDbPath();
-  const handle = noDb ? null : await db(root, dbPath);
 
   if (cmd === 'sql') {
+    const handle = noDb ? null : await db(root, dbPath);
     if (!handle) { process.stderr.write('q: ad-hoc SQL needs a SQLite engine (none found).\n'); process.exit(1); }
     const sql = args.join(' ');
-    if (!/^\s*(select|with|pragma|explain)\b/i.test(sql)) { process.stderr.write('q: only read-only SQL (SELECT/WITH/PRAGMA/EXPLAIN) — the cache is never written back.\n'); process.exit(1); }
+    if (!/^\s*(select|with|pragma|explain)\b/i.test(sql)) { process.stderr.write('q: only read-only SQL (SELECT/WITH/PRAGMA/EXPLAIN) — the cache is never written back.\n'); handle.close(); process.exit(1); }
     printRows(handle.all(sql), json);
     handle.close();
     return;
   }
 
-  if (!handle) {
-    printRows(fallback(cmd, args, cwdRoot), json);
-    return;
-  }
-
-  const Q = cannedQueries(cwdRoot);
-  const fn = Q[cmd];
-  if (!fn) { handle.close(); process.stderr.write(`q: unknown query '${cmd}'.\n`); process.exit(2); }
-  const result = cmd === 'fts' ? fn(handle, args.join(' ')) : fn(handle, ...args);
-  printRows(result, json);
-  handle.close();
+  const { rows } = await query(cmd, args, { root, cwdRoot, noDb, dbPath });
+  printRows(rows, json);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

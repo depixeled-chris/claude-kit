@@ -5,7 +5,11 @@ argument-hint: "[milestone | all]  (optional; default: current milestone, then b
 Drain work per `.ai/config.yml` → `drain`, so the maintainer never has to name a ticket.
 Keep going item-to-item until the queue needs them or they stop.
 
-1. SELECT the next item:
+1. SELECT the next item — **QUERY the cache, don't open every ticket** (KIT-T026):
+   `node <kit>/scripts/q.mjs open <SCOPE>` lists open items (status+priority, sorted), and
+   `node <kit>/scripts/q.mjs rundown` gives per-scope open/doing/review counts. q.mjs
+   auto-falls-back to a markdown scan when no SQLite engine is present, so it always answers.
+   Then:
    - FIRST resume any ticket already `status: doing`.
    - Else pick per `drain`: if `follow_roadmap` and a current milestone exists, take the next
      `todo` in ROADMAP order; otherwise the highest `todo` by type `order` then priority.

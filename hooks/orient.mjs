@@ -5,6 +5,8 @@
 import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
 import { git, gitRoot, adopted, projectName, formatWip, watchRepos, readLineage, recordProject, WIP_FILES, WIP_COMMITS } from './lib.mjs';
+import { query } from '../scripts/q.mjs';
+import { readIdConfig } from '../scripts/id-utils.mjs';
 
 const COMMITS = 12;
 const SESSION_LINES = 40;
@@ -111,6 +113,33 @@ if (decisionsDir) {
   out.push('');
   out.push('--- DECISIONS (recent) ---');
   out.push(tail(decisions, DECISIONS_LINES));
+}
+
+// Open work, QUERIED from the cross-scope cache instead of opening every ticket file
+// (KIT-T026 — the KIT-T020 retrieval win). `query` auto-falls-back to a markdown scan when
+// no SQLite engine/DB exists, so this section appears either way; any failure is swallowed
+// so a cache hiccup never blocks orientation (fail-open). Items are grouped by scope and
+// THIS project's in-flight (doing/review) is called out so a resume sees what's mid-work.
+try {
+  const { key } = readIdConfig(root);
+  const { rows: openRows } = await query('open', [], { cwdRoot: root });
+  // scope = the id prefix (KIT from KIT-T049) — same grouping the cache uses, so no extra
+  // column is needed and the CLI `open` output shape is untouched.
+  const scopeOf = (id) => (String(id).match(/^([A-Za-z]+)-/) || [])[1] || '';
+  if (openRows && openRows.length) {
+    const inFlight = openRows.filter((r) => scopeOf(r.id) === key && (r.status === 'doing' || r.status === 'review'));
+    const byScope = new Map();
+    for (const r of openRows) { const s = scopeOf(r.id); byScope.set(s, (byScope.get(s) || 0) + 1); }
+    out.push('');
+    out.push('--- Open work (QUERIED from the cache; falls back to a scan — see q.mjs) ---');
+    out.push('  by scope: ' + [...byScope.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([s, n]) => `${s}:${n}`).join('  '));
+    if (inFlight.length) {
+      out.push(`  in-flight (${key}):`);
+      for (const r of inFlight) out.push(`    [${r.status}] ${r.id} — ${r.title}`);
+    }
+  }
+} catch {
+  /* cache + fallback both unavailable — orientation proceeds without the open-work view */
 }
 
 const lineage = readLineage(root);

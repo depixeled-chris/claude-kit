@@ -6,18 +6,37 @@
 //   node scripts/next-id.mjs tickets            # -> HOD-T049
 //   node scripts/next-id.mjs decisions /d/dev/claude-kit
 //
-// This is the allocation half of KIT-T004 (markdown-served; the SQLite cache only
-// makes it O(1) later). Pair with check-ids.mjs for the integrity half.
+// This is the allocation half of KIT-T004. It now serves from the SQLite cache's O(1)
+// `next-id` query (KIT-T026) and FALLS BACK to the markdown `nextId` scan when no engine
+// or DB is present — same answer either way (the cache is derived from the same scan).
+// Pair with check-ids.mjs for the integrity half.
 
-import { nextId } from './id-utils.mjs';
+import { nextId, readIdConfig, STORE_TYPE } from './id-utils.mjs';
+import { query } from './q.mjs';
 
-const [, , store, root] = process.argv;
+const [, , store, rootArg] = process.argv;
 if (!store) {
   console.error('usage: next-id.mjs <tickets|decisions|notes|questions> [repoRoot]');
   process.exit(2);
 }
+const root = rootArg || process.cwd();
+
 try {
-  process.stdout.write(nextId(root || process.cwd(), store) + '\n');
+  // Validate the store + read this project's id key up front (cheap config read, no file
+  // scan) — the cache groups by scope = the id key, and a bad store must still fail fast.
+  if (!STORE_TYPE[store]) {
+    throw new Error(`unknown store '${store}' (one of: ${Object.keys(STORE_TYPE).join(', ')})`);
+  }
+  const { key } = readIdConfig(root);
+  if (!key) throw new Error(`no ids.key in ${root}/.ai/config.yml`);
+
+  // O(1) cache path (KIT-T026): --root pins the local scope so next-id derives from THIS
+  // project's counter even though the shared cache is cross-scope. Falls back to the full
+  // markdown scan (nextId) when no engine/DB is present — same answer, derived from the
+  // same items.
+  const { rows, cached } = await query('next-id', [key, store], { root });
+  const id = cached && rows[0] && rows[0].id ? rows[0].id : nextId(root, store);
+  process.stdout.write(id + '\n');
 } catch (e) {
   console.error('next-id: ' + e.message);
   process.exit(1);
