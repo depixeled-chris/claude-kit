@@ -11,15 +11,23 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { compareIds } from './id-utils.mjs';
 import { query } from './q.mjs';
-import { reconcileSupersede } from './reconcile-supersede.mjs';
+import { reconcileSupersede, autoDedupTickets } from './reconcile-supersede.mjs';
 
 const root = process.argv[2] || process.cwd();
 
+// Auto-dedup UNAMBIGUOUS ticket duplicates (KIT-T025, locked policy C; KIT-D021: automate >
+// remembered-manual) BEFORE reconcile: same-scope tickets with an IDENTICAL normalized title
+// that the KIT-T024 detector also confirms get a `supersedes` edge written (survivor = lower
+// id). Tickets ONLY — decisions/notes/questions stay suggest-only. Strict + idempotent.
+const dedup = await autoDedupTickets(root);
+for (const c of dedup.changed) process.stdout.write(`auto-dedup: ${c}\n`);
+
 // Auto-reconcile supersede relationships in the markdown BEFORE reading the board (KIT-D021):
-// a one-sided `supersedes:`/`superseded_by:` declaration gets its reciprocal pointer written
-// and the retired ticket flipped to `status: superseded`. Idempotent + safe (only flips TO
-// superseded). This is the deterministic, automatic home — it already runs to rebuild the
-// board, writes markdown, and is OUT of the PreToolUse/commit hot path.
+// a one-sided `supersedes:`/`superseded_by:` declaration (including the edges auto-dedup just
+// wrote) gets its reciprocal pointer written and the retired ticket flipped to `status:
+// superseded`. Idempotent + safe (only flips TO superseded). This is the deterministic,
+// automatic home — it already runs to rebuild the board, writes markdown, and is OUT of the
+// PreToolUse/commit hot path.
 const recon = reconcileSupersede(root);
 for (const c of recon.changed) process.stdout.write(`reconcile-supersede: ${c}\n`);
 

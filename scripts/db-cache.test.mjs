@@ -13,7 +13,7 @@ import { hydrate } from './hydrate-db.mjs';
 import { resolveEngine } from './db-engine.mjs';
 import { query } from './q.mjs';
 import { nextId } from './id-utils.mjs';
-import { reconcileSupersede } from './reconcile-supersede.mjs';
+import { reconcileSupersede, autoDedupTickets } from './reconcile-supersede.mjs';
 
 let pass = 0;
 let fail = 0;
@@ -129,6 +129,83 @@ async function reconcileTests() {
   rmSync(rroot, { recursive: true, force: true });
 }
 await reconcileTests();
+
+// ---- auto-dedup of unambiguous TICKET duplicates (KIT-T025, locked policy C) ---------------
+// Strict bar: same scope + IDENTICAL normalized title + detector-confirmed. Survivor = lower
+// id; loser auto-superseded via the KIT-T024 reconcile mechanism. Decisions/notes stay
+// suggest-only (never auto-resolved). Idempotent. Engine-agnostic (query() fails open to scan).
+async function autoDedupTests() {
+  const droot = mkdtempSync(join(tmpdir(), 'kit-dedup-'));
+  const dai = join(droot, '.ai');
+  mkdirSync(join(dai, 'tickets'), { recursive: true });
+  mkdirSync(join(dai, 'decisions'), { recursive: true });
+  writeFileSync(join(dai, 'config.yml'), 'ids:\n  key: "DUP"\n  pad: 3\n');
+  const field = (text, key) => (text.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm')) || [, ''])[1].trim();
+
+  // (a) Two same-title tickets (title differs only in case/punctuation) → unambiguous dup.
+  const lowPath = join(dai, 'tickets', 'DUP-T001-a.md');
+  const highPath = join(dai, 'tickets', 'DUP-T005-b.md');
+  writeFileSync(lowPath,
+    `---\nid: DUP-T001\ntitle: Add streaming world chunks\ntype: feature\nstatus: todo\npriority: high\n---\n## Description\nstream chunks on demand\n`);
+  writeFileSync(highPath,
+    `---\nid: DUP-T005\ntitle: add streaming world chunks!\ntype: feature\nstatus: todo\npriority: medium\n---\n## Description\nstream chunks on demand\n`);
+  // (b) Merely-similar (DIFFERENT title, overlapping terms) → must NOT auto-resolve.
+  writeFileSync(join(dai, 'tickets', 'DUP-T002-c.md'),
+    `---\nid: DUP-T002\ntitle: Stream world audio chunks lazily\ntype: feature\nstatus: todo\npriority: low\n---\n## Description\nstream audio\n`);
+  // (c) Two identical-title DECISIONS → suggest-only store, must NOT auto-resolve.
+  writeFileSync(join(dai, 'decisions', 'DUP-D001.md'),
+    `---\nid: DUP-D001\ntitle: Use seeded RNG everywhere\ndate: 2026-06-05\n---\n**Decision:** seeded RNG\n`);
+  writeFileSync(join(dai, 'decisions', 'DUP-D002.md'),
+    `---\nid: DUP-D002\ntitle: use seeded rng everywhere\ndate: 2026-06-05\n---\n**Decision:** seeded RNG, refined\n`);
+
+  // First pass: auto-dedup writes the supersedes edge (survivor = lower id DUP-T001).
+  const first = await autoDedupTickets(droot);
+  test('auto-dedup resolves exactly one unambiguous ticket pair', () =>
+    assert.equal(first.changed.length, 1, `expected 1 change, got: ${first.changed.join('; ')}`));
+  test('auto-dedup survivor is the LOWER id, superseding the higher', () =>
+    assert.equal(field(readFileSync(lowPath, 'utf8'), 'supersedes'), 'DUP-T005'));
+
+  // Reconcile then flips the loser + writes the reciprocal pointer (KIT-T024 mechanism).
+  reconcileSupersede(droot);
+  const highAfter = readFileSync(highPath, 'utf8');
+  test('auto-dedup loser is flipped to status: superseded (via reconcile)', () =>
+    assert.equal(field(highAfter, 'status'), 'superseded'));
+  test('auto-dedup writes the reciprocal superseded_by on the loser', () =>
+    assert.equal(field(highAfter, 'superseded_by'), 'DUP-T001'));
+
+  // (a) loser drops out of the open/drain set; survivor + the merely-similar one stay open.
+  await testAsync('auto-deduped loser is dropped from q.mjs open; survivor + similar stay', async () => {
+    const { rows } = await query('open', [], { root: droot, noDb: true });
+    const ids = rows.map((r) => r.id);
+    assert.ok(ids.includes('DUP-T001'), 'survivor stays open');
+    assert.ok(!ids.includes('DUP-T005'), 'auto-superseded loser drops out');
+    // (b) merely-similar ticket (different title) is NOT auto-resolved — still open.
+    assert.ok(ids.includes('DUP-T002'), 'a merely-similar (different-title) ticket is NOT auto-resolved');
+  });
+
+  // (c) decisions with identical titles are untouched (suggest-only store).
+  test('identical-title DECISIONS are NOT auto-resolved (suggest-only)', () => {
+    const d1 = readFileSync(join(dai, 'decisions', 'DUP-D001.md'), 'utf8');
+    const d2 = readFileSync(join(dai, 'decisions', 'DUP-D002.md'), 'utf8');
+    assert.equal(field(d1, 'supersedes'), '', 'decision survivor gets no supersedes edge');
+    assert.equal(field(d2, 'superseded_by'), '', 'decision dup is not retired');
+  });
+
+  // (d) idempotency: re-running both passes changes nothing and rewrites no bytes.
+  const lowBytes = readFileSync(lowPath, 'utf8');
+  const highBytes = readFileSync(highPath, 'utf8');
+  const second = await autoDedupTickets(droot);
+  reconcileSupersede(droot);
+  test('second auto-dedup run is a no-op (idempotent)', () =>
+    assert.equal(second.changed.length, 0, `expected 0 changes, got: ${second.changed.join('; ')}`));
+  test('idempotent auto-dedup + reconcile rewrites no file content', () => {
+    assert.equal(readFileSync(lowPath, 'utf8'), lowBytes);
+    assert.equal(readFileSync(highPath, 'utf8'), highBytes);
+  });
+
+  rmSync(droot, { recursive: true, force: true });
+}
+await autoDedupTests();
 
 // ---- cross-store dedup (KIT-T025), scan path (always runs, no engine needed) ---------------
 // `similar --store <s>` must confine candidates to that store so a proposed item dedupes against

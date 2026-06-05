@@ -20,6 +20,8 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { query } from './q.mjs';
+import { compareIds } from './id-utils.mjs';
 
 const SKIP = new Set(['_TEMPLATE.md', 'INDEX.md']);
 
@@ -47,6 +49,97 @@ function ticketFiles(dir) {
   return readdirSync(dir)
     .filter((f) => f.endsWith('.md') && !SKIP.has(f))
     .map((f) => join(dir, f));
+}
+
+// Normalized title key for the UNAMBIGUOUS-duplicate test: lowercase, strip every char
+// that isn't a letter/digit/space, then collapse runs of whitespace. Two tickets share a
+// key only when their titles are identical modulo case / punctuation / spacing — a strict
+// bar by design (HOD policy: "unambiguous" = near-certain, not merely similar).
+function normTitleKey(title) {
+  return String(title || '')
+    .toLowerCase()
+    .replace(/[^a-z\d\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Auto-dedup of UNAMBIGUOUS ticket duplicates (KIT-T025, locked policy option C; KIT-D021:
+// automate > remembered-manual). Tickets ONLY — decisions/notes/questions stay suggest-only
+// (a "duplicate" there is often deliberate nuance, e.g. a decision refining another). Never
+// merges across scopes.
+//
+// A pair is auto-resolved ONLY when BOTH strict conditions hold:
+//   1. same scope + IDENTICAL normalized title (normTitleKey), and
+//   2. the KIT-T024 `similar` detector independently surfaces the other ticket as a
+//      same-store candidate (shared-term/FTS overlap above its conservative bar).
+// Reusing `query('similar')` ties the title match to the existing detector instead of
+// re-deriving similarity (DRY) — identical titles guarantee full term overlap, so (2) is a
+// belt-and-suspenders guard that also excludes anything the detector wouldn't flag.
+//
+// SURVIVOR RULE (deterministic): the LOWER id survives as canonical/original; the HIGHER id
+// (the later duplicate) is superseded. We only WRITE the `supersedes` edge here (survivor →
+// loser); the reconcile pass below then flips the loser's status + writes the reciprocal,
+// so resolution flows through the one KIT-T024 mechanism rather than a second flip.
+//
+// Idempotent: once the edge exists the pair is already superseded (dropped from the active
+// candidate set), so a re-run finds nothing. Returns { changed, scanned } for logging.
+export async function autoDedupTickets(root) {
+  const dir = join(root, '.ai', 'tickets');
+  const files = ticketFiles(dir);
+
+  // Active tickets only: skip anything already retired so a re-run is a no-op.
+  const active = [];
+  for (const path of files) {
+    const text = readFileSync(path, 'utf8');
+    const parts = splitFrontmatter(text);
+    if (!parts) continue;
+    const id = field(parts.fm, 'id') || (path.match(/[A-Za-z]+-\d+/) || [])[0];
+    if (!id) continue;
+    if (field(parts.fm, 'status') === 'superseded' || field(parts.fm, 'superseded_by')) continue;
+    const scope = (id.match(/^([A-Za-z]+)-/) || [])[1] || '';
+    active.push({ id, scope, path, parts, title: field(parts.fm, 'title') });
+  }
+
+  // Group by (scope + normalized title); only groups with >1 member are duplicate clusters.
+  const groups = new Map();
+  for (const t of active) {
+    const key = normTitleKey(t.title);
+    if (!key) continue; // a blank title can't be an unambiguous duplicate of anything
+    const gk = `${t.scope} ${key}`;
+    (groups.get(gk) || groups.set(gk, []).get(gk)).push(t);
+  }
+
+  const changed = [];
+  for (const members of groups.values()) {
+    if (members.length < 2) continue;
+    members.sort((a, b) => compareIds(a.id, b.id)); // lower id first = survivor
+    const survivor = members[0];
+
+    // Already linked to a different ticket → leave the whole cluster for the operator rather
+    // than overwrite a deliberate edge (a survivor retiring multiple dups would need a list;
+    // in practice clusters are pairs).
+    if (field(survivor.parts.fm, 'supersedes')) continue;
+
+    // Confirm via the KIT-T024 detector: each loser must be an independently-surfaced
+    // same-store candidate for the survivor's title. One shared query per group.
+    let candidateIds;
+    try {
+      const { rows } = await query('similar', ['--store', 'tickets', survivor.title], { root });
+      candidateIds = new Set(rows.map((r) => r.id));
+    } catch {
+      continue; // detector unavailable → stay conservative, resolve nothing this run
+    }
+
+    const loser = members.find((m) => m !== survivor && candidateIds.has(m.id));
+    if (!loser) continue; // detector didn't confirm any cluster member → not unambiguous
+
+    survivor.parts = { ...survivor.parts, fm: setField(survivor.parts.fm, 'supersedes', loser.id) };
+    const out = survivor.parts.open + survivor.parts.fm + survivor.parts.close + survivor.parts.rest;
+    writeFileSync(survivor.path, out);
+    changed.push(`${survivor.id} supersedes ${loser.id} (auto-dedup: identical title "${normTitleKey(survivor.title)}", detector-confirmed)`);
+  }
+
+  return { changed, scanned: active.length };
 }
 
 // Reconcile every ticket under <root>/.ai/tickets (active set only — archived tickets are
@@ -116,6 +209,10 @@ export function reconcileSupersede(root) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = process.argv[2] || process.cwd();
+  // Auto-dedup writes supersedes edges for unambiguous duplicates FIRST, then reconcile
+  // flips the loser's status + writes the reciprocal pointer through the one KIT-T024 path.
+  const dedup = await autoDedupTickets(root);
+  for (const c of dedup.changed) process.stdout.write(`auto-dedup: ${c}\n`);
   const { changed, scanned } = reconcileSupersede(root);
   if (changed.length) {
     process.stdout.write(`reconcile-supersede: scanned ${scanned} ticket(s), ${changed.length} change(s):\n`);

@@ -70,3 +70,29 @@ system-wide approach so duplicates don't accumulate in ANY store. Needs design (
     tickets? Decisions already model evolution via `supersedes:` + links; many near-duplicate
     decisions are intentional refinements, not waste. Recommend (C) + suggest-only at capture
     (already shipped), but this is the maintainer's policy call.
+- 2026-06-05: FORK RESOLVED — maintainer LOCKED option (C): auto-resolve only UNAMBIGUOUS
+  *ticket* duplicates; decisions/notes/questions stay SUGGEST-ONLY; capture stays suggest-only.
+  Per KIT-D021 the resolution is AUTOMATED + deterministic + idempotent (not a remembered manual
+  step). Ticket auto-dedup IMPLEMENTED in the existing automated reconcile pass — no fork hit:
+  - HOME: added `autoDedupTickets(root)` to `scripts/reconcile-supersede.mjs`, run as a
+    deterministic step right BEFORE `reconcileSupersede` in `scripts/index-tickets.mjs` (the
+    same automatic board-rebuild pass; OUT of the PreToolUse/commit hot path).
+  - STRICT MATCH BAR (unambiguous = near-certain): a pair is auto-resolved ONLY when BOTH hold —
+    (1) same scope + IDENTICAL normalized title (`normTitleKey`: lowercase → strip non
+    letter/digit/space → collapse whitespace), AND (2) the KIT-T024 `similar` detector (reused
+    via `query('similar','--store tickets',title)`, NOT forked) independently surfaces the other
+    ticket as a same-store shared-term candidate. Merely-similar (different title) tickets are
+    only SURFACED, never auto-resolved. `store='tickets'` only; never across scopes.
+  - SURVIVOR RULE: deterministic — the LOWER id (original/canonical) survives; the HIGHER id
+    (later duplicate) is superseded. Auto-dedup only WRITES the `supersedes` edge (survivor →
+    loser); the existing reconcile then flips the loser to `status: superseded` + writes the
+    reciprocal pointer — resolution flows through the ONE KIT-T024 mechanism (no re-implemented
+    flip). A survivor that already supersedes a different ticket is left for the operator.
+  - IDEMPOTENT: once the edge exists the loser is superseded → dropped from the active candidate
+    set → re-run is a no-op (0 changes, no bytes rewritten). LOGS each auto-resolution.
+  - Tests: db-cache.test.mjs +8 (47, was 39): (a) two same-title tickets → higher-id auto-
+    superseded + reciprocal + dropped from `q.mjs open`; (b) merely-similar NOT auto-resolved;
+    (c) identical-title DECISIONS NOT auto-resolved; (d) idempotency. Full `npm test` green
+    (db-cache 47 / 23 / id-utils 19 / code-graph 18). Hot path untouched.
+  - STATUS stays `todo`: this completes the ticket auto-dedup MECHANIC; AC-1 (written unified
+    design doc + maintainer review) + AC-3 (co-design w/ KIT-T023/T024) remain human-gated.
