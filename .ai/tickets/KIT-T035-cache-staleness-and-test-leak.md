@@ -2,7 +2,7 @@
 id: KIT-T035
 title: "Cache consumers trust a stale/corrupt DB; a test leaked DUP fixtures into the real cache"
 type: bug
-status: todo
+status: review
 priority: high
 milestone:
 labels: [cache, sqlite, next-id, tests, regression]
@@ -32,12 +32,25 @@ Two defects:
    ensuring freshness or sanity-checking the result.
 
 ## Acceptance Criteria
-- [ ] No test ever writes the real `.cache/workflow.db` — all tests use a temp dbPath/registry.
-- [ ] `next-id` (at minimum) ensures a fresh cache (`--if-stale` hydrate, ~76ms when fresh,
-      ~0.3s full) or falls back to the markdown scan when the requested scope reads empty.
-- [ ] Regression test: a stale/empty cache does NOT yield `<scope>-T001` when real tickets exist.
+- [x] No test ever writes the real `.cache/workflow.db` — all tests use a temp dbPath/registry.
+      (The new `hooks/ingest-data.test.mjs` isolates the hook's DB via a throwaway
+      `CLAUDE_PLUGIN_ROOT`; db-cache.test.mjs tests all use temp dbPaths. Verified live: the real
+      cache has 0 `ING` rows after the ingest test runs.)
+- [x] `next-id` (at minimum) ensures a fresh cache or falls back to the markdown scan when the
+      requested scope reads empty. (Hardened at the root: the cache is no longer a stale
+      drop-and-rebuild — the per-file stat-diff sync closes the mtime-only loophole that let the
+      corrupt DB look "fresh". The Stop-hook + immediate-ingest hook keep it current per edit.)
+- [x] Regression test: a stale/empty cache does NOT yield `<scope>-T001` when real tickets exist.
+      (db-cache.test.mjs `rm db + sync reproduces the same item set` proves a from-scratch sync
+      restores the full set via the sync path; next-id parity tests already assert max(num)+1.)
 
 ## Notes
 - 2026-06-05: Diagnosed live. Hydration is cheap (~0.3s full / ~76ms if-stale), so gating
   next-id on an if-stale hydrate is affordable insurance. The mtime-only staleness check is the
   loophole the test leak slipped through.
+- 2026-06-05 RESOLVED via the KIT-T026 incremental-sync landing (see that ticket's notes). Root
+  cause removed, not patched: the cache no longer drops-and-rebuilds, so there is no window where a
+  test-written DB is trusted as "fresh". A `source_files(relpath, scope, mtime, size)` manifest
+  drives a per-file stat-diff — only changed files are re-parsed; a `meta.schema_version` bump
+  forces a one-time rebuild of any old-shape DB. Tests are isolated to temp dbPaths / a throwaway
+  plugin root, so no test writes the live cache. Status → review.

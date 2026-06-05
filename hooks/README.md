@@ -16,7 +16,7 @@ the tool payload from stdin, decides, and exits (`exit 2` = block, `0` = allow).
 | --- | --- | --- |
 | `SessionStart` | orient + housekeeping | Inject the on-disk record (`.ai/` ROADMAP + DECISIONS + SESSION + recent commits) so a fresh/compacted session resumes cold; surface any due weekly reviews + project gaps. |
 | `PreToolUse` (Edit\|Write) | pre-write | Code-quality gates on source; **doc files** get a broken-link check instead of magic-number/etc; license/meta + data files skip. |
-| `PostToolUse` (Edit\|Write) | lint + jscpd | Language-aware linters (ruff/clippy/eslint/…) + copy-paste detection. Advisory — never block; warn and log tooling gaps. |
+| `PostToolUse` (Edit\|Write) | lint + jscpd + ingest-data | Language-aware linters (ruff/clippy/eslint/…) + copy-paste detection (advisory — never block). **ingest-data** incrementally syncs the SQLite cache for the edited `.ai` store immediately, so a same-turn query sees the change (KIT-T026; fail-open). |
 | `PreToolUse` (Bash) | commit-gate | Block a `git commit` of code not tied to a ticket / plan-of-record (override `[no-log: reason]`). |
 | `PreCompact` | flush | Force a `.ai/SESSION.md` flush before context is lost. |
 | `Stop` | housekeeping + sync-data | Nag if a weekly review is overdue; **auto-commit + push `claude-kit-data`** when the centralized data repo is dirty (D-008), so a turn's `.ai/` edits persist without manual ceremony. |

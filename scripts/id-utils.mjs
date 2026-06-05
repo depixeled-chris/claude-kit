@@ -13,13 +13,42 @@
 // `compareIds` orders numerically, so 1000 sorts after 999. Nothing here depends on a
 // fixed width, so there is no ceiling — `pad: 3` is not a 999-id limit.
 
-import { readdirSync, readFileSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
 
+// STORE_TYPE drives ID ALLOCATION (the <KEY>-<TYPE><NUM> letter), so only the stores that
+// mint frontmatter ids belong here. The cache must index MORE than these — inbox caps and
+// questions are tracked items too — so the set of dirs to SCAN is derived separately
+// (storeDirs), not from STORE_TYPE. Conflating the two is what omitted inbox/questions from
+// the cache (KIT-T026/KIT-D024: index EVERY tracked item).
 export const STORE_TYPE = { tickets: 'T', decisions: 'D', notes: 'N', questions: 'Q' };
 
 // Generated/reference files in a store dir that are not items.
 const SKIP = new Set(['_TEMPLATE.md', 'README.md', 'INDEX.md', 'REGRESSIONS.md', 'ROADMAP.md']);
+
+// The store subdirectories to index, in a stable order. The id-minting stores come first
+// (so an id-collision scan is deterministic), then the capture/queue stores that hold
+// id-less items the cache must still see. Any OTHER store dir present under .ai is picked up
+// too (KIT-D024: stay open to new stores), excluding the generated `archive` (handled per
+// store) — so adding a store dir needs no code change here.
+const KNOWN_STORE_ORDER = ['tickets', 'decisions', 'notes', 'questions', 'inbox'];
+const NON_STORE_DIRS = new Set(['archive']);
+
+function storeDirs(ai) {
+  const present = [];
+  let entries = [];
+  try {
+    entries = readdirSync(ai, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const have = new Set(
+    entries.filter((e) => e.isDirectory() && !NON_STORE_DIRS.has(e.name)).map((e) => e.name),
+  );
+  for (const s of KNOWN_STORE_ORDER) if (have.has(s)) present.push(s);
+  for (const s of have) if (!present.includes(s)) present.push(s); // any extra store dir
+  return present;
+}
 
 // config.yml is read line-wise (no YAML dep), mirroring the other tooling. `aiDir`
 // overrides the default <root>/.ai derivation, so a central-data store (where the
@@ -62,7 +91,7 @@ function idFromFilename(f) {
 export function scanStores(root, aiDir = join(root, '.ai')) {
   const ai = aiDir;
   const items = [];
-  for (const store of Object.keys(STORE_TYPE)) {
+  for (const store of storeDirs(ai)) {
     // `sub` is kept POSIX (forward-slash) so reported paths read identically on every
     // OS; path.join only ever wraps it for the actual filesystem read.
     const subdirs = store === 'tickets' ? [store, `${store}/archive`] : [store];
@@ -78,6 +107,39 @@ export function scanStores(root, aiDir = join(root, '.ai')) {
     }
   }
   return items;
+}
+
+// STAT-ONLY enumeration of every indexed markdown file under an .ai store dir — the basis of
+// the incremental sync (KIT-T026/KIT-D024). Yields one entry per file with the scan fields
+// (store/sub/file/relpath) PLUS its {mtimeMs, size}, and NEVER reads a file body. The sync
+// diffs these stats against the stored `source_files` manifest to find the dirty set, so an
+// unchanged file is never opened. `relpath` (`sub/file`, POSIX) is the manifest key and
+// matches the items.file column. Best-effort: an unreadable dir/file is skipped, not thrown.
+export function statStoreFiles(aiDir) {
+  const out = [];
+  for (const store of storeDirs(aiDir)) {
+    const subdirs = store === 'tickets' ? [store, `${store}/archive`] : [store];
+    for (const sub of subdirs) {
+      const dir = join(aiDir, sub);
+      let entries;
+      try {
+        entries = readdirSync(dir);
+      } catch {
+        continue;
+      }
+      for (const f of entries) {
+        if (extname(f) !== '.md' || SKIP.has(f)) continue;
+        let st;
+        try {
+          st = statSync(join(dir, f));
+        } catch {
+          continue;
+        }
+        out.push({ store, sub, file: f, relpath: `${sub}/${f}`, mtimeMs: st.mtimeMs, size: st.size });
+      }
+    }
+  }
+  return out;
 }
 
 // A store-relative path for human-readable output — always POSIX-style, so the same

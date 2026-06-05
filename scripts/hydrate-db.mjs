@@ -29,7 +29,8 @@
 import { mkdirSync, statSync, existsSync, rmSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectItems } from './db-parse.mjs';
+import { rowFromScan } from './db-parse.mjs';
+import { statStoreFiles, readIdConfig } from './id-utils.mjs';
 import { resolveEngine } from './db-engine.mjs';
 import { projectAiDirs } from '../hooks/lib.mjs';
 
@@ -62,7 +63,13 @@ CREATE INDEX idx_items_store    ON items(store);
 CREATE INDEX idx_items_status   ON items(status);
 CREATE INDEX idx_items_priority ON items(priority);
 CREATE INDEX idx_items_parent   ON items(parent);
+CREATE INDEX idx_items_type     ON items(type);
 CREATE INDEX idx_items_scope_store ON items(scope, store);
+-- the incremental sync deletes a dirty/removed file's rows via WHERE file=? AND scope=? — REQUIRED
+-- so that per-file delete is an index seek, not a full scan (KIT-T026 efficiency mandate).
+CREATE INDEX idx_items_file        ON items(file, scope);
+-- next-id MAX(num) + integrity collision/gap scans run constantly over (scope, store) ordered by num.
+CREATE INDEX idx_items_scope_store_num ON items(scope, store, num);
 
 CREATE TABLE links (
   from_id TEXT NOT NULL,
@@ -93,7 +100,7 @@ CREATE TABLE history (
   event   TEXT,
   detail  TEXT
 );
-CREATE INDEX idx_history_item  ON history(item_id);
+CREATE INDEX idx_history_item  ON history(item_id, ts);
 CREATE INDEX idx_history_ts    ON history(ts);
 CREATE INDEX idx_history_event ON history(event);
 
@@ -102,8 +109,27 @@ CREATE INDEX idx_history_event ON history(event);
 -- management and can't return content — wrong fit for an agent-retrieval index.
 CREATE VIRTUAL TABLE items_fts USING fts5(id UNINDEXED, title, body);
 
+-- Stat-only manifest of every indexed store file (KIT-T026/KIT-D024). Keyed on (relpath,
+-- scope) so the SAME relpath in two scopes' stores never collides. The incremental sync
+-- diffs on-disk {mtime,size} against this to find the dirty set, so an unchanged file is
+-- never re-read. relpath matches items.file (e.g. tickets/KIT-T001-foo.md).
+CREATE TABLE source_files (
+  relpath TEXT NOT NULL,
+  scope   TEXT NOT NULL,
+  mtime   REAL,
+  size    INTEGER,
+  PRIMARY KEY (relpath, scope)
+);
+
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
 `;
+
+// Bump when SCHEMA changes shape — a DB stamped with an older version is dropped and rebuilt
+// from scratch (the sync then full-populates into the fresh DB). This is the ONLY drop path,
+// and it fires only on a genuine schema change, never on a routine sync. KIT-T026 added the
+// source_files manifest (v2) + the index set the incremental sync / next-id / integrity scans
+// need (v3): idx_items_file (per-file delete), idx_items_type, (scope,store,num), (item_id,ts).
+const SCHEMA_VERSION = '3';
 
 // Newest mtime across every markdown file under an .ai store dir — the staleness signal
 // for --if-stale. Takes the .ai dir directly so central-data stores (no nested .ai) work.
@@ -149,7 +175,97 @@ export function hydrationSources(root) {
   });
 }
 
+// Insert one parsed item's rows across every table. The inverse of deleteItemRows — together
+// they make a per-file re-parse a delete-then-insert of EXACTLY that item's rows, leaving
+// every other item untouched (the KIT-T026 efficiency invariant).
+function insertItem(db, it) {
+  db.run(
+    `INSERT INTO items (id, scope, store, type, status, priority, title, parent, milestone, num, archived, file)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [it.id, it.scope, it.store, it.type, it.status, it.priority, it.title,
+      it.parent || null, it.milestone || null, it.num, it.archived, it.file],
+  );
+  db.run('INSERT INTO items_fts (id, title, body) VALUES (?,?,?)', [it.id, it.title || '', it.body || '']);
+
+  for (const a of it.aka) db.run('INSERT INTO aka (item_id, alias) VALUES (?,?)', [it.id, a]);
+
+  const edge = (rel, to) => { if (to) db.run('INSERT INTO links (from_id, rel, to_id) VALUES (?,?,?)', [it.id, rel, to]); };
+  for (const to of it.links) edge('link', to);
+  if (it.parent) edge('parent', it.parent);
+  edge('regressed_from', it.regressedFrom);
+  edge('introduced_by', it.introducedBy);
+  // commit↔ticket foreign keys (KIT-T026): ticket→commit-sha edges, so a commit→ticket
+  // lookup is an indexed idx_links_to scan (the agent-retrieval cross-ref, KIT-T004).
+  edge('caused_by', it.causingCommit);
+  edge('fixed_by', it.fixedCommit);
+  // supersede edges (KIT-T024) — newer→older (supersedes) + older→newer (superseded_by),
+  // so a backlinks/chain walk resolves a supersede chain like the regression chains do.
+  edge('supersedes', it.supersedes);
+  edge('superseded_by', it.supersededBy);
+
+  if (it.producedBy || it.informs.length) {
+    // a work item that produces a doc shows up as an artifact edge; informs is many
+    for (const inf of it.informs.length ? it.informs : [null]) {
+      db.run('INSERT INTO artifacts (path, produced_by, informs) VALUES (?,?,?)', [it.file, it.producedBy || it.id, inf]);
+    }
+  }
+
+  for (const h of it.history) {
+    db.run('INSERT INTO history (item_id, ts, event, detail) VALUES (?,?,?,?)', [it.id, h.ts, h.event, h.detail]);
+  }
+}
+
+// Drop every row a single item id owns — the inverse of insertItem. artifacts has no item_id
+// column, so it is keyed by the file path the artifact edge was inserted with (it.file).
+function deleteItemRows(db, id, file) {
+  db.run('DELETE FROM items WHERE id = ?', [id]);
+  db.run('DELETE FROM items_fts WHERE id = ?', [id]);
+  db.run('DELETE FROM aka WHERE item_id = ?', [id]);
+  db.run('DELETE FROM links WHERE from_id = ?', [id]);
+  db.run('DELETE FROM history WHERE item_id = ?', [id]);
+  if (file) db.run('DELETE FROM artifacts WHERE path = ? AND produced_by = ?', [file, id]);
+}
+
+// Open the DB for a sync, recreating it from scratch when it is absent OR stamped with an
+// older schema. A fresh DB is the natural full-populate path (rm db + sync reproduces the
+// same set, KIT-T004) — the sync below sees an empty manifest and treats every file as new.
+function openForSync(open, dbPath) {
+  mkdirSync(dirname(dbPath), { recursive: true });
+  let db = existsSync(dbPath) ? open(dbPath) : null;
+  let fresh = !db;
+  if (db) {
+    let version = '';
+    try {
+      version = (db.all("SELECT value FROM meta WHERE key='schema_version'")[0] || {}).value || '';
+    } catch {
+      version = ''; // pre-source_files schema (no/old meta) → must rebuild
+    }
+    if (version !== SCHEMA_VERSION) {
+      db.close();
+      rmSync(dbPath, { force: true });
+      // sidecar WAL/SHM files would otherwise carry stale pages into the new DB
+      for (const ext of ['-wal', '-shm']) rmSync(dbPath + ext, { force: true });
+      db = null;
+      fresh = true;
+    }
+  }
+  if (!db) {
+    db = open(dbPath);
+    db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+    db.exec(SCHEMA);
+    db.run('INSERT INTO meta (key, value) VALUES (?,?)', ['schema_version', SCHEMA_VERSION]);
+  }
+  return { db, fresh };
+}
+
 // `root` defaults to undefined → cross-scope. Pass an explicit root for single-scope.
+//
+// INCREMENTAL SYNC (KIT-T026/KIT-D024): no drop-and-rebuild. The DB carries a stat-only
+// manifest (source_files); each sync stats every store file, diffs against the manifest, and
+// touches ONLY the dirty set — new/changed files are re-parsed + re-upserted, deleted files
+// have their rows removed, unchanged files are skipped entirely (never read, never written).
+// A full populate happens only as the natural result of syncing into a fresh/empty DB, so
+// `rm db + sync` still reproduces the cache exactly.
 export async function hydrate({ root, dbPath = defaultDbPath(), ifStale = false } = {}) {
   const open = await resolveEngine();
   if (!open) {
@@ -166,73 +282,81 @@ export async function hydrate({ root, dbPath = defaultDbPath(), ifStale = false 
     }
   }
 
-  // Union every source; a later scope never overwrites an earlier one's id (scopes are
-  // disjoint by prefix, but dedup on id keeps the INSERT safe if a store is double-listed).
-  const items = [];
-  const seenIds = new Set();
-  for (const s of sources) {
-    for (const it of collectItems(s.root, s.aiDir)) {
-      if (it.id && seenIds.has(it.id)) continue;
-      if (it.id) seenIds.add(it.id);
-      items.push(it);
-    }
-  }
-
-  mkdirSync(dirname(dbPath), { recursive: true });
-  // Full rebuild each time = idempotent + trivially correct (no diff/merge logic). The DB
-  // is disposable, so dropping and recreating is the simplest path to "rm + re-hydrate
-  // reproduces it exactly".
-  if (existsSync(dbPath)) rmSync(dbPath);
-  const db = open(dbPath);
+  const { db, fresh } = openForSync(open, dbPath);
   try {
-    db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
-    db.exec(SCHEMA);
     db.exec('BEGIN');
 
-    for (const it of items) {
-      db.run(
-        `INSERT INTO items (id, scope, store, type, status, priority, title, parent, milestone, num, archived, file)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [it.id, it.scope, it.store, it.type, it.status, it.priority, it.title,
-          it.parent || null, it.milestone || null, it.num, it.archived, it.file],
+    let reparsed = 0;
+    let deleted = 0;
+    // Per (scope, relpath): an item id may move scopes only by changing its id prefix, which
+    // also changes the file, so (scope, relpath) is a stable manifest key. The diff is per
+    // SOURCE, since each source carries one scope's stores.
+    for (const s of sources) {
+      const { key } = readIdConfig(s.root, s.aiDir);
+      const scope = key || '';
+      // (a) STAT every store file — no content reads. This is the global "temperature".
+      const onDisk = statStoreFiles(s.aiDir);
+      const byRel = new Map(onDisk.map((e) => [e.relpath, e]));
+
+      // (b) the stored manifest for THIS source's scope only — a source maps to exactly one
+      // scope (its ids.key), so other scopes' manifest rows must not enter this diff (else a
+      // cross-scope hydrate would delete another scope's files as "missing"). A fresh DB has
+      // none, so every file is "new" → full populate.
+      const stored = new Map(
+        db.all('SELECT relpath, scope, mtime, size FROM source_files WHERE scope = ?', [scope])
+          .map((r) => [r.relpath, r]),
       );
-      db.run('INSERT INTO items_fts (id, title, body) VALUES (?,?,?)', [it.id, it.title || '', it.body || '']);
 
-      for (const a of it.aka) db.run('INSERT INTO aka (item_id, alias) VALUES (?,?)', [it.id, a]);
-
-      const edge = (rel, to) => { if (to) db.run('INSERT INTO links (from_id, rel, to_id) VALUES (?,?,?)', [it.id, rel, to]); };
-      for (const to of it.links) edge('link', to);
-      if (it.parent) edge('parent', it.parent);
-      edge('regressed_from', it.regressedFrom);
-      edge('introduced_by', it.introducedBy);
-      // commit↔ticket foreign keys (KIT-T026): ticket→commit-sha edges, so a commit→ticket
-      // lookup is an indexed idx_links_to scan (the agent-retrieval cross-ref, KIT-T004).
-      edge('caused_by', it.causingCommit);
-      edge('fixed_by', it.fixedCommit);
-      // supersede edges (KIT-T024) — newer→older (supersedes) + older→newer (superseded_by),
-      // so a backlinks/chain walk resolves a supersede chain like the regression chains do.
-      edge('supersedes', it.supersedes);
-      edge('superseded_by', it.supersededBy);
-
-      if (it.producedBy || it.informs.length) {
-        // a work item that produces a doc shows up as an artifact edge; informs is many
-        for (const inf of it.informs.length ? it.informs : [null]) {
-          db.run('INSERT INTO artifacts (path, produced_by, informs) VALUES (?,?,?)', [it.file, it.producedBy || it.id, inf]);
+      // (c) diff + apply. DIRTY (new or mtime/size differ) → re-parse only that file; DELETED
+      // (in manifest, gone on disk) → drop its rows. UNCHANGED → skip (no read, no write).
+      for (const e of onDisk) {
+        const prev = stored.get(e.relpath);
+        const dirty = !prev || prev.mtime !== e.mtimeMs || prev.size !== e.size;
+        if (!dirty) continue;
+        const it = rowFromScan(s.aiDir, e, key);
+        // Replace this file's existing rows (if any) before inserting the fresh parse, so an
+        // edit that renames the item's id still leaves no orphan rows for this file.
+        if (prev) {
+          for (const r of db.all('SELECT id, file FROM items WHERE file = ? AND scope = ?', [e.relpath, scope])) {
+            deleteItemRows(db, r.id, r.file);
+          }
         }
+        deleteItemRows(db, it.id, it.file);
+        insertItem(db, it);
+        db.run(
+          `INSERT INTO source_files (relpath, scope, mtime, size) VALUES (?,?,?,?)
+           ON CONFLICT(relpath, scope) DO UPDATE SET mtime=excluded.mtime, size=excluded.size`,
+          [e.relpath, scope, e.mtimeMs, e.size],
+        );
+        reparsed++;
       }
 
-      for (const h of it.history) {
-        db.run('INSERT INTO history (item_id, ts, event, detail) VALUES (?,?,?,?)', [it.id, h.ts, h.event, h.detail]);
+      // (d) files in the manifest but no longer on disk → delete their rows + manifest entry.
+      for (const relpath of stored.keys()) {
+        if (byRel.has(relpath)) continue;
+        for (const r of db.all('SELECT id, file FROM items WHERE file = ? AND scope = ?', [relpath, scope])) {
+          deleteItemRows(db, r.id, r.file);
+        }
+        db.run('DELETE FROM source_files WHERE relpath = ? AND scope = ?', [relpath, scope]);
+        deleted++;
       }
     }
 
-    const now = new Date().toISOString();
-    db.run('INSERT INTO meta (key, value) VALUES (?,?)', ['hydrated_at', now]);
-    db.run('INSERT INTO meta (key, value) VALUES (?,?)',
-      ['source_root', sources.map((s) => resolve(s.aiDir)).join(';')]);
-    db.run('INSERT INTO meta (key, value) VALUES (?,?)', ['item_count', String(items.length)]);
+    const itemCount = (db.all('SELECT COUNT(*) n FROM items')[0] || {}).n || 0;
+    // Refresh the meta heartbeat ONLY when the sync actually changed something (or just built a
+    // fresh DB). A true no-op writes literally nothing — the efficiency invariant (KIT-T026).
+    if (fresh || reparsed || deleted) {
+      const setMeta = (k, v) => db.run(
+        'INSERT INTO meta (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', [k, String(v)]);
+      setMeta('hydrated_at', new Date().toISOString());
+      setMeta('source_root', sources.map((s) => resolve(s.aiDir)).join(';'));
+      setMeta('item_count', itemCount);
+    }
     db.exec('COMMIT');
-    return { ok: true, dbPath, engine: db.name, items: items.length, scopes: sources.length };
+    return { ok: true, dbPath, engine: db.name, items: itemCount, scopes: sources.length, reparsed, deleted, fresh };
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch { /* already closed/failed */ }
+    throw e;
   } finally {
     db.close();
   }

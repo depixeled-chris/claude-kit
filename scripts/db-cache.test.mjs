@@ -8,7 +8,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
-import { collectItems } from './db-parse.mjs';
+import { collectItems, readCount, resetReadCount } from './db-parse.mjs';
 import { hydrate } from './hydrate-db.mjs';
 import { resolveEngine } from './db-engine.mjs';
 import { query } from './q.mjs';
@@ -220,6 +220,48 @@ await testAsync('similar --store decisions surfaces the decision, excludes ticke
 await testAsync('similar defaults to tickets when no --store (scan, KIT-T024 back-compat)', async () => {
   const { rows } = await query('similar', ['widget', 'engine'], { root, noDb: true });
   assert.ok(rows.every((r) => r.id.startsWith('TST-T')), 'default store stays tickets');
+});
+
+// ---- id-LESS store coverage (KIT-T026/KIT-D024), pure-parse path (always runs) -------------
+// inbox caps + questions are tracked items the cache used to be blind to. A frontmatter-less
+// inbox cap (`(type) text`) and a questions file must BOTH parse into items with a STABLE
+// synthetic id, store, type, and an FTS body — without an engine.
+function makeCoverageFixture() {
+  const croot = mkdtempSync(join(tmpdir(), 'kit-cov-'));
+  const cai = join(croot, '.ai');
+  mkdirSync(join(cai, 'tickets'), { recursive: true });
+  mkdirSync(join(cai, 'inbox'), { recursive: true });
+  mkdirSync(join(cai, 'questions'), { recursive: true });
+  writeFileSync(join(cai, 'config.yml'), 'ids:\n  key: "COV"\n  pad: 3\n');
+  writeFileSync(join(cai, 'tickets', 'COV-T001-real.md'),
+    `---\nid: COV-T001\ntitle: a real ticket\ntype: feature\nstatus: todo\npriority: high\n---\nbody about turbines\n`);
+  // an inbox cap exactly as cap.mjs writes it: a frontmatter-less `(type) text` one-liner.
+  writeFileSync(join(cai, 'inbox', '2026-06-05-1200-login-loops.md'), '(bug) login redirect loops after sso\n');
+  // a questions file (also frontmatter-less here) — must still index + FTS.
+  writeFileSync(join(cai, 'questions', '2026-06-05-which-engine.md'), 'which sqlite engine should the cache prefer?\n');
+  return { croot, cai };
+}
+
+const cov = makeCoverageFixture();
+const covItems = collectItems(cov.croot);
+const covById = (id) => covItems.find((i) => i.id === id);
+test('inbox cap is indexed with a stable synthetic id + store', () => {
+  const it = covById('COV-INBOX-2026-06-05-1200-login-loops');
+  assert.ok(it, 'the inbox cap is collected as an item');
+  assert.equal(it.store, 'inbox');
+});
+test('inbox cap leading (type) becomes the item type', () =>
+  assert.equal(covById('COV-INBOX-2026-06-05-1200-login-loops').type, 'bug'));
+test('inbox cap captures the whole line as FTS body', () =>
+  assert.match(covById('COV-INBOX-2026-06-05-1200-login-loops').body, /login redirect loops/));
+test('questions file is indexed with a stable synthetic id + store', () => {
+  const it = covById('COV-QUESTIONS-2026-06-05-which-engine');
+  assert.ok(it, 'the questions file is collected as an item');
+  assert.equal(it.store, 'questions');
+});
+test('synthetic ids carry no num (never perturb next-id)', () => {
+  assert.equal(covById('COV-INBOX-2026-06-05-1200-login-loops').num, null);
+  assert.equal(covById('COV-QUESTIONS-2026-06-05-which-engine').num, null);
 });
 
 // ---- SQLite-backed (skipped when no engine) -------------------------------
@@ -467,8 +509,95 @@ if (!engine) {
     const r = await hydrate({ root, dbPath });
     assert.equal(r.items, 4, 'explicit --root hydrates only that one store');
   });
+
+  // ---- incremental SYNC (KIT-T026/KIT-D024) — efficiency + correctness -----------------
+  // The cache syncs the dirty set only: NO drop-and-rebuild. These assert (1) inbox+questions
+  // are FTS-searchable post-sync, (2) editing ONE file re-parses exactly that file and leaves
+  // OTHER items' rows untouched, (3) a no-op sync reads zero bodies + writes zero rows,
+  // (4) deleting a file removes exactly its rows + manifest entry, (5) rm db + sync reproduces
+  // the same item set via the sync path.
+  const cdb = join(cov.croot, '.cache', 'workflow.db');
+  const open = engine;
+  const rows = (sql, p = []) => { const d = open(cdb); const r = d.all(sql, p); d.close(); return r; };
+  const oneCol = (sql, p = []) => rows(sql, p).map((r) => Object.values(r)[0]);
+
+  await testAsync('sync: initial populate indexes inbox + questions, FTS-searchable', async () => {
+    const r = await hydrate({ root: cov.croot, dbPath: cdb });
+    assert.ok(r.ok, 'sync succeeds');
+    const stores = Object.fromEntries(rows('SELECT store, COUNT(*) c FROM items GROUP BY store').map((x) => [x.store, x.c]));
+    assert.equal(stores.inbox, 1, 'inbox indexed');
+    assert.equal(stores.questions, 1, 'questions indexed');
+    // FTS over the inbox cap body + the questions body.
+    assert.deepEqual(oneCol("SELECT id FROM items_fts WHERE items_fts MATCH 'login'"),
+      ['COV-INBOX-2026-06-05-1200-login-loops'], 'inbox cap is FTS-searchable');
+    assert.deepEqual(oneCol("SELECT id FROM items_fts WHERE items_fts MATCH 'sqlite'"),
+      ['COV-QUESTIONS-2026-06-05-which-engine'], 'questions file is FTS-searchable');
+  });
+
+  await testAsync('sync: the per-file delete is an index seek (idx_items_file exists, used)', async () => {
+    const idx = oneCol("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='items'");
+    assert.ok(idx.includes('idx_items_file'), 'WHERE file=? AND scope=? must be indexed (KIT-T026 efficiency)');
+    assert.ok(idx.includes('idx_items_type'), 'WHERE type=? must be indexed');
+    assert.ok(idx.includes('idx_items_scope_store_num'), 'next-id MAX(num) per (scope,store) must be indexed');
+    // the query planner actually USES the index for the sync's delete probe (not a full scan).
+    const plan = rows("EXPLAIN QUERY PLAN SELECT id, file FROM items WHERE file = ? AND scope = ?",
+      ['questions/2026-06-05-which-engine.md', 'COV']).map((r) => r.detail).join(' ');
+    assert.match(plan, /idx_items_file/, `per-file delete uses idx_items_file, not a scan (plan: ${plan})`);
+  });
+
+  await testAsync('sync: a no-op sync reads ZERO bodies and writes ZERO rows', async () => {
+    const before = rows('SELECT id, title, status FROM items ORDER BY id');
+    resetReadCount();
+    const r = await hydrate({ root: cov.croot, dbPath: cdb });
+    assert.equal(readCount(), 0, 'no store file body is read when nothing changed');
+    assert.equal(r.reparsed, 0, 'no file re-parsed');
+    assert.equal(r.deleted, 0, 'no file deleted');
+    assert.deepEqual(rows('SELECT id, title, status FROM items ORDER BY id'), before, 'rows unchanged');
+  });
+
+  await testAsync('sync: editing ONE file re-parses exactly that file; OTHER rows untouched', async () => {
+    // Identity sentinel: stamp a row on the UNTOUCHED ticket, prove the sync never rewrites it.
+    { const d = open(cdb); d.run("UPDATE items SET title='SENTINEL' WHERE id='COV-T001'"); d.close(); }
+    const qPath = join(cov.cai, 'questions', '2026-06-05-which-engine.md');
+    // mtime must move; write a different size too so the stat-diff fires regardless of clock.
+    writeFileSync(qPath, 'which sqlite engine should the cache prefer for hydration speed?\n');
+    resetReadCount();
+    const r = await hydrate({ root: cov.croot, dbPath: cdb });
+    assert.equal(r.reparsed, 1, 'exactly one file re-parsed');
+    assert.equal(readCount(), 1, 'exactly one body read (only the dirty file)');
+    assert.equal(rows("SELECT title FROM items WHERE id='COV-T001'")[0].title, 'SENTINEL',
+      'the untouched ticket row was NOT rewritten by the sync');
+    assert.deepEqual(oneCol("SELECT id FROM items_fts WHERE items_fts MATCH 'hydration'"),
+      ['COV-QUESTIONS-2026-06-05-which-engine'], 'the edited file re-indexed with new content');
+  });
+
+  await testAsync('sync: deleting a file removes exactly its rows + manifest entry', async () => {
+    const qid = 'COV-QUESTIONS-2026-06-05-which-engine';
+    assert.equal(rows('SELECT COUNT(*) c FROM items WHERE id=?', [qid])[0].c, 1, 'present before delete');
+    rmSync(join(cov.cai, 'questions', '2026-06-05-which-engine.md'));
+    const r = await hydrate({ root: cov.croot, dbPath: cdb });
+    assert.equal(r.deleted, 1, 'exactly one file detected as deleted');
+    assert.equal(rows('SELECT COUNT(*) c FROM items WHERE id=?', [qid])[0].c, 0, 'item rows gone');
+    assert.equal(rows('SELECT COUNT(*) c FROM items_fts WHERE id=?', [qid])[0].c, 0, 'fts rows gone');
+    assert.equal(rows('SELECT COUNT(*) c FROM source_files WHERE relpath=?',
+      ['questions/2026-06-05-which-engine.md'])[0].c, 0, 'manifest entry gone');
+    // the OTHER items survive the delete.
+    assert.equal(rows("SELECT COUNT(*) c FROM items WHERE id='COV-T001'")[0].c, 1, 'sibling ticket survives');
+  });
+
+  await testAsync('sync: rm db + sync reproduces the same item set (full-populate via sync)', async () => {
+    const restore = (sql) => oneCol(sql).join(',');
+    const beforeIds = restore('SELECT id FROM items ORDER BY id');
+    rmSync(cdb, { force: true });
+    for (const ext of ['-wal', '-shm']) rmSync(cdb + ext, { force: true });
+    const r = await hydrate({ root: cov.croot, dbPath: cdb });
+    assert.ok(r.fresh, 'a removed db is rebuilt fresh by the sync path');
+    assert.equal(restore('SELECT id FROM items ORDER BY id'), beforeIds,
+      'rm db + sync reproduces the exact item set (no drop-and-rebuild needed)');
+  });
 }
 
+rmSync(cov.croot, { recursive: true, force: true });
 rmSync(root, { recursive: true, force: true });
 
 console.log(`\ndb-cache: ${pass} passed, ${fail} failed`);

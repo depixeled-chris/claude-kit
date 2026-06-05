@@ -1,0 +1,1 @@
+(bug) cache items table has no index on type column -- add idx_items_type ON items(type); WHERE type=... queries full-scan, violates index-every-known-WHERE-column rule; fold into the KIT-T026 SCHEMA edit ae6fa87 is making
