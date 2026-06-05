@@ -97,7 +97,7 @@ function parseTranscript(file) {
       lastAssistant = extractText(content);
       continue;
     }
-    if (!lastUser && role === 'user' && !isToolResult(content)) {
+    if (!lastUser && role === 'user' && !isToolResult(content) && e?.isMeta !== true) {
       const text = extractText(content);
       if (text && text.trim() && !isSystemNotice(text)) {
         lastUser = text;
@@ -123,8 +123,12 @@ function isToolResult(content) {
 }
 
 // Harness-injected user-role notices (background-task completions, system notifications,
-// reminders, the gate's own echoed feedback) are NOT maintainer requests — skip them when
-// finding the real last user message, or their request-shaped text trips the gate.
+// reminders, the gate's own echoed feedback) are NOT maintainer requests. The PRIMARY guard
+// is the transcript's own `isMeta: true` flag (set on slash-command/skill expansions, the
+// local-command caveat, and stop-hook feedback — every injected user-role entry). This text
+// match is a fail-safe for the rare entry that lacks the flag. The bug it closes: a `cap`/
+// `standup` skill prompt ("Classify and route the following…") is request-shaped, so when it
+// was treated as the last user message it tripped the gate on the skill's OWN instructions.
 function isSystemNotice(text) {
   return /^\s*(?:<task-notification\b|<system-reminder\b|\[SYSTEM NOTIFICATION\b|Stop hook feedback:)/i.test(text);
 }
