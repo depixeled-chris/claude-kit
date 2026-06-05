@@ -85,6 +85,17 @@ try {
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.md', content: '# note 1337\n' } }, clean).code === 0);
   ok('pre-write: markup (.html) skips code checks (regression: brand "GTA 7")',
     hook('pre-write.mjs', { tool_input: { file_path: '/x/i.html', content: '<title>GTA 7 — Guns, Traffic & Anarchy</title>\n' } }, clean).code === 0);
+  // KIT-T032 — numerics in PROSE (string/template/heredoc, line + block comments) are not
+  // magic constants. orient.mjs's prose heredoc carried "60-75k"/"70k"/"5-line" and was
+  // wrongly blocked. The rule itself is unchanged: a bare code constant must still fail.
+  ok('pre-write: numbers in a template-literal heredoc pass (KIT-T032)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'const out = [];\nout.push(`Budget 60-75k tokens, ~70k after the 5-line preamble.`);\n' } }, clean).code === 0);
+  ok('pre-write: numbers in a line comment pass (KIT-T032)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: '// retry after 1337 ms, ceiling 9000\nconst r = compute();\n' } }, clean).code === 0);
+  ok('pre-write: numbers in a block comment pass (KIT-T032)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: '/* threshold 1337\n   ceiling 9000 */\nconst r = compute();\n' } }, clean).code === 0);
+  ok('pre-write: bare code constant still blocks even with prose numbers present (KIT-T032)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'function f(x) {\n  return x * 1337; // was 9000 before\n}\n' } }, clean).code === 2);
 
   // orient / flush emit in adopted repos, stay silent otherwise
   ok('orient: adopted repo emits orientation', /ORIENTATION/.test(hook('orient.mjs', { hook_event_name: 'SessionStart' }, clean).out));

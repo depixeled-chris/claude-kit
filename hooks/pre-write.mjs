@@ -17,6 +17,45 @@ const DOC = new Set(['md', 'markdown', 'mdx', 'txt', 'rst', 'adoc']);
 const DATA = new Set(['json', 'jsonl', 'yaml', 'yml', 'toml', 'xml', 'csv', 'ini', 'cfg']);
 const MARKUP = new Set(['html', 'htm', 'xhtml', 'svg']); // markup, not logic — numbers in text/attrs aren't magic constants
 
+// Blank every NON-CODE span — string/template/char literals and line/block comments —
+// to spaces, preserving newlines so line numbers are unchanged. A single forward scan
+// (not per-line regex) is what lets it span multi-line template literals/heredocs and
+// /* */ blocks, the case that leaked prose numerals into the magic-number scan. Covers
+// JS/TS/C-family ("…", '…', `…` w/ \ escapes; // and /* */), shell/python/ruby (# line),
+// SQL/Lua/Ada (-- line). Deliberately conservative and self-contained; any throw is
+// caught by the caller's fail-open guard so a hook never wedges a write.
+function codeOnly(src) {
+  const out = Array.from(src);
+  const blank = (i) => { if (out[i] !== '\n') out[i] = ' '; };
+  let i = 0;
+  const n = src.length;
+  while (i < n) {
+    const c = src[i];
+    const d = src[i + 1];
+    if (c === '"' || c === "'" || c === '`') {
+      const quote = c;
+      i++;
+      while (i < n && src[i] !== quote) {
+        if (src[i] === '\\') { blank(i); if (i + 1 < n) blank(i + 1); i += 2; continue; }
+        blank(i); i++;
+      }
+      i++; // closing quote (or EOF)
+      continue;
+    }
+    if (c === '/' && d === '/') { while (i < n && src[i] !== '\n') { blank(i); i++; } continue; }
+    if (c === '#') { while (i < n && src[i] !== '\n') { blank(i); i++; } continue; }
+    if (c === '-' && d === '-') { while (i < n && src[i] !== '\n') { blank(i); i++; } continue; }
+    if (c === '/' && d === '*') {
+      blank(i); blank(i + 1); i += 2;
+      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) { blank(i); i++; }
+      if (i < n) { blank(i); blank(i + 1); i += 2; }
+      continue;
+    }
+    i++;
+  }
+  return out.join('');
+}
+
 const p = await payload();
 const file = (p.tool_input && p.tool_input.file_path) || '';
 const content = (p.tool_input && (p.tool_input.content ?? p.tool_input.new_string)) || '';
@@ -71,15 +110,22 @@ if (todo.length) viols.push('TODO/FIXME/XXX/HACK markers are not allowed in sour
 const dead = pick(/^\s*(\/\/|#|--)\s*(removed|was:|deprecated:|old:|previously:)/i);
 if (dead.length) viols.push('Dead-code trace comments (delete it; git is the record):\n' + show(dead));
 
-// 3. magic numbers — skip native-linted langs, tests, migrations
+// 3. magic numbers — skip native-linted langs, tests, migrations.
+// Scan only EXECUTABLE CODE: numerics inside string/template literals, heredocs, and
+// comments are prose, not constants (the KIT-T032 false positive — orient.mjs's prose
+// heredoc carried "60-75k"/"70k"/"5-line"). `codeOnly` blanks every non-code span
+// (keeping newlines so line numbers stay true) so the scan never sees those. The
+// declaration/assignment skips below stay line-keyed against the ORIGINAL line.
 if (!NATIVE_LINTED.has(ext) && !isTest && !isMig) {
+  const codeLines = codeOnly(content).split('\n');
   const hits = [];
   for (let i = 0; i < lines.length && hits.length < MAX_SHOWN; i++) {
     const raw = lines[i];
-    if (/^\s*(\/\/|#|--|\/\*|\*)/.test(raw)) continue; // comment
+    const code = codeLines[i] ?? '';
+    if (!/\d/.test(code)) continue; // no numerics survived stripping → all prose/comment
     if (/\b(const|constexpr|let|var|final|#define|enum|static|readonly)\b/.test(raw)) continue; // declaration
     if (/^\s*[A-Za-z_]\w*\s*[:=][^=]/.test(raw)) continue; // name: / name=
-    const stripped = raw.replace(/"[^"]*"/g, '""').replace(/'[^']*'/g, "''").replace(/\d+(px|em|rem)/g, '');
+    const stripped = code.replace(/\d+(px|em|rem)/g, '');
     const m = stripped.match(/[^A-Za-z0-9_.](-?\d+(\.\d+)?)/);
     if (m && !ALLOWED.has(m[1])) hits.push(`${i + 1}: ${raw.trim()}`);
   }
