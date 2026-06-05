@@ -51,6 +51,9 @@ first. Recommend B because [reason]."
 - **Compress every reply. Lead with the answer; cut preamble and process narration.**
   Default to a few tight bullets, one idea each — not paragraphs or stacked sections.
   No firehose. Expand only when asked or when the task genuinely needs it.
+- **Progress = one-line receipts.** Report each completed task as a single line (what +
+  commit sha), no approval-seeking, no process narration. The maintainer pulls a fuller
+  rollup on demand (`/standup`, `/prime`). Steady drip, low noise — not batched silence.
 - Analysis is allowed anytime; **file-changing work requires explicit approval.** Get
   approval before any action that modifies files.
 - Run builds/tests inside Docker when the project uses it.
