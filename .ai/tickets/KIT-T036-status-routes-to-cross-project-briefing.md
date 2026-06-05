@@ -37,3 +37,5 @@ the script supplies truth, Claude distills it to a glanceable briefing without h
   vs the prior ~30-line wall. The capture that spawned this is in the KIT inbox (status-defaults-…).
 - Distillation is the model's job: the survey is the source of truth; Claude renders the
   glanceable summary from it (reasonable detail, token-aware) rather than echoing raw output.
+- 2026-06-05 (triage): inbox cap `2026-06-05-0158-status-defaults-to-cross-project-briefing`
+  folded here — exact duplicate of this already-`review` ticket; no new ticket created.
