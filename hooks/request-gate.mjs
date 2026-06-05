@@ -99,7 +99,7 @@ function parseTranscript(file) {
     }
     if (!lastUser && role === 'user' && !isToolResult(content)) {
       const text = extractText(content);
-      if (text && text.trim()) {
+      if (text && text.trim() && !isSystemNotice(text)) {
         lastUser = text;
         turnStartMs = Date.parse(e?.timestamp || '') || 0;
       }
@@ -120,6 +120,13 @@ function extractText(content) {
 
 function isToolResult(content) {
   return Array.isArray(content) && content.some((b) => b && b.type === 'tool_result');
+}
+
+// Harness-injected user-role notices (background-task completions, system notifications,
+// reminders, the gate's own echoed feedback) are NOT maintainer requests — skip them when
+// finding the real last user message, or their request-shaped text trips the gate.
+function isSystemNotice(text) {
+  return /^\s*(?:<task-notification\b|<system-reminder\b|\[SYSTEM NOTIFICATION\b|Stop hook feedback:)/i.test(text);
 }
 
 // --- "did this turn capture anything?" ----------------------------------------

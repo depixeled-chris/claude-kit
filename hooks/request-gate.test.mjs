@@ -115,5 +115,24 @@ function expect(name, actual, wanted) {
   expect('allows a plain how/what question', run(d, { transcript_path: tx }).code, 0);
 }
 
+// 13. a harness task-notification (request-shaped) is NOT a user request -> ALLOW
+{
+  const d = makeRepo();
+  const note = '<task-notification>\n<task-id>abc</task-id>\nresult: the thing does not work and we should fix it.\n</task-notification>';
+  const tx = writeTranscript(d, note, 'Reviewed and committed.', new Date().toISOString());
+  expect('ignores a task-notification as a request', run(d, { transcript_path: tx }).code, 0);
+}
+// 14. a real request is still caught when a task-notification arrives AFTER it
+{
+  const d = makeRepo();
+  const file = join(d, 'transcript.jsonl');
+  writeFileSync(file, [
+    JSON.stringify({ type: 'user', message: { role: 'user', content: 'There needs to be a wider street' }, timestamp: new Date().toISOString() }),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }] } }),
+    JSON.stringify({ type: 'user', message: { role: 'user', content: '<task-notification>\n<task-id>z</task-id>\nresult: should look fine now\n</task-notification>' }, timestamp: new Date().toISOString() }),
+  ].join('\n') + '\n');
+  expect('still blocks the real request behind a later notification', run(d, { transcript_path: file }).code, 2);
+}
+
 console.log(failures ? `\n${failures} FAILED` : '\nALL PASS');
 process.exit(failures ? 1 : 0);
