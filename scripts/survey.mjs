@@ -26,7 +26,12 @@ const SESSION_PEEK = 28; // lines of SESSION.md shown in a deep view
 const NEEDS_MAX = 6; // "needs you" lines surfaced per project before truncating
 const TITLE_MAX = 80; // ticket title clip
 
-const arg = process.argv.slice(2).filter(Boolean);
+// `--brief` is the terse glance behind /status & /standup: collapse the review backlog to a
+// count + a few ids, and DROP the active-project SESSION dump (the wall). A named project
+// still gets the full deep view — brevity is the default, depth is opt-in via naming.
+const rawArgs = process.argv.slice(2).filter(Boolean);
+const brief = rawArgs.includes('--brief');
+const arg = rawArgs.filter((a) => !a.startsWith('--'));
 
 // ---- the active project: whatever repo this was invoked in (the strongest "what am I
 // working on" signal). Self-heal it into the registry so a first-ever run still sees it.
@@ -194,12 +199,20 @@ if (arg.length) {
     else lines.push(`### ${name}\n  (unknown project — not in the registry or central data on this machine)`);
   }
 } else {
-  lines.push('=== /prime — what needs you? (lazy cross-project briefing) ===');
+  lines.push(brief
+    ? '=== status — what needs you? ==='
+    : '=== /prime — what needs you? (lazy cross-project briefing) ===');
 
   const waiting = [];
   for (const name of ordered) {
     const sc = scan(projects[name].notebook);
-    for (const t of sc.review) waiting.push(`[${name}] ${t.id} in review — awaiting your \`done\`: ${t.title}`);
+    if (brief && sc.review.length) {
+      const ids = sc.review.slice(0, 4).map((t) => t.id).join(', ');
+      const more = sc.review.length > 4 ? `, +${sc.review.length - 4} more` : '';
+      waiting.push(`[${name}] ${sc.review.length} in review awaiting \`done\`: ${ids}${more}`);
+    } else {
+      for (const t of sc.review) waiting.push(`[${name}] ${t.id} in review — awaiting your \`done\`: ${t.title}`);
+    }
     for (const q of sc.questions) waiting.push(`[${name}] open question: ${q}`);
     for (const n of sc.needs) waiting.push(`[${name}] ${n}`);
   }
@@ -216,9 +229,13 @@ if (arg.length) {
     lines.push(`${name === activeName ? '→' : ' '} ${name}: ${work}  |  git: ${git}`);
   }
 
-  lines.push('', '## Active project (deep view)');
-  if (activeName && projects[activeName]) lines.push(deepView(activeName, projects[activeName]));
-  else lines.push('  (not inside a tracked project — name one to drop into it: /prime <project>)');
+  if (brief) {
+    if (activeName) lines.push('', `→ active: ${activeName} — name it for the deep view (e.g. /status ${activeName})`);
+  } else {
+    lines.push('', '## Active project (deep view)');
+    if (activeName && projects[activeName]) lines.push(deepView(activeName, projects[activeName]));
+    else lines.push('  (not inside a tracked project — name one to drop into it: /prime <project>)');
+  }
 }
 
 console.log(lines.join('\n'));

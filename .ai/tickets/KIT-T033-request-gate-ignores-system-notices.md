@@ -34,3 +34,10 @@ system noise.
 - 2026-06-05: Fixed via `isSystemNotice()` skip in `parseTranscript`. +2 tests; request-gate
   suite 14/14, full suite green. Correctness fix (ignore non-user system text) — the actual
   request-detection rule is unchanged, not loosened. Maintainer-approved the fix.
+- 2026-06-05 (recurrence + harder fix): the prefix regex missed slash-command/skill prompt
+  expansions ("Classify and route the following…", "Read-only standup…") — request-shaped text
+  on the SKILL's OWN instructions tripped the gate. Root cause: those arrive as user-role
+  entries flagged `isMeta: true` (with a `sourceToolUseID`), which the prefix match didn't
+  cover. Primary guard is now `e.isMeta !== true` in `parseTranscript`; `isSystemNotice` kept
+  as a fail-safe. Proven against the live transcript that broke. +2 tests (skill prompt skipped;
+  real request behind a later skill prompt still blocks). Suite 16/16.

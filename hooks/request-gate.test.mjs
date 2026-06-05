@@ -134,5 +134,31 @@ function expect(name, actual, wanted) {
   expect('still blocks the real request behind a later notification', run(d, { transcript_path: file }).code, 2);
 }
 
+// 15. a skill/slash-command prompt (isMeta:true, request-shaped) is NOT a user request -> ALLOW
+{
+  const d = makeRepo();
+  const file = join(d, 'transcript.jsonl');
+  writeFileSync(file, [
+    JSON.stringify({ type: 'user', isMeta: true, sourceToolUseID: 'toolu_x',
+      message: { role: 'user', content: [{ type: 'text', text: 'Classify and route the following per the contract. We should add a wider street.' }] },
+      timestamp: new Date().toISOString() }),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Routed it.' }] } }),
+  ].join('\n') + '\n');
+  expect('ignores a skill prompt (isMeta) as a request', run(d, { transcript_path: file }).code, 0);
+}
+// 16. a real request is still caught when an isMeta skill prompt arrives AFTER it
+{
+  const d = makeRepo();
+  const file = join(d, 'transcript.jsonl');
+  writeFileSync(file, [
+    JSON.stringify({ type: 'user', message: { role: 'user', content: 'There needs to be a wider street' }, timestamp: new Date().toISOString() }),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }] } }),
+    JSON.stringify({ type: 'user', isMeta: true, sourceToolUseID: 'toolu_y',
+      message: { role: 'user', content: [{ type: 'text', text: 'Read-only standup. Run the survey and show it.' }] },
+      timestamp: new Date().toISOString() }),
+  ].join('\n') + '\n');
+  expect('still blocks the real request behind a later skill prompt', run(d, { transcript_path: file }).code, 2);
+}
+
 console.log(failures ? `\n${failures} FAILED` : '\nALL PASS');
 process.exit(failures ? 1 : 0);

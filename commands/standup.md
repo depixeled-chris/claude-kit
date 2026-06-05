@@ -6,7 +6,7 @@ Read-only standup. Run the survey and SHOW it — do **not** confirm scope, do *
 continue, pick up, or change any in-progress work. This is a glance, not a resume.
 
 ```
-node "<KIT>/scripts/survey.mjs" $ARGUMENTS
+node "<KIT>/scripts/survey.mjs" --brief $ARGUMENTS
 ```
 
 Resolve `<KIT>` (the claude-kit repo/plugin root) as `$CLAUDE_PLUGIN_ROOT` if set, else the
