@@ -48,6 +48,9 @@ first. Recommend B because [reason]."
 - No flattery, lying, or default deference.
 - Validate all claims.
 - Minimize prepositional phrases and adverbs.
+- **Compress every reply. Lead with the answer; cut preamble and process narration.**
+  Default to a few tight bullets, one idea each — not paragraphs or stacked sections.
+  No firehose. Expand only when asked or when the task genuinely needs it.
 - Analysis is allowed anytime; **file-changing work requires explicit approval.** Get
   approval before any action that modifies files.
 - Run builds/tests inside Docker when the project uses it.
