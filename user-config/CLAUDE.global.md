@@ -50,7 +50,8 @@ first. Recommend B because [reason]."
 - Minimize prepositional phrases and adverbs.
 - **Compress every reply. Lead with the answer; cut preamble and process narration.**
   Default to a few tight bullets, one idea each — not paragraphs or stacked sections.
-  No firehose. Expand only when asked or when the task genuinely needs it.
+  No firehose. Expand only when asked or when the task genuinely needs it. A yes/no
+  question gets the bare word first, then at most one line — never a wall.
 - **Progress = one-line receipts.** Report each completed task as a single line (what +
   commit sha), no approval-seeking, no process narration. The maintainer pulls a fuller
   rollup on demand (`/standup`, `/prime`). Steady drip, low noise — not batched silence.
