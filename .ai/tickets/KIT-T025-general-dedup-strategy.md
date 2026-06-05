@@ -30,6 +30,7 @@ system-wide approach so duplicates don't accumulate in ANY store. Needs design (
       coherent "context + dedup integrity" design, not three fragmented ones (ironically, avoid dup effort).
 
 ## Notes
+- [2026-06-05 20:16] (comment) folded from triage: triage/cap DEDUPE: when a new request is captured, detect whether it relates to an existing ticket/inbox item and CONSOLIDATE into it (don't create a duplicate). Belongs with the relationship-graph work (KIT-T003) + capture (KIT-T006)
 - 2026-06-04: Maintainer: "Some kind of deduping strategy in general is also necessary."
 - 2026-06-04: MECHANIC generalized (the suggest-at-capture half). KIT-T024's `similar` dedup
   detector was ticket-only; KIT-T025 makes it cross-store WITHOUT forking a second similarity

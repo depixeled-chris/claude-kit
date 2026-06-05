@@ -53,6 +53,12 @@ SQLite — it can serve from the markdown scan today; the DB just makes it O(1)"
 Done — see History.
 
 ## Notes
+- [2026-06-05 20:16] (comment) folded from triage: q.mjs next-id KIT decision returns malformed KIT-decision039: wrong store letter decision-vs-D and wrong num 39-vs-cache-max-23 (formatId/storeForType + num source) -- links KIT-T009 KIT-T035
+- [2026-06-05 20:16] (comment) folded from triage: `scripts/next-id.mjs` FAILED in the HOD project — the .ai config uses `prefix: HOD-T` but the
+script expects an `ids.key`. Agents fall back to scanning tickets (max+1), which works but defeats
+the programmatic allocator + reintroduces the concurrent-collision risk KIT-T009 was meant to fix.
+Reconcile next-id.mjs with the actual config shape (prefix vs ids.key). Surfaced by the buildings
+breakdown agent allocating HOD-T072-075.
 - 2026-06-03: Built id-utils + the two CLIs + tests (12/12 pass). Wired the guard into
   BOTH commit paths because the bug bit a CENTRALIZED project (HOD): the dup lands in the
   data repo via `sync-data`, NOT through `commit-gate` — guarding only commit-gate would

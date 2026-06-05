@@ -29,6 +29,8 @@ unused, so the perf + agent-retrieval/token win isn't realized. Wire the process
 - [x] Never a hard dependency — every consumer works without the cache (fail-open).
 
 ## Notes
+- [2026-06-05 20:16] (comment) folded from triage: cache index review (fold into KIT-T026 schema edit): add idx_items_file ON items(file) -- incremental sync deletes per-dirty-file via WHERE file=?, REQUIRED not optional; add composite (scope,store,num) -- next-id MAX(num) + integrity gaps/collisions run constantly. Optional: (item_id,ts) on history for doc-trail sort. NOT adding artifacts/milestone/archived/num-standalone indexes -- no q.mjs query reads them (YAGNI)
+- [2026-06-05 20:16] (comment) folded from triage: cache items table has no index on type column -- add idx_items_type ON items(type); WHERE type=... queries full-scan, violates index-every-known-WHERE-column rule; fold into the KIT-T026 SCHEMA edit ae6fa87 is making
 - 2026-06-04: Found at KIT-T004 landing — hydration is in the process (Stop hook) but consumption is
   not. This ticket realizes the value.
 - 2026-06-04: Implemented. ONE shared programmatic entry — `query(cmd, args, {root, noDb})` exported

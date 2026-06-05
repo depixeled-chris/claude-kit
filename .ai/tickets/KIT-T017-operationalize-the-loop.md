@@ -28,6 +28,7 @@ first, "(Recommended)" at the FRONT of the label), never buried in prose.
 1.
 
 ## Notes
+- [2026-06-05 20:16] (comment) folded from triage: drain should ORCHESTRATE subagents: fan independent work out to parallel subagents in the drain, coordinate them + batch the maintainer's requests so progress doesn't depend on the maintainer interrupting, and minimize token use (don't do everything inline/serially). Model on the D:/dev/workflow repo's turn-process + subagent design (consolidates 3 maintainer messages 2026-06-04)
 - 2026-06-04: From the live session where the drain went idle between waves and decisions were made
   unilaterally instead of surfaced.
 - 2026-06-04 SPEC: `/prime` + `/drain` are the PRIMARY command path — "everything, for the most part."

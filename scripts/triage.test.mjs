@@ -148,3 +148,28 @@ test('--apply creates a ticket from a real next-id, folds onto a target, moves c
   const { rows } = await query('open', ['TST'], { dbPath, cwdRoot: dir });
   assert.ok(rows.some((r) => r.id === 'TST-T002'), 'the created ticket is in the cache after the sync');
 });
+
+test('--apply mints DISTINCT sequential ids for multiple creates in one batch (KIT-T009 collision guard)', async () => {
+  const { plan } = await import('./triage/plan.mjs');
+  const { apply } = await import('./triage/apply.mjs');
+
+  cap('2026-06-02-0001-alpha-idea.md', 'first new untyped idea about parallax scrolling\n');
+  cap('2026-06-02-0002-beta-idea.md', 'second new untyped idea about volumetric fog\n');
+  await plan({ scopeFilter: 'TST', json: true, dbPath }); // hydrate the new caps into the cache
+
+  const decisions = [
+    { capId: 'TST-INBOX-2026-06-02-0001-alpha-idea', classification: 'feature', action: 'create' },
+    { capId: 'TST-INBOX-2026-06-02-0002-beta-idea', classification: 'feature', action: 'create' },
+  ];
+  const decisionsPath = join(dir, 'decisions-batch.json');
+  writeFileSync(decisionsPath, JSON.stringify(decisions));
+
+  const result = await apply({ decisionsPath, json: true, dbPath });
+  const ids = result.applied.filter((r) => r.action === 'create').map((r) => r.dest.match(/TST-T\d+/)[0]);
+
+  assert.equal(ids.length, 2, 'both creates produced a ticket');
+  assert.notEqual(ids[0], ids[1], 'two creates in ONE batch must not collide on the same id');
+  // TST-T002 was minted by the prior test; the cache is not re-synced mid-batch, so the fix is
+  // what makes these T003 and T004 instead of both T003.
+  assert.deepEqual([...ids].sort(), ['TST-T003', 'TST-T004'], 'ids are sequential + distinct across the batch');
+});

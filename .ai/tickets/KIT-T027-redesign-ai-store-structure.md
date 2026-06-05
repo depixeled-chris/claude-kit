@@ -52,6 +52,7 @@ cross-project; clears the now-cached inbox backlog; substrate for KIT-T006 (capt
 immediate-ingest hook. Awaiting maintainer OK before building (scope-gated per KIT-T038).
 
 ## Notes
+- [2026-06-05 20:16] (comment) folded from triage: Migrate hustle-or-die's repo-root ROADMAP.md/DECISIONS.md onto the .ai/ model (consume the kit) once the kit's hooks/overlay land.
 - 2026-06-05: Phase 1 BUILT — `scripts/triage.mjs` (`--plan` / `--apply`) + atomic modules under
   `scripts/triage/` (config, cap-text, handle, plan, write-item, apply), `scripts/triage.test.mjs`
   (isolated fixture + throwaway registry/plugin-root — KIT-T035), and a thin `commands/triage.md`

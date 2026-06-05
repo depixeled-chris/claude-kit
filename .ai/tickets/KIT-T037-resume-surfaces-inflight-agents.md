@@ -2,11 +2,12 @@
 id: KIT-T037
 title: "Programmatic resume omits in-flight background agents — make live work visible AND durable"
 type: bug
-status: todo
+status: superseded
+superseded_by: KIT-T014
 priority: high
 milestone:
 labels: [resume, orient, cache, agents, durability]
-links: [KIT-T028, KIT-T035, KIT-T031, KIT-T026]
+links: [KIT-T014, KIT-T028, KIT-T035, KIT-T031, KIT-T026]
 aka: []
 files:
   - hooks/orient.mjs

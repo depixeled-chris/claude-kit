@@ -37,6 +37,12 @@ tickets and drain them — so the heavy-effort path is structural, not memory-de
 1.
 
 ## Notes
+- [2026-06-05 20:16] (comment) folded from triage: PROCESS: a "big ask" must TRIGGER a feedback loop, not reactive edits. When an ask
+exceeds a size/risk threshold, the workflow should require: research (docs/research/) → a plan
+broken into tasks + documentation → maintainer review/steer (the loop) BEFORE implementation.
+Small asks proceed; big asks decompose first. Make this a detectable trigger in the drain/work
+contract (and ideally a hook nudge), so it's structural, not the model's judgment. First applied
+2026-06-04: the "varied + enterable buildings" ask → routed to research before any code.
 <!-- append-only -->
 - 2026-06-05: Triaged from KIT inbox cap `2026-06-04-1136-big-asks-trigger-plan-research-task-loop`.
   The cap body was a stray capture-script `echo` artifact (no prose); intent reconstructed from

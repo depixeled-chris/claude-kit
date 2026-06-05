@@ -38,5 +38,6 @@ Make status currency structural:
 - [ ] No existing hook weakened.
 
 ## Notes
+- [2026-06-05 20:16] (comment) folded from triage: Agent-assignment attribution on ticket history (who/which-agent did what) — DEFERRED per maintainer 2026-06-02; not needed yet. Prior art: workflow repo `agent_assignments`. If multi-agent accountability becomes real, add an actor field to History events (not a table).
 - 2026-06-04: Maintainer flagged old tickets with un-updated status as a process failure + made
   status updates mandatory for agents.

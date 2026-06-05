@@ -41,6 +41,7 @@ delegations inherit the conventions + past mistakes instead of re-deriving them.
 1.
 
 ## Notes
+- [2026-06-05 20:16] (comment) folded from triage: drain/orchestration should pick the RIGHT claude-kit agent for each task (researcher/refactorer/test-author/code-reviewer/etc.), not default to general-purpose; AND when a task needs a persistent section of domain knowledge, proactively SUGGEST a dedicated knowledge-holding subagent. Bake both into the orchestration process (folds into the subagent-orchestration feature)
 - 2026-06-04: Filed alongside KIT-D015. Maintainer: "If it's HOD specific, it needs to be part of
   the project, not claude-kit" + "that needs to be a repeatable pattern across projects." First
   application: HOD gains hod-render / hod-sim-core / hod-verify / hod-rust-convergence in its own

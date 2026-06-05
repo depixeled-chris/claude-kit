@@ -16,9 +16,14 @@ import { writeFromTemplate, foldNote, supersede, markSupersedes, moveCapToTriage
 const OPEN_STATUSES = ['todo', 'doing', 'review'];
 const TITLE_COL = 60;
 
-function nextId(db, scope, store, root) {
+// Batch-aware: within one apply() run the cache is NOT re-synced between creates, so MAX(num)
+// from the DB alone collides every create onto the same id (KIT-T009). `alloc` carries the last
+// id handed out per scope/store this run, so sequential creates get sequential ids.
+function nextId(db, scope, store, root, alloc) {
   const row = db.all('SELECT MAX(num) AS m FROM items WHERE scope = ? AND store = ?', [scope, store])[0];
-  const next = (row && row.m ? row.m : 0) + 1;
+  const key = `${scope}/${store}`;
+  const next = Math.max(row && row.m ? row.m : 0, alloc.get(key) || 0) + 1;
+  alloc.set(key, next);
   const { pad } = readIdConfig(root);
   const letter = STORE_TYPE[store] || store;
   return `${scope}-${letter}${String(next).padStart(pad, '0')}`;
@@ -33,9 +38,9 @@ function priorityOf(decision, sc) {
   return decision.priority || (sc.classifications[decision.classification] || {}).priority || null;
 }
 
-function createItem(db, cap, sc, d, extraLinks = []) {
+function createItem(db, cap, sc, d, alloc, extraLinks = []) {
   const store = resolveRouteStore(d, sc);
-  const id = nextId(db, cap.scope, store, sc.root);
+  const id = nextId(db, cap.scope, store, sc.root, alloc);
   const text = capText(cap.body);
   const rel = writeFromTemplate({
     aiDir: sc.aiDir, store, id, type: d.classification, status: sc.flowHead,
@@ -44,13 +49,13 @@ function createItem(db, cap, sc, d, extraLinks = []) {
   return { id, rel };
 }
 
-function enact(db, d, cap, sc) {
+function enact(db, d, cap, sc, alloc) {
   const text = capText(cap.body);
   switch (d.action || 'create') {
-    case 'create': return createItem(db, cap, sc, d).rel;
+    case 'create': return createItem(db, cap, sc, d, alloc).rel;
     case 'fold': return foldNote(sc.aiDir, d.target, text) || `fold target ${d.target} not found`;
     case 'supersede': {
-      const { id, rel } = createItem(db, cap, sc, d, [d.target]);
+      const { id, rel } = createItem(db, cap, sc, d, alloc, [d.target]);
       if (supersede(sc.aiDir, id, d.target)) markSupersedes(sc.aiDir, rel, d.target);
       return rel;
     }
@@ -67,6 +72,7 @@ export async function apply({ decisionsPath, json, dbPath }) {
   const configs = new Map();
   for (const [scope, { aiDir, root }] of scopes) configs.set(scope, loadScope(aiDir, root));
   const receipts = [];
+  const alloc = new Map(); // batch-local id high-water mark per scope/store (KIT-T009 collision guard)
   try {
     for (const d of decisions) {
       const cap = handle.all(
@@ -76,7 +82,7 @@ export async function apply({ decisionsPath, json, dbPath }) {
       if (!cap) { receipts.push({ capId: d.capId, scope: '?', action: d.action || 'create', dest: 'cap not found' }); continue; }
       const sc = configs.get(cap.scope);
       if (!sc) { receipts.push({ capId: d.capId, scope: cap.scope, action: 'skip', dest: 'unknown scope' }); continue; }
-      const dest = enact(handle, d, cap, sc);
+      const dest = enact(handle, d, cap, sc, alloc);
       const movedTo = moveCapToTriaged(sc.aiDir, cap.file);
       receipts.push({ capId: d.capId, scope: cap.scope, action: d.action || 'create', dest, movedTo });
     }
