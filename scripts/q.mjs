@@ -5,10 +5,12 @@
 //   node scripts/q.mjs open [scope]                 # open items (todo|doing|review)
 //   node scripts/q.mjs children <id>                # items whose parent is <id>
 //   node scripts/q.mjs backlinks <id>               # items that link TO <id> (any rel)
+//   node scripts/q.mjs by-commit <sha>              # tickets caused-by / fixed-by <sha>
 //   node scripts/q.mjs doc-trail <id>               # history events for <id>, newest first
 //   node scripts/q.mjs fts <query...>               # full-text search title+body
 //   node scripts/q.mjs next-id <scope> <type>       # O(1) next free id (max(num)+1)
 //   node scripts/q.mjs rundown                       # per-scope open-item counts
+//   node scripts/q.mjs regressions                   # regression chain data (index-tickets)
 //   node scripts/q.mjs integrity                     # orphan parents / dangling links / gaps
 //   node scripts/q.mjs sql "SELECT ..."             # ad-hoc read-only SQL
 //   node scripts/q.mjs --json <cmd> ...             # machine-readable output
@@ -85,6 +87,17 @@ const compareOpen = (a, b) =>
   ((a.priority || '') < (b.priority || '') ? -1 : (a.priority || '') > (b.priority || '') ? 1 : 0)
   || compareIds(a.id, b.id);
 
+// An item's outbound edges, mirroring the hydrate edge-set (links/parent/regressed_from/
+// introduced_by/caused_by/fixed_by) so the markdown-scan graph queries match the cache.
+const edgesOf = (i) => [
+  ...i.links.map((t) => ['link', t]),
+  i.parent ? ['parent', i.parent] : null,
+  i.regressedFrom ? ['regressed_from', i.regressedFrom] : null,
+  i.introducedBy ? ['introduced_by', i.introducedBy] : null,
+  i.causingCommit ? ['caused_by', i.causingCommit] : null,
+  i.fixedCommit ? ['fixed_by', i.fixedCommit] : null,
+].filter(Boolean);
+
 // ---- SQLite-backed canned queries -----------------------------------------
 function cannedQueries(root) {
   return {
@@ -102,6 +115,13 @@ function cannedQueries(root) {
        FROM links l JOIN items i ON i.id = l.from_id
        WHERE l.to_id = ? ORDER BY l.rel, i.id`, [id]),
 
+    // Commit→ticket cross-ref (KIT-T026): the indexed idx_links_to lookup over the
+    // caused_by/fixed_by edges — "which ticket did commit X introduce / which fixed Y".
+    'by-commit': (db, sha) => db.all(
+      `SELECT i.id, i.type, i.status, l.rel, i.title
+       FROM links l JOIN items i ON i.id = l.from_id
+       WHERE l.to_id = ? AND l.rel IN ('caused_by','fixed_by') ORDER BY l.rel, i.id`, [sha]),
+
     'doc-trail': (db, id) => db.all(
       'SELECT ts, event, detail FROM history WHERE item_id = ? ORDER BY ts DESC', [id]),
 
@@ -116,6 +136,18 @@ function cannedQueries(root) {
               SUM(status='doing') AS doing,
               SUM(status='review') AS review
        FROM items WHERE archived = 0 GROUP BY scope ORDER BY scope`),
+
+    // Regression chain data for index-tickets (KIT-T026): every ticket with its upward
+    // regressed_from + caused_by/fixed_by commit refs, pulled from the links edges. The
+    // indexer assembles the chains; this just serves the per-id provenance from the cache.
+    regressions: (db) => db.all(
+      `SELECT i.id, i.title,
+              rf.to_id AS regressed_from, cb.to_id AS causing_commit, fb.to_id AS fixed_commit
+       FROM items i
+       LEFT JOIN links rf ON rf.from_id = i.id AND rf.rel = 'regressed_from'
+       LEFT JOIN links cb ON cb.from_id = i.id AND cb.rel = 'caused_by'
+       LEFT JOIN links fb ON fb.from_id = i.id AND fb.rel = 'fixed_by'
+       WHERE i.store = 'tickets' ORDER BY i.id`),
 
     'next-id': (db, scope, type) => {
       const row = db.all(
@@ -176,12 +208,20 @@ function fallback(cmd, args, root) {
     case 'backlinks': {
       const id = args[0];
       const out = [];
-      for (const i of items) {
-        const rels = [...i.links.map((t) => ['link', t]), i.parent ? ['parent', i.parent] : null,
-          i.regressedFrom ? ['regressed_from', i.regressedFrom] : null].filter(Boolean);
-        for (const [rel, to] of rels) if (to === id) out.push({ id: i.id, type: i.type, status: i.status, rel, title: i.title });
+      for (const i of items) for (const [rel, to] of edgesOf(i)) {
+        if (to === id) out.push({ id: i.id, type: i.type, status: i.status, rel, title: i.title });
       }
-      return out;
+      return out.sort((a, b) => a.rel.localeCompare(b.rel) || compareIds(a.id, b.id));
+    }
+    case 'by-commit': {
+      const sha = args[0];
+      const out = [];
+      for (const i of items) for (const [rel, to] of edgesOf(i)) {
+        if ((rel === 'caused_by' || rel === 'fixed_by') && to === sha) {
+          out.push({ id: i.id, type: i.type, status: i.status, rel, title: i.title });
+        }
+      }
+      return out.sort((a, b) => a.rel.localeCompare(b.rel) || compareIds(a.id, b.id));
     }
     case 'doc-trail':
       return (byId.get(args[0])?.history || []).slice().sort((a, b) => String(b.ts).localeCompare(a.ts));
@@ -202,6 +242,15 @@ function fallback(cmd, args, root) {
       }
       return [...m.values()].sort((a, b) => a.scope.localeCompare(b.scope));
     }
+    case 'regressions':
+      return items.filter((i) => i.store === 'tickets')
+        .map((i) => ({
+          id: i.id, title: i.title,
+          regressed_from: i.regressedFrom || null,
+          causing_commit: i.causingCommit || null,
+          fixed_commit: i.fixedCommit || null,
+        }))
+        .sort((a, b) => compareIds(a.id, b.id));
     case 'next-id': {
       const [scope, type] = args;
       const store = storeForType(type);
@@ -265,7 +314,7 @@ async function main() {
   const FLAGS = new Set(['--json', '--no-db']);
   const rest = argv.filter((a, i) => !FLAGS.has(a) && a !== '--root' && argv[i - 1] !== '--root');
   const [cmd, ...args] = rest;
-  if (!cmd) { process.stderr.write('usage: q.mjs <open|children|backlinks|doc-trail|fts|next-id|rundown|integrity|sql> [args]\n'); process.exit(2); }
+  if (!cmd) { process.stderr.write('usage: q.mjs <open|children|backlinks|by-commit|doc-trail|fts|next-id|rundown|integrity|sql> [args]\n'); process.exit(2); }
 
   const dbPath = defaultDbPath();
 

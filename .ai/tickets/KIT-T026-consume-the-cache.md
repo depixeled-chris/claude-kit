@@ -21,8 +21,9 @@ unused, so the perf + agent-retrieval/token win isn't realized. Wire the process
 - [x] orient surfaces its session view from the cache (open items by scope, recent decisions, in-flight)
       via q.mjs, falling back to markdown scan when the DB/engine is absent.
 - [x] next-id uses the O(1) cache query (KIT-T009 markdown path stays the fallback).
-- [~] index-tickets / drain read from the cache where it's cheaper, fallback preserved.
-      (drain.md now points at q.mjs canned queries; index-tickets NOT migrated — design fork, see Notes.)
+- [x] index-tickets / drain read from the cache where it's cheaper, fallback preserved.
+      (drain.md points at q.mjs canned queries; index-tickets REGRESSIONS.md now sources its
+      regression/commit provenance from the cache via `q.mjs regressions`, markdown-scan fallback.)
 - [x] Agent handoffs can point at canned queries ("open items under X", FTS) so agents QUERY instead
       of opening files (the KIT-T020 retrieval win).
 - [x] Never a hard dependency — every consumer works without the cache (fail-open).
@@ -58,3 +59,25 @@ unused, so the perf + agent-retrieval/token win isn't realized. Wire the process
   run on demand, not a hot read). Migrating it would require either a schema extension (add
   causing/fixed/regressed columns) or a hybrid scan+cache read. Left as scan; flagged for the
   maintainer to decide whether the schema grows.
+- 2026-06-04 MAINTAINER DECISION (resolves the fork): make the commit refs queryable cross-reference
+  keys and MIGRATE index-tickets to the cache. `causing_commit`/`fixed_commit` are commit↔ticket
+  FOREIGN KEYS (the agent-retrieval driver, KIT-T004) — "which ticket did commit X introduce / what
+  fixed commit Y". Implemented CACHE-ONLY; markdown stays the single source of truth (the cache is
+  derived, one-way, gitignored — only a faster READ path).
+    * SCHEMA: modeled as typed EDGES in the existing `links` table — `caused_by` / `fixed_by`
+      (ticket→commit-sha), alongside the already-wired `regressed_from` / `introduced_by`. No new
+      column needed: `idx_links_to` already indexes the commit side, so commit→ticket is an indexed
+      lookup. (Chose edges over `items` columns to reuse the one relationship-graph model — DRY with
+      KIT-D012's upward-stored/downward-generated edges.)
+    * PARSE: `db-parse.mjs` already extracted `causingCommit`/`fixedCommit`; now hydrated as edges.
+    * QUERY: new canned `by-commit <sha>` (caused-by / fixed-by that commit) + a `regressions` query
+      (per-ticket regressed_from + commit refs), both routed through `query()` so they inherit the
+      markdown-scan fallback. Added `edgesOf(item)` as the single fallback edge-set, mirroring the
+      hydrate edges (also fixed `backlinks` fallback to include introduced_by/commit edges).
+    * MIGRATE: `index-tickets.mjs` REGRESSIONS.md now sources its chain/commit provenance from
+      `query('regressions', {root})`, FAILING OPEN to the markdown it already loaded — cache is never
+      a hard dependency. (INDEX.md/ROADMAP.md unchanged.) Removed the now-dead `byId` map.
+    * TEST: `db-cache.test.mjs` extended — T002 fixture gained regressed_from + causing/fixed commits;
+      added parity tests asserting cache == scan for `by-commit` (caused_by AND fixed_by) and
+      `regressions`. db-cache: 23 passed, 0 failed. Full `npm test` green (exit 0).
+    * Enforcement hot path (commit-gate / sync-data) untouched.

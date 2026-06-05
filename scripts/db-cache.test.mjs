@@ -45,8 +45,10 @@ mkdirSync(join(ai, 'decisions'), { recursive: true });
 writeFileSync(join(ai, 'config.yml'), 'ids:\n  key: "TST"\n  pad: 3\n');
 writeFileSync(join(ai, 'tickets', 'TST-T001-root.md'),
   `---\nid: TST-T001\ntitle: root ticket about widgets\ntype: feature\nstatus: doing\npriority: high\nlinks: [TST-D001]\n---\n## Description\nthe widget engine\n`);
+// T002 doubles as the regression fixture: regressed_from + causing/fixed commits drive the
+// KIT-T026 by-commit / regressions parity tests (and the introduced_by edge on T001).
 writeFileSync(join(ai, 'tickets', 'TST-T002-child.md'),
-  `---\nid: TST-T002\ntitle: child of root\ntype: bug\nstatus: todo\npriority: critical\nparent: TST-T001\naka: [OLD-9]\n---\n## History\n- [2026-06-04 10:00] (created) opened\n`);
+  `---\nid: TST-T002\ntitle: child of root\ntype: bug\nstatus: todo\npriority: critical\nparent: TST-T001\naka: [OLD-9]\nregressed_from: TST-T001\ncausing_commit: deadbee\nfixed_commit: cafef00\n---\n## History\n- [2026-06-04 10:00] (created) opened\n`);
 writeFileSync(join(ai, 'decisions', 'TST-D001.md'),
   `---\nid: TST-D001\ntitle: use widgets\ndate: 2026-06-04\n---\n**Decision:** widgets it is\n`);
 
@@ -177,6 +179,32 @@ if (!engine) {
     assert.equal(cache[0].id, 'TST-T003', 'next ticket id is max(num)+1, formatted');
     // and identical to the standalone scan allocator that next-id.mjs falls back to
     assert.equal(cache[0].id, nextId(root, 'tickets'));
+  });
+
+  // ---- commit↔ticket cross-ref + REGRESSIONS parity (KIT-T026) ------------
+  // by-commit and the index-tickets `regressions` source MUST agree cache-vs-scan, and
+  // the commit edges must resolve to the right tickets (caused_by vs fixed_by).
+  await testAsync('parity: by-commit caused_by (cache == scan)', async () => {
+    const { cache, scan } = await parity('by-commit', ['deadbee']);
+    assert.deepEqual(cache, scan, 'cache-backed by-commit must equal the markdown scan');
+    assert.deepEqual(cache, [{ id: 'TST-T002', type: 'bug', status: 'todo', rel: 'caused_by', title: 'child of root' }],
+      'deadbee is T002s causing commit');
+  });
+
+  await testAsync('parity: by-commit fixed_by (cache == scan)', async () => {
+    const { cache, scan } = await parity('by-commit', ['cafef00']);
+    assert.deepEqual(cache, scan, 'cache-backed by-commit must equal the markdown scan');
+    assert.deepEqual(cache.map((r) => r.rel), ['fixed_by'], 'cafef00 is T002s fixing commit');
+  });
+
+  await testAsync('parity: regressions (cache == scan, drives index-tickets REGRESSIONS.md)', async () => {
+    const { cache, scan } = await parity('regressions', []);
+    assert.deepEqual(cache, scan, 'cache-backed regressions must equal the markdown scan');
+    const t2 = cache.find((r) => r.id === 'TST-T002');
+    assert.deepEqual(
+      { regressed_from: t2.regressed_from, causing_commit: t2.causing_commit, fixed_commit: t2.fixed_commit },
+      { regressed_from: 'TST-T001', causing_commit: 'deadbee', fixed_commit: 'cafef00' },
+      'T002 carries its regression chain + commit refs through the cache');
   });
 
   // ---- cross-scope hydration (KIT-T031) -----------------------------------

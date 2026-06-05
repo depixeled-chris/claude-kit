@@ -10,6 +10,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { compareIds } from './id-utils.mjs';
+import { query } from './q.mjs';
 
 const root = process.argv[2] || process.cwd();
 const ticketsDir = join(root, '.ai', 'tickets');
@@ -62,8 +63,8 @@ function readTickets(dir, archived) {
 
 const tickets = [...readTickets(ticketsDir, false), ...readTickets(archiveDir, true)];
 
-// Fail loud on duplicate ids instead of silently last-write-wins into `byId`
-// below — a collision (two files sharing an id) must never generate quietly.
+// Fail loud on duplicate ids instead of silently last-write-wins — a collision (two
+// files sharing an id) must never generate quietly.
 const idCounts = new Map();
 for (const t of tickets) idCounts.set(t.id, (idCounts.get(t.id) || 0) + 1);
 const dupIds = [...idCounts.entries()].filter(([, n]) => n > 1).map(([id]) => id);
@@ -74,8 +75,6 @@ if (dupIds.length) {
   );
   process.exit(1);
 }
-
-const byId = new Map(tickets.map((t) => [t.id, t]));
 
 // --- INDEX.md: the board ---
 const HEADER = '| id | type | status | priority | title |\n| --- | --- | --- | --- | --- |';
@@ -98,12 +97,32 @@ const indexMd = [
 writeFileSync(join(ticketsDir, 'INDEX.md'), indexMd);
 
 // --- REGRESSIONS.md: chains linked by regressed_from (linear; longest first) ---
-const recurrences = tickets.filter((t) => t.regressedFrom);
+// Regression provenance (regressed_from + causing/fixed commits) is READ FROM THE CACHE
+// via q.mjs's canned `regressions` query (KIT-T026); it fails open to the markdown the
+// script already loaded, so the cache is never a hard dependency. `query` returns the
+// same per-id rows from either path (cache or db-parse scan) — parity lives in q.mjs.
+async function regressionData() {
+  try {
+    const { rows } = await query('regressions', [], { root });
+    const m = new Map();
+    for (const r of rows) {
+      m.set(r.id, { regressedFrom: r.regressed_from || '', causingCommit: r.causing_commit || '', fixedCommit: r.fixed_commit || '' });
+    }
+    if (m.size) return m;
+  } catch {
+    /* fall through to the markdown scan the script already performed */
+  }
+  return new Map(tickets.map((t) => [t.id, { regressedFrom: t.regressedFrom, causingCommit: t.causingCommit, fixedCommit: t.fixedCommit }]));
+}
+const reg = await regressionData();
+
+const recurrences = tickets.filter((t) => reg.get(t.id)?.regressedFrom);
 const childrenOf = new Map();
 for (const t of recurrences) {
-  const kids = childrenOf.get(t.regressedFrom) || [];
+  const from = reg.get(t.id).regressedFrom;
+  const kids = childrenOf.get(from) || [];
   kids.push(t.id);
-  childrenOf.set(t.regressedFrom, kids);
+  childrenOf.set(from, kids);
 }
 const isChild = new Set(recurrences.map((t) => t.id));
 const roots = [...childrenOf.keys()].filter((id) => !isChild.has(id));
@@ -119,10 +138,10 @@ function chainFrom(rootId) {
 }
 
 const commitNote = (id) => {
-  const t = byId.get(id);
+  const r = reg.get(id);
   const bits = [];
-  if (t && t.causingCommit) bits.push(`caused by ${t.causingCommit}`);
-  if (t && t.fixedCommit) bits.push(`fixed in ${t.fixedCommit}`);
+  if (r && r.causingCommit) bits.push(`caused by ${r.causingCommit}`);
+  if (r && r.fixedCommit) bits.push(`fixed in ${r.fixedCommit}`);
   return bits.length ? ` (${bits.join('; ')})` : '';
 };
 

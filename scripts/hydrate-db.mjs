@@ -205,6 +205,10 @@ export async function hydrate({ root, dbPath = defaultDbPath(), ifStale = false 
       if (it.parent) edge('parent', it.parent);
       edge('regressed_from', it.regressedFrom);
       edge('introduced_by', it.introducedBy);
+      // commit↔ticket foreign keys (KIT-T026): ticket→commit-sha edges, so a commit→ticket
+      // lookup is an indexed idx_links_to scan (the agent-retrieval cross-ref, KIT-T004).
+      edge('caused_by', it.causingCommit);
+      edge('fixed_by', it.fixedCommit);
 
       if (it.producedBy || it.informs.length) {
         // a work item that produces a doc shows up as an artifact edge; informs is many
