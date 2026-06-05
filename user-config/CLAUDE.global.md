@@ -94,6 +94,11 @@ only comments that ship:
 Delete everything else.
 
 # GIT WORKFLOW
+- **Work on `main` by default — trunk-based.** Do NOT create or work in feature branches
+  unless the maintainer opts in per-project OR there's a genuinely big reason (a large,
+  risky refactor that needs isolation). A normal ticket/fix commits straight to `main`.
+  When a branch IS warranted, merge it back the moment the work is mergeable — don't let
+  it linger. Never silently park work on a branch; that's how status goes blind.
 - **Local = draft** (messy WIP OK). **PR/main = publish** (clean, logical, buildable).
 - **Commit AND push at every task boundary** — pushing between tasks (not just
   committing) keeps the remote as a rewind point recoverable from any machine.
