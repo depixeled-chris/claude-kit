@@ -1,20 +1,34 @@
 ---
-description: Drain INBOX.md into tickets/questions/decisions and report a prioritized worklist
+description: Drain the inbox into tickets/questions/decisions and report a prioritized worklist
 ---
-Drain `.ai/INBOX.md`:
-1. Classify each line against `.ai/config.yml` → classifications.
-2. Promote it to its destination — create/append a ticket (use
-   `.ai/tickets/_TEMPLATE.md`), a question, a note, or a decision. **Allocate the id
-   with `node <kit>/scripts/next-id.mjs <store>` — never hand-pick one** (that is what
-   collided two files on one id; KIT-T009). Name the file `<id>-<slug>.md`.
-3. Dedupe against existing items IN THE TARGET STORE — `node <kit>/scripts/q.mjs similar --store
-   <tickets|decisions|notes|questions> "<proposed title/labels>"` surfaces likely duplicates (FTS,
-   suggest-only; omit `--store` for tickets). `next-id.mjs <store> -- <proposed title>` runs the
-   same check automatically and prints any hit on stderr (KIT-T025). On a real duplicate either skip
-   it, link it (`links:`), or — if it RETIRES an older one — set `supersedes: <old-id>` on the new
-   item and `superseded_by: <new-id>` (or `status: superseded`) on the old, which drops the old from
-   the board + drain (KIT-T024). For regressions, link the likely causing commit.
-4. Delete promoted lines from INBOX.md.
-5. Report the resulting prioritized worklist (drain order from config, roadmap
-   first if a current milestone exists). Flag items that are Chris's call.
-Do not start implementing — this is triage only.
+Cross-project triage runs in lockstep with `scripts/triage.mjs` — the SCRIPT gathers and
+applies; you (the LLM) only classify the irreducible-prose caps in between. Do NOT scan the
+inbox or the stores by hand; the script already did.
+
+1. **GATHER** — run `node <kit>/scripts/triage.mjs --plan --json` (add `--scope <KEY>` to
+   confine to one project). It opens the cache ONCE, reads every `store='inbox'` cap
+   cross-project, and emits a plan: per cap `{capId, scope, text, type, route, priority,
+   needsClassification, dedupCandidates, allowedClassifications}`.
+
+2. **CLASSIFY** — build `decisions.json` (an array). For each plan item:
+   - `needsClassification: false` (DETERMINISTIC — it had an explicit `(type)`): auto-include
+     it unchanged — `{capId, classification: type, route, priority, action: "create"}`. No LLM
+     judgment needed.
+   - `needsClassification: true` (AMBIGUOUS prose): pick ONE classification from THIS cap's
+     `allowedClassifications`, considering its `dedupCandidates`. PURE text classification —
+     do NOT open files or chase references. Choose an `action`:
+       - `create` — a new item (the default).
+       - `fold` — it belongs to an existing item; set `target: <id>` (append a dated note).
+       - `supersede` — it RETIRES an existing item; set `target: <old-id>` (the script sets
+         `supersedes`/`superseded_by` and writes the new item).
+       - `skip` — noise; nothing is written.
+     Optional `links: [<id>...]`. The script resolves `route`/`priority` from config for caps
+     where you omit them; pass them only to override.
+
+3. **APPLY** — run `node <kit>/scripts/triage.mjs --apply decisions.json`. It allocates ids
+   with `next-id` (NEVER hand-pick — KIT-T009), writes each item from its store's
+   `_TEMPLATE.md`, folds/supersedes as directed, MOVES every processed cap to `inbox/triaged/`
+   (never deletes), re-syncs the cache, and prints cross-project receipts + a drain-ordered
+   worklist per scope.
+
+This is triage only — do not start implementing the promoted work.

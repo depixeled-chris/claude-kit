@@ -6,7 +6,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node scripts/test-hooks.mjs && node hooks/request-gate.test.mjs && node hooks/ingest-data.test.mjs && node scripts/id-utils.test.mjs && node scripts/code-graph.test.mjs && node scripts/db-cache.test.mjs"
+    "test": "node scripts/test-hooks.mjs && node hooks/request-gate.test.mjs && node hooks/ingest-data.test.mjs && node scripts/id-utils.test.mjs && node scripts/code-graph.test.mjs && node scripts/db-cache.test.mjs && node --test scripts/triage.test.mjs"
   },
   "optionalDependencies": {
     "web-tree-sitter": "0.22.6"

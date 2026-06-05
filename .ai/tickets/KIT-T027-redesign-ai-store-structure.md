@@ -52,6 +52,15 @@ cross-project; clears the now-cached inbox backlog; substrate for KIT-T006 (capt
 immediate-ingest hook. Awaiting maintainer OK before building (scope-gated per KIT-T038).
 
 ## Notes
+- 2026-06-05: Phase 1 BUILT — `scripts/triage.mjs` (`--plan` / `--apply`) + atomic modules under
+  `scripts/triage/` (config, cap-text, handle, plan, write-item, apply), `scripts/triage.test.mjs`
+  (isolated fixture + throwaway registry/plugin-root — KIT-T035), and a thin `commands/triage.md`
+  lockstep. `--plan` opens ONE held-open cache handle (KIT-D025) for all dedup searches (asserted
+  via `dbHandleOpens: 1`); deterministic vs needsClassification split from each scope's
+  `config.yml`; `--apply` mints ids via next-id on the held handle, writes from `_TEMPLATE.md`,
+  folds/supersedes, moves caps to `inbox/triaged/`, re-syncs, prints receipts + drain worklist.
+  Demo `--plan` on the real cache: 21 caps (2 HOD + 19 KIT), 12 deterministic / 9 to classify.
+  The full store/item-model redesign (AC above) stays open.
 - 2026-06-05: Plan above recorded for the triage slice; awaiting OK to build.
 - 2026-06-04: Maintainer flagged the notes structure + that backlog/triage is KIT domain. Design TOGETHER
   with the T023/T024/T025/T026 cluster — one coherent KIT data/workflow redesign, not piecemeal.
