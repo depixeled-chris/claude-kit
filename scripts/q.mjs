@@ -4,7 +4,8 @@
 //
 //   node scripts/q.mjs open [scope]                 # open items (todo|doing|review)
 //   node scripts/q.mjs children <id>                # items whose parent is <id>
-//   node scripts/q.mjs backlinks <id>               # items that link TO <id> (any rel)
+//   node scripts/q.mjs backlinks <id>               # items that link TO <id> (any rel) — walk DOWN
+//   node scripts/q.mjs trail <id>                   # walk UP <id>'s ancestry → governing decisions/docs/origin (trail-on-action)
 //   node scripts/q.mjs by-commit <sha>              # tickets caused-by / fixed-by <sha>
 //   node scripts/q.mjs doc-trail <id>               # history events for <id>, newest first
 //   node scripts/q.mjs fts <query...>               # full-text search title+body
@@ -129,6 +130,68 @@ const edgesOf = (i) => [
   i.supersededBy ? ['superseded_by', i.supersededBy] : null,
 ].filter(Boolean);
 
+// ANTECEDENT edges — the "inception-out" pointers an item records to where it CAME FROM
+// (parent epic, the decisions/docs/tickets that informed it, the thing it supersedes or
+// regressed from). The family-tree rule: a descendant points UP to its ancestors; we walk
+// these to paint the complete picture for an item before acting on it. `superseded_by` and
+// `fixed_by` are DESCENDANT/forward pointers — excluded from the upward walk.
+const ANCESTOR_RELS = new Set(['link', 'parent', 'supersedes', 'regressed_from', 'introduced_by', 'caused_by']);
+
+// Store display order for a trail SUMMARY: governing DECISIONS first, then research/design
+// DOCS, then the rest. Lower rank = surfaced first (the trail-on-action rule).
+const STORE_RANK = { decisions: 0, research: 1, docs: 1, requests: 2, questions: 3, tickets: 4, notes: 5 };
+const storeRank = (s) => (s in STORE_RANK ? STORE_RANK[s] : 9);
+
+// A trail edge target must be an ITEM id (SCOPE-Letter###) or a commit sha — not the prose
+// some legacy `supersedes:`/`source:` fields carry (e.g. "reframes HOD-T009…"). Guarding the
+// walk here keeps the trail clean regardless of messy frontmatter; the data smell is flagged
+// separately, not papered over.
+const ID_SHAPE = /^[A-Za-z]+-[A-Za-z]?\d+$/;
+const SHA_SHAPE = /^[0-9a-f]{7,40}$/i;
+const isTrailTarget = (t) => ID_SHAPE.test(t) || SHA_SHAPE.test(t);
+
+// Walk an item's ancestry breadth-first along ANTECEDENT_RELS, returning each reached
+// ancestor once (nearest depth wins) with the rel + depth it was reached by. `getEdges(id)`
+// yields outbound [rel,to] pairs; `getNode(id)` yields the item record (or undefined for a
+// dangling ref / a commit sha). Pure graph walk — same logic for the cache + markdown paths.
+const SUMMARY_CLIP = 80; // chars of the one-line gist a trail shows — a CLUE, not the full record
+const clip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+
+function walkAncestry(startId, getEdges, getNode) {
+  const seen = new Set([startId]);
+  const out = [];
+  let frontier = [[startId, 0]];
+  while (frontier.length) {
+    const next = [];
+    for (const [id, depth] of frontier) {
+      for (const [rel, to] of getEdges(id)) {
+        if (!ANCESTOR_RELS.has(rel) || seen.has(to) || !isTrailTarget(to)) continue;
+        seen.add(to);
+        const node = getNode(to);
+        const isCommit = /^[0-9a-f]{7,40}$/i.test(to);
+        // Token-frugal: show the node's `summary` (or a clipped title) — the GIST — plus a
+        // `more` clue (✎ = there's a fuller body to drill into). The agent opens a node's
+        // full text only when the summary says it needs it (KIT-D028 trail-on-action).
+        const gist = node ? (node.summary || node.title || '') : (isCommit ? '(commit)' : '(not in cache: ' + to + ')');
+        const bodyLen = node ? (node.bodyLen ?? (node.body ? node.body.length : 0)) : 0;
+        const summaryWasClipped = node && !node.summary && String(node.title || '').length > SUMMARY_CLIP;
+        out.push({
+          id: to,
+          store: node ? node.store : (isCommit ? 'commit' : 'missing'),
+          rel,
+          depth: depth + 1,
+          summary: clip(gist, SUMMARY_CLIP),
+          more: bodyLen > 0 || summaryWasClipped ? '✎' : '',
+        });
+        next.push([to, depth + 1]);
+      }
+    }
+    frontier = next;
+  }
+  // Decisions + docs first (the context the agent must see before acting), then by depth/id.
+  return out.sort((a, b) => storeRank(a.store) - storeRank(b.store) || a.depth - b.depth || compareIds(a.id, b.id));
+}
+
 // ---- SQLite-backed canned queries -----------------------------------------
 function cannedQueries(root) {
   return {
@@ -209,6 +272,23 @@ function cannedQueries(root) {
          ORDER BY rank LIMIT ?`, [ftsOrQuery(query), store, FTS_LIMIT]);
     },
 
+    // TRAIL (the trail-on-action rule): walk UP an item's ancestry — parent epic, the
+    // decisions/docs/tickets it linked OUT to at inception — and summarize, decisions+docs
+    // first. The up-walk surfaces the governing CONTEXT an agent needs before acting; the
+    // down-walk (descendants) is `backlinks`/`children`. Load the graph once, walk in JS so
+    // the cache + markdown paths share `walkAncestry`.
+    trail: (db, id) => {
+      const items = db.all('SELECT id, store, type, status, title FROM items');
+      const links = db.all('SELECT from_id, rel, to_id FROM links');
+      const nodeById = new Map(items.map((i) => [i.id, i]));
+      const edgesById = new Map();
+      for (const l of links) {
+        if (!edgesById.has(l.from_id)) edgesById.set(l.from_id, []);
+        edgesById.get(l.from_id).push([l.rel, l.to_id]);
+      }
+      return walkAncestry(id, (x) => edgesById.get(x) || [], (x) => nodeById.get(x));
+    },
+
     'next-id': (db, scope, type) => {
       const row = db.all(
         'SELECT MAX(num) AS m FROM items WHERE scope = ? AND store = ?', [scope, storeForType(type)])[0];
@@ -285,6 +365,12 @@ function fallback(cmd, args, root) {
     }
     case 'doc-trail':
       return (byId.get(args[0])?.history || []).slice().sort((a, b) => String(b.ts).localeCompare(a.ts));
+    case 'trail':
+      return walkAncestry(
+        args[0],
+        (x) => { const it = byId.get(x); return it ? edgesOf(it) : []; },
+        (x) => byId.get(x),
+      );
     case 'fts': {
       const needle = args.join(' ').toLowerCase();
       return items.filter((i) => (`${i.title} ${i.body}`).toLowerCase().includes(needle))

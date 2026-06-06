@@ -1,0 +1,1 @@
+(bug) building BASES all identical + all fully lit up — ground-floor facade exception (lobby glow) makes every building base the same bright lit strip; no variety, reads as shit. Needs per-building variation + not uniformly lit. Project: HOD.

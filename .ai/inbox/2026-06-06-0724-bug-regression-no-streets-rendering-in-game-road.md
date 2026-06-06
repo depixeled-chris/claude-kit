@@ -1,0 +1,1 @@
+(bug/regression) NO STREETS rendering in-game — roads/asphalt gone after the block-buildup integrated-ground-mesh merge (6712903, HOD-T097). chunkGround.ts integrated mesh likely stopped emitting the road/asphalt surface or the road grid geometry. HIGH priority regression, caused by active work. Project: HOD.
