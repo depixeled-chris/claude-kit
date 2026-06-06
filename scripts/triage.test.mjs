@@ -8,7 +8,8 @@
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -172,4 +173,75 @@ test('--apply mints DISTINCT sequential ids for multiple creates in one batch (K
   // TST-T002 was minted by the prior test; the cache is not re-synced mid-batch, so the fix is
   // what makes these T003 and T004 instead of both T003.
   assert.deepEqual([...ids].sort(), ['TST-T003', 'TST-T004'], 'ids are sequential + distinct across the batch');
+});
+
+// --- commit.mjs (KIT-T045): apply commits its OWN output (created items + inbox→triaged moves) ---
+
+function gitInit(root) {
+  const g = (...a) => execFileSync('git', ['-C', root, ...a], { stdio: 'ignore' });
+  g('init', '-q');
+  g('config', 'user.email', 'test@example.com');
+  g('config', 'user.name', 'triage-test');
+  g('config', 'commit.gpgsign', 'false');
+}
+
+// Mirror the file shape apply leaves behind (a written item + a cap moved into triaged/), then
+// assert commitApply stages EXACTLY those paths, commits with the promote message, and stages the
+// rename's deletion side (no stray cap left tracked in inbox/).
+test('commit.mjs commits exactly the apply output with a descriptive message inside a data repo', async () => {
+  const { commitApply } = await import('./triage/commit.mjs');
+  const repo = mkdtempSync(join(tmpdir(), 'triage-commit-'));
+  const ai = join(repo, '.ai');
+  for (const s of ['inbox', 'tickets']) mkdirSync(join(ai, s), { recursive: true });
+  // A pre-existing committed cap + an unrelated dirty file (must NOT be swept into the commit).
+  const capRel = 'inbox/2026-06-03-0001-some-idea.md';
+  writeFileSync(join(ai, capRel), 'an idea\n');
+  writeFileSync(join(repo, 'unrelated.txt'), 'dirty\n');
+  gitInit(repo);
+  execFileSync('git', ['-C', repo, 'add', '--', `.ai/${capRel}`], { stdio: 'ignore' });
+  execFileSync('git', ['-C', repo, 'commit', '-q', '-m', 'seed', '--', `.ai/${capRel}`], { stdio: 'ignore' });
+
+  // Enact the move + a new item, exactly as apply does.
+  const itemRel = 'tickets/TST-T010-some-idea.md';
+  writeFileSync(join(ai, itemRel), '---\nid: TST-T010\n---\n\n## Description\nan idea\n');
+  mkdirSync(join(ai, 'inbox', 'triaged'), { recursive: true });
+  const movedRel = 'inbox/triaged/2026-06-03-0001-some-idea.md';
+  renameSync(join(ai, capRel), join(ai, movedRel));
+
+  const applied = [{ capId: 'x', scope: 'TST', action: 'create', dest: itemRel, movedTo: movedRel, capFile: capRel }];
+  const committed = commitApply({ applied, aiDirByScope: new Map([['TST', ai]]) });
+
+  assert.equal(committed.length, 1, 'one commit, in the data repo working tree');
+  assert.match(committed[0].message, /^triage: promote 1 cap -> tickets\/decisions\/notes \[TST\]$/);
+
+  const show = execFileSync('git', ['-C', repo, 'show', '--name-status', '--format=%s', 'HEAD'], { encoding: 'utf8' });
+  assert.match(show, /triage: promote 1 cap/, 'commit subject is the promote message');
+  assert.match(show, /A\s+\.ai\/tickets\/TST-T010-some-idea\.md/, 'the new item is in the commit');
+  // The inbox→triaged move is committed: git records it as a rename (R) of the cap into triaged/,
+  // so BOTH the original inbox path and the triaged path are present in the same staged change —
+  // the deletion side is staged, never left loose for a later sync.
+  assert.match(
+    show,
+    /R\d*\s+\.ai\/inbox\/2026-06-03-0001-some-idea\.md\s+\.ai\/inbox\/triaged\/2026-06-03-0001-some-idea\.md/,
+    'the cap move (old → triaged) is committed as a rename',
+  );
+  assert.doesNotMatch(show, /unrelated\.txt/, 'unrelated dirty files are NOT swept in (no add -A)');
+
+  // The unrelated file is still dirty (left for the Stop-hook sync), proving precision.
+  const porcelain = execFileSync('git', ['-C', repo, 'status', '--porcelain'], { encoding: 'utf8' });
+  assert.match(porcelain, /unrelated\.txt/, 'unrelated change is left untouched');
+
+  rmSync(repo, { recursive: true, force: true });
+});
+
+test('commit.mjs no-ops cleanly when the .ai store is not in any git repo (fail-open)', async () => {
+  const { commitApply } = await import('./triage/commit.mjs');
+  const bare = mkdtempSync(join(tmpdir(), 'triage-nogit-'));
+  const ai = join(bare, '.ai');
+  mkdirSync(join(ai, 'tickets'), { recursive: true });
+  writeFileSync(join(ai, 'tickets', 'TST-T020-x.md'), 'x\n');
+  const applied = [{ capId: 'x', scope: 'TST', action: 'create', dest: 'tickets/TST-T020-x.md', movedTo: null, capFile: null }];
+  const committed = commitApply({ applied, aiDirByScope: new Map([['TST', ai]]) });
+  assert.deepEqual(committed, [], 'no repo → nothing committed, no throw');
+  rmSync(bare, { recursive: true, force: true });
 });

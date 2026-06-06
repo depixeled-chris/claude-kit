@@ -12,6 +12,7 @@ import { openHandle } from './handle.mjs';
 import { loadScope, scopeIndex, ROUTE_STORE } from './config.mjs';
 import { capText, truncate } from './cap-text.mjs';
 import { writeFromTemplate, foldNote, supersede, markSupersedes, moveCapToTriaged } from './write-item.mjs';
+import { commitApply } from './commit.mjs';
 
 const OPEN_STATUSES = ['todo', 'doing', 'review'];
 const TITLE_COL = 60;
@@ -84,11 +85,16 @@ export async function apply({ decisionsPath, json, dbPath }) {
       if (!sc) { receipts.push({ capId: d.capId, scope: cap.scope, action: 'skip', dest: 'unknown scope' }); continue; }
       const dest = enact(handle, d, cap, sc, alloc);
       const movedTo = moveCapToTriaged(sc.aiDir, cap.file);
-      receipts.push({ capId: d.capId, scope: cap.scope, action: d.action || 'create', dest, movedTo });
+      receipts.push({ capId: d.capId, scope: cap.scope, action: d.action || 'create', dest, movedTo, capFile: cap.file });
     }
   } finally {
     handle.close();
   }
+  // Commit triage's OWN output before the cache re-sync so the descriptive message lands with the
+  // files (the Stop-hook sync only handles the raw caps). aiDir per scope is where the markdown —
+  // and thus the git working tree — lives. Fail-open: never break a succeeded apply on a commit.
+  const aiDirByScope = new Map([...configs].map(([scope, sc]) => [scope, sc.aiDir]));
+  commitApply({ applied: receipts, aiDirByScope });
   await hydrate({ dbPath, ifStale: true }); // make the just-written items queryable
   const worklists = await drainWorklists(scopes, dbPath);
   const result = { applied: receipts, worklists };
