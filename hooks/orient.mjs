@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
-import { git, gitRoot, adopted, projectName, formatWip, watchRepos, readLineage, recordProject, WIP_FILES, WIP_COMMITS } from './lib.mjs';
+import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, WIP_FILES, WIP_COMMITS } from './lib.mjs';
 import { query } from '../scripts/q.mjs';
 import { readIdConfig } from '../scripts/id-utils.mjs';
 
@@ -45,15 +45,21 @@ const decisionFiles = () => {
     return null;
   }
 };
+const stripQuotes = (s) => (s || '').trim().replace(/^["']|["']$/g, '').trim();
 const decisionMeta = (f) => {
   try {
     const t = readFileSync(join(root, '.ai', 'decisions', f), 'utf8');
     const id = (t.match(/^id:[ \t]*(.+)$/m) || [])[1];
     const title = (t.match(/^title:[ \t]*(.+)$/m) || [])[1];
     const standing = /^standing:[ \t]*(true|yes)\b/im.test(t);
-    return { id: id ? id.trim() : '', title: title ? title.trim() : f.replace(/\.md$/, ''), standing };
+    // A standing decision declares its own relevance: `scope:` (free token, e.g. world-gen)
+    // and/or `paths:` (comma globs). This keeps the kit generic — no project taxonomy baked in.
+    const scope = stripQuotes((t.match(/^scope:[ \t]*(.+)$/m) || [])[1]);
+    const paths = stripQuotes((t.match(/^paths:[ \t]*(.+)$/m) || [])[1])
+      .split(',').map((s) => s.trim()).filter(Boolean);
+    return { id: id ? id.trim() : '', title: title ? stripQuotes(title) : f.replace(/\.md$/, ''), standing, scope, paths };
   } catch {
-    return { id: '', title: f.replace(/\.md$/, ''), standing: false };
+    return { id: '', title: f.replace(/\.md$/, ''), standing: false, scope: '', paths: [] };
   }
 };
 // Recent decisions when the project uses a decisions/ DIRECTORY (one file per decision)
@@ -63,17 +69,37 @@ const recentDecisions = (n) => {
   if (!files) return '';
   return files.slice(-n).map((f) => {
     const { id, title } = decisionMeta(f);
-    return `  ${id ? id + ' — ' : ''}${title}`;
+    return `  ${id ? id + ' — ' : ''}${clip(title, 120)}`;
   }).join('\n');
 };
-// STANDING decisions surface EVERY session regardless of age — they are the anti-relitigation
-// backbone. A settled constraint (e.g. "world-gen is Rust-native", "WASM is the runtime") must
-// never age out of the recent-N window and get re-asked. Mark a decision `standing: true` to pin it.
-const standingDecisions = () => {
+const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+const globToRe = (g) => new RegExp('^' + g.split('*').map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$', 'i');
+// STANDING decisions are the anti-relitigation backbone — settled calls that must never be
+// re-asked. But surfacing ALL of them every session is unsustainable + wasteful, so they are
+// SCOPE-FILTERED: a standing decision shows only when it pertains to what this session is
+// actually touching. Relevance = its `scope` token appears in the active signals (changed
+// files + recent commit subjects) OR a `paths:` glob matches a changed file OR it declares no
+// scope (a truly global invariant — keep those rare). Out-of-scope standing decisions collapse
+// to a one-line pointer so they're discoverable without dumping the pile.
+const standingDecisions = (signals, changed) => {
   const files = decisionFiles();
-  if (!files) return '';
-  return files.map(decisionMeta).filter((m) => m.standing)
-    .map((m) => `  ${m.id ? m.id + ' — ' : ''}${m.title}`).join('\n');
+  if (!files) return null;
+  const all = files.map(decisionMeta).filter((m) => m.standing);
+  if (!all.length) return null;
+  const sig = signals.toLowerCase();
+  const inScope = (m) => {
+    if (!m.scope && !m.paths.length) return true; // global invariant
+    if (m.scope && sig.includes(m.scope.toLowerCase())) return true;
+    return m.paths.some((g) => { const re = globToRe(g); return changed.some((p) => re.test(p)); });
+  };
+  const shown = all.filter(inScope);
+  const deferred = all.filter((m) => !inScope(m));
+  const deferredScopes = [...new Set(deferred.map((m) => m.scope).filter(Boolean))].sort();
+  return {
+    shown: shown.map((m) => `  ${m.id ? m.id + ' — ' : ''}${clip(m.title, 120)}`).join('\n'),
+    deferredCount: deferred.length,
+    deferredScopes,
+  };
 };
 
 const out = [];
@@ -123,11 +149,24 @@ if (roadmap) {
   out.push('--- Plan-of-record (ROADMAP) ---');
   out.push(head(roadmap, ROADMAP_LINES));
 }
-const standing = standingDecisions();
-if (standing) {
+// Active signals = what this session is touching: changed file paths (project + data repo)
+// plus recent commit subjects. Standing decisions are filtered against this so only the
+// relevant ones surface (scope-based, not the whole pile).
+const changedPaths = [];
+for (const [r] of repos) {
+  try { for (const l of wipSummary(r).dirty) { const p = l.slice(3).trim(); if (p) changedPaths.push(p); } } catch { /* skip */ }
+}
+const recentSubjects = git(['-C', root, 'log', '--oneline', `-${COMMITS}`]) || '';
+const activeSignals = changedPaths.join(' ') + ' ' + recentSubjects;
+const standing = standingDecisions(activeSignals, changedPaths);
+if (standing && (standing.shown || standing.deferredCount)) {
   out.push('');
-  out.push('--- STANDING decisions (settled — CITE, never re-ask or relitigate) ---');
-  out.push(standing);
+  out.push('--- STANDING decisions in scope (settled — CITE, never re-ask or relitigate) ---');
+  if (standing.shown) out.push(standing.shown);
+  if (standing.deferredCount) {
+    const scopes = standing.deferredScopes.length ? ` (scopes: ${standing.deferredScopes.join(', ')})` : '';
+    out.push(`  +${standing.deferredCount} more standing decision(s) out of scope${scopes} — check before deciding in those areas (q decisions).`);
+  }
 }
 const decisionsDir = recentDecisions(8);
 if (decisionsDir) {

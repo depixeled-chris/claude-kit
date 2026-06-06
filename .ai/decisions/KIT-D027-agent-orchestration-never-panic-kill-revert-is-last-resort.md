@@ -2,6 +2,7 @@
 id: KIT-D027
 title: "AGENT ORCHESTRATION (standing, RECONCILED): never panic-kill a running agent over a transient/mid-edit error — diagnose first; REVERTING uncommitted work is a LAST resort (git diff/stash/recover before any revert); commit frequently so work can't be lost. Worktree isolation is OPTIONAL, not required."
 standing: true
+scope: agents
 date: 2026-06-06
 supersedes:
 source: conversation 2026-06-05/06 (maintainer correction); inbox cap 2026-06-06-0241
