@@ -270,13 +270,17 @@ out.push(`
    beat a dense block. The human is tracking many threads; respect their attention.`);
 out.push(`
 --- PROCESS RULES (enforced by hooks) ---
-1. Read the plan-of-record + DECISIONS before non-trivial work. The on-disk record and
+1. QUERY, don't grep. For work/issues/history use \`q\` (q open | governing <path> | trail <id>
+   | fts <terms> | doc-trail <id>); for code use \`code-graph --query\` (importers-of | defines
+   | surface). They see links/graph a raw grep can't. The query-gate BLOCKS grepping the .ai
+   store and tree-wide source greps. Grep is fine only for a SPECIFIC known file (use Grep/Glob/Read).
+2. Read the plan-of-record + DECISIONS before non-trivial work. The on-disk record and
    git are AUTHORITATIVE over this summary and over memory; on conflict, reconcile to disk
    and say so.
-2. Never assert history/authorship/decisions from memory — read git/.ai or say "I don't know."
-3. Log work to a ticket / the plan-of-record, committed in the same change (the gate enforces).
+3. Never assert history/authorship/decisions from memory — read git/.ai or say "I don't know."
+4. Log work to a ticket / the plan-of-record, committed in the same change (the gate enforces).
    Record decisions in DECISIONS the turn they happen.
-4. Do not start deferred/gated work without the maintainer flipping it.
+5. Do not start deferred/gated work without the maintainer flipping it.
 ================================================================================`);
 console.log(out.join('\n'));
 process.exit(0);
