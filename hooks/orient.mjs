@@ -38,23 +38,42 @@ const tail = (f, n) => {
 };
 // Recent decisions when the project uses a decisions/ DIRECTORY (one file per decision)
 // rather than a legacy DECISIONS.md. Returns id — title lines for the latest n by id.
-const recentDecisions = (n) => {
-  let files;
+const decisionFiles = () => {
   try {
-    files = readdirSync(join(root, '.ai', 'decisions')).filter((f) => f.endsWith('.md') && !/^(README|_TEMPLATE)/i.test(f)).sort();
+    return readdirSync(join(root, '.ai', 'decisions')).filter((f) => f.endsWith('.md') && !/^(README|_TEMPLATE)/i.test(f)).sort();
   } catch {
-    return '';
+    return null;
   }
+};
+const decisionMeta = (f) => {
+  try {
+    const t = readFileSync(join(root, '.ai', 'decisions', f), 'utf8');
+    const id = (t.match(/^id:[ \t]*(.+)$/m) || [])[1];
+    const title = (t.match(/^title:[ \t]*(.+)$/m) || [])[1];
+    const standing = /^standing:[ \t]*(true|yes)\b/im.test(t);
+    return { id: id ? id.trim() : '', title: title ? title.trim() : f.replace(/\.md$/, ''), standing };
+  } catch {
+    return { id: '', title: f.replace(/\.md$/, ''), standing: false };
+  }
+};
+// Recent decisions when the project uses a decisions/ DIRECTORY (one file per decision)
+// rather than a legacy DECISIONS.md. Returns id — title lines for the latest n by id.
+const recentDecisions = (n) => {
+  const files = decisionFiles();
+  if (!files) return '';
   return files.slice(-n).map((f) => {
-    try {
-      const t = readFileSync(join(root, '.ai', 'decisions', f), 'utf8');
-      const id = (t.match(/^id:[ \t]*(.+)$/m) || [])[1];
-      const title = (t.match(/^title:[ \t]*(.+)$/m) || [])[1];
-      return `  ${id ? id.trim() + ' — ' : ''}${title ? title.trim() : f.replace(/\.md$/, '')}`;
-    } catch {
-      return `  ${f.replace(/\.md$/, '')}`;
-    }
+    const { id, title } = decisionMeta(f);
+    return `  ${id ? id + ' — ' : ''}${title}`;
   }).join('\n');
+};
+// STANDING decisions surface EVERY session regardless of age — they are the anti-relitigation
+// backbone. A settled constraint (e.g. "world-gen is Rust-native", "WASM is the runtime") must
+// never age out of the recent-N window and get re-asked. Mark a decision `standing: true` to pin it.
+const standingDecisions = () => {
+  const files = decisionFiles();
+  if (!files) return '';
+  return files.map(decisionMeta).filter((m) => m.standing)
+    .map((m) => `  ${m.id ? m.id + ' — ' : ''}${m.title}`).join('\n');
 };
 
 const out = [];
@@ -103,6 +122,12 @@ if (roadmap) {
   out.push('');
   out.push('--- Plan-of-record (ROADMAP) ---');
   out.push(head(roadmap, ROADMAP_LINES));
+}
+const standing = standingDecisions();
+if (standing) {
+  out.push('');
+  out.push('--- STANDING decisions (settled — CITE, never re-ask or relitigate) ---');
+  out.push(standing);
 }
 const decisionsDir = recentDecisions(8);
 if (decisionsDir) {
