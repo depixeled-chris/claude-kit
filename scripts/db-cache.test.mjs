@@ -222,6 +222,123 @@ await testAsync('similar defaults to tickets when no --store (scan, KIT-T024 bac
   assert.ok(rows.every((r) => r.id.startsWith('TST-T')), 'default store stays tickets');
 });
 
+// ---- file-scoped governance + structural drift (KIT-T049), scan path (always runs) ---------
+// The INVERSE of `q trail`: given file path(s), which OPEN tickets/in-force decisions GOVERN
+// them; plus `q drift` flagging a decided-but-unbuilt structural target. Hermetic fixture that
+// reproduces the motivating HOD failure: a ticket `files:`-scoped to src/sim that sits `todo`
+// while src/sim is worked, a standing decision globbing src/world/*, and a "retire X as truth /
+// keep frozen as the example" reorg with NO frozen/legacy area on disk. Forced down the
+// markdown-scan path (noDb) so it proves the fail-open path with no engine.
+async function governanceTests() {
+  const groot = mkdtempSync(join(tmpdir(), 'kit-gov-'));
+  const gai = join(groot, '.ai');
+  mkdirSync(join(gai, 'tickets'), { recursive: true });
+  mkdirSync(join(gai, 'decisions'), { recursive: true });
+  writeFileSync(join(gai, 'config.yml'), 'ids:\n  key: "GOV"\n  pad: 3\n');
+  // A real (partial) repo tree the drift check probes against: src/sim + src/world exist; NO
+  // legacy/frozen separation dir exists (the structural target the reorg ticket never built).
+  mkdirSync(join(groot, 'src', 'sim'), { recursive: true });
+  mkdirSync(join(groot, 'src', 'world'), { recursive: true });
+  writeFileSync(join(groot, 'src', 'main.ts'), '// host\n');
+
+  // T001: the motivating ticket — OPEN (todo), files-scoped to src/sim + src/main.ts, and its
+  // body declares the retire-as-truth / frozen-example reorg (drift's unrealized-separation).
+  writeFileSync(join(gai, 'tickets', 'GOV-T001-retire.md'),
+    `---\nid: GOV-T001\ntitle: Host = viewer; retire TS-as-truth\ntype: feature\nstatus: todo\npriority: medium\nfiles: [src/sim, src/main.ts]\n---\n## Description\nRetire the TS sim as the product's truth; kept frozen as the gta7 example.\n`);
+  // T002: a CLOSED (done) ticket on src/sim — must NOT govern (its work is finished).
+  writeFileSync(join(gai, 'tickets', 'GOV-T002-done.md'),
+    `---\nid: GOV-T002\ntitle: old sim cleanup\ntype: chore\nstatus: done\npriority: low\nfiles: [src/sim]\n---\n## Description\nfinished\n`);
+  // T003: a template-style empty files list WITH an inline comment — must parse to NO targets
+  // (the comment is stripped), so it never produces a junk governing/drift entry.
+  writeFileSync(join(gai, 'tickets', 'GOV-T003-empty.md'),
+    `---\nid: GOV-T003\ntitle: unscoped idea\ntype: feature\nstatus: todo\npriority: low\nfiles: []              # repo-root-relative paths this ticket touches\n---\n## Description\nno files yet\n`);
+  // T004: declares a DECLARED target that's absent on disk (src/legacy/*) — drift must flag it.
+  writeFileSync(join(gai, 'tickets', 'GOV-T004-move.md'),
+    `---\nid: GOV-T004\ntitle: move things to legacy\ntype: chore\nstatus: todo\npriority: low\nfiles: [src/legacy/Old.ts]\n---\n## Description\nrelocate\n`);
+  // D001: a standing decision globbing src/world/* — governs any edit under src/world, and has
+  // NO flow status (proves decisions are in-force without todo/doing/review).
+  writeFileSync(join(gai, 'decisions', 'GOV-D001.md'),
+    `---\nid: GOV-D001\ntitle: world is data-model-first\nstanding: true\nscope: world-gen\npaths: src/world/*, rust/*\ndate: 2026-06-06\n---\n**Decision:** plan the world like an urban planner.\n`);
+  // D002: a REJECTED decision — must never govern.
+  writeFileSync(join(gai, 'decisions', 'GOV-D002.md'),
+    `---\nid: GOV-D002\ntitle: rejected world idea\nstatus: rejected\npaths: src/world/*\ndate: 2026-06-06\n---\n**Decision:** no.\n`);
+
+  // (1) a file path → its governing OPEN items, DECISIONS first.
+  await testAsync('governing: a src/sim edit surfaces the OPEN ticket scoped to it', async () => {
+    const { rows } = await query('governing', ['src/sim/WasmSim.ts'], { root: groot, noDb: true });
+    const ids = rows.map((r) => r.id);
+    assert.ok(ids.includes('GOV-T001'), 'the todo ticket files-scoped to src/sim governs the edit');
+    assert.ok(!ids.includes('GOV-T002'), 'a DONE ticket no longer governs (its work is finished)');
+    assert.equal(rows.find((r) => r.id === 'GOV-T001').matched, 'src/sim', 'reports WHICH pattern matched');
+  });
+
+  // (2) glob path matching: a decision `paths: src/world/*` governs src/world/City.ts.
+  await testAsync('governing: a decision glob (src/world/*) governs an edit under it', async () => {
+    const { rows } = await query('governing', ['src/world/City.ts'], { root: groot, noDb: true });
+    const ids = rows.map((r) => r.id);
+    assert.ok(ids.includes('GOV-D001'), 'the standing decision globbing src/world/* governs the edit');
+    assert.ok(!ids.includes('GOV-D002'), 'a REJECTED decision never governs');
+  });
+
+  // decisions sort FIRST (the context to read before acting), tickets after.
+  await testAsync('governing: decisions are surfaced before tickets', async () => {
+    const { rows } = await query('governing', ['src/world/City.ts', 'src/main.ts'], { root: groot, noDb: true });
+    const firstTicket = rows.findIndex((r) => r.store === 'tickets');
+    const lastDecision = rows.map((r) => r.store).lastIndexOf('decisions');
+    if (firstTicket >= 0 && lastDecision >= 0) {
+      assert.ok(lastDecision < firstTicket, 'every decision sorts before every ticket');
+    }
+  });
+
+  // an unrelated path governs nothing.
+  await testAsync('governing: an ungoverned path returns no items', async () => {
+    const { rows } = await query('governing', ['docs/readme.md'], { root: groot, noDb: true });
+    assert.deepEqual(rows, [], 'no ticket/decision claims docs/readme.md');
+  });
+
+  // (3) drift: the never-done legacy/frozen separation lights up; the absent declared target too.
+  await testAsync('drift: flags the unrealized retire-as-truth separation + an absent declared target', async () => {
+    const { rows } = await query('drift', [], { root: groot, noDb: true });
+    const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
+    assert.ok(byId['GOV-T001'], 'the retire-TS-as-truth ticket is flagged (no legacy/frozen area exists)');
+    assert.match(byId['GOV-T001'].reason, /unrealized-separation/, 'reason names the unrealized separation');
+    assert.match(byId['GOV-T001'].absent, /legacy|frozen/, 'the missing separation dir(s) are reported');
+    assert.ok(byId['GOV-T004'], 'a ticket naming an absent declared path (src/legacy/Old.ts) is flagged');
+    assert.match(byId['GOV-T004'].reason, /declared-target-absent/, 'reason names the absent declared target');
+  });
+
+  await testAsync('drift: does NOT flag items whose declared targets all exist, nor empty/commented files', async () => {
+    const { rows } = await query('drift', [], { root: groot, noDb: true });
+    const ids = rows.map((r) => r.id);
+    assert.ok(!ids.includes('GOV-D001'), 'a decision globbing src/world/* + rust/* is not drift (globs are governance scopes, not concrete must-exist targets)');
+    assert.ok(!ids.includes('GOV-T002'), 'a DONE ticket is never drift-checked');
+    assert.ok(!ids.includes('GOV-T003'), 'an empty `files: [] # comment` ticket yields no junk target (comment stripped)');
+  });
+
+  // (4) fail-open: governing/drift run with NO cache (noDb) — already exercised above, assert
+  // the path is honest about not using SQLite.
+  await testAsync('governing/drift are scan-only + fail-open (cached:false, never throw)', async () => {
+    const g = await query('governing', ['src/sim/X.ts'], { root: groot, noDb: true });
+    const d = await query('drift', [], { root: groot, noDb: true });
+    assert.equal(g.cached, false, 'governing does not depend on the SQLite cache');
+    assert.equal(d.cached, false, 'drift does not depend on the SQLite cache');
+  });
+
+  // db-parse exposes decision scope/paths on the row model (the parse the verbs reuse).
+  test('db-parse exposes decision scope + paths (KIT-T049)', () => {
+    const gitems = collectItems(groot);
+    const d1 = gitems.find((i) => i.id === 'GOV-D001');
+    assert.equal(d1.govScope, 'world-gen', 'governance scope parsed (govScope, not the id-prefix scope)');
+    assert.equal(d1.scope, 'GOV', 'the row scope stays the id prefix, not the governance scope');
+    assert.deepEqual(d1.paths, ['src/world/*', 'rust/*'], 'paths parsed as a comma list');
+    const t3 = gitems.find((i) => i.id === 'GOV-T003');
+    assert.deepEqual(t3.files, [], 'an empty files list with a trailing # comment parses to []');
+  });
+
+  rmSync(groot, { recursive: true, force: true });
+}
+await governanceTests();
+
 // ---- id-LESS store coverage (KIT-T026/KIT-D024), pure-parse path (always runs) -------------
 // inbox caps + questions are tracked items the cache used to be blind to. A frontmatter-less
 // inbox cap (`(type) text`) and a questions file must BOTH parse into items with a STABLE

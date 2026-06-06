@@ -30,9 +30,28 @@ function frontmatterBlock(text) {
   return m ? m[1] : '';
 }
 
+// Drop a trailing YAML line-comment (` # …`) the stores routinely add to template fields
+// (`files: []   # repo-root-relative paths`). A `#` INSIDE `[...]` or a quote is kept (it may
+// be a real value char); only a `#` at top level — preceded by whitespace or starting the value
+// — is a comment. Without this, `files: [] # note` parsed the comment text as a bogus entry,
+// which surfaced as junk drift/governing targets (KIT-T049).
+function stripComment(raw) {
+  let depth = 0;
+  let quote = '';
+  for (let k = 0; k < raw.length; k++) {
+    const c = raw[k];
+    if (quote) { if (c === quote) quote = ''; continue; }
+    if (c === '"' || c === "'") quote = c;
+    else if (c === '[') depth++;
+    else if (c === ']') depth = Math.max(0, depth - 1);
+    else if (c === '#' && depth === 0 && (k === 0 || /\s/.test(raw[k - 1]))) return raw.slice(0, k);
+  }
+  return raw;
+}
+
 function scalar(fm, key) {
   const m = fm.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'));
-  return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
+  return m ? stripComment(m[1]).trim().replace(/^["']|["']$/g, '') : '';
 }
 
 // A YAML-ish inline list (`links: [A, B]`) OR an empty/absent field -> string[]. Also
@@ -40,13 +59,23 @@ function scalar(fm, key) {
 function list(fm, key) {
   const m = fm.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'));
   if (!m) return [];
-  const raw = m[1].trim();
+  const raw = stripComment(m[1]).trim();
   if (!raw) return [];
   const inner = raw.replace(/^\[|\]$/g, '');
   return inner
     .split(',')
     .map((s) => s.trim().replace(/^["']|["']$/g, ''))
     .filter(Boolean);
+}
+
+// A comma-separated scalar field (`paths: rust/*, src/world/*`) -> string[]. Unlike list(),
+// this expects bare commas (no `[...]` wrapper) — the form decisions write `paths` in, mirrored
+// from orient's standing-decision filter. Tolerates a `[...]`-wrapped value too (strips it).
+function csv(fm, key) {
+  const m = fm.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'));
+  if (!m) return [];
+  return stripComment(m[1]).trim().replace(/^\[|\]$/g, '')
+    .split(',').map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
 }
 
 const SCOPE_FROM_ID = (id) => (String(id).match(/^([A-Za-z]+)-/) || [])[1] || '';
@@ -114,6 +143,13 @@ export function parseItem(absPath, store) {
     milestone: scalar(fm, 'milestone'),
     labels: list(fm, 'labels'),
     files: list(fm, 'files'),
+    // governance scope (KIT-T049): a decision declares the files it governs via `scope`
+    // (a free token) and/or `paths` (comma globs) — the same fields orient's standing-decision
+    // filter reads. Named `govScope` (NOT `scope`) because the cache row's `scope` is the ID
+    // prefix (GOV from GOV-D001), set by rowFromScan — reusing the key would clobber this.
+    // `paths` is comma-separated (NOT a YAML list), so split on comma, not list().
+    govScope: scalar(fm, 'scope'),
+    paths: csv(fm, 'paths'),
     aka: list(fm, 'aka'),
     // supersede edges (KIT-T024): a newer ticket retires an older one. `supersedes` is the
     // outbound pointer (newer -> older); `superseded_by` the back-pointer (older -> newer).

@@ -97,6 +97,7 @@ const standingDecisions = (signals, changed) => {
   const deferredScopes = [...new Set(deferred.map((m) => m.scope).filter(Boolean))].sort();
   return {
     shown: shown.map((m) => `  ${m.id ? m.id + ' — ' : ''}${clip(m.title, 120)}`).join('\n'),
+    shownIds: shown.map((m) => m.id).filter(Boolean),
     deferredCount: deferred.length,
     deferredScopes,
   };
@@ -152,9 +153,19 @@ if (roadmap) {
 // Active signals = what this session is touching: changed file paths (project + data repo)
 // plus recent commit subjects. Standing decisions are filtered against this so only the
 // relevant ones surface (scope-based, not the whole pile).
+// Parse a `git status --porcelain` line to its path. The XY status is 1-2 chars then
+// whitespace; a fixed slice(3) corrupts the path when the block-level trim ate a leading
+// space (` M f` vs `M  f`), so strip the status+space run by regex. A rename (`R old -> new`)
+// reports the NEW path. This exactness matters now that `q governing` matches paths literally.
+const porcelainPath = (l) => {
+  const m = String(l).match(/^\s*\S{1,2}\s+(.*)$/);
+  const p = (m ? m[1] : l).trim();
+  const arrow = p.split(' -> ');
+  return (arrow.length > 1 ? arrow[1] : p).replace(/^["']|["']$/g, '');
+};
 const changedPaths = [];
 for (const [r] of repos) {
-  try { for (const l of wipSummary(r).dirty) { const p = l.slice(3).trim(); if (p) changedPaths.push(p); } } catch { /* skip */ }
+  try { for (const l of wipSummary(r).dirty) { const p = porcelainPath(l); if (p) changedPaths.push(p); } } catch { /* skip */ }
 }
 const recentSubjects = git(['-C', root, 'log', '--oneline', `-${COMMITS}`]) || '';
 const activeSignals = changedPaths.join(' ') + ' ' + recentSubjects;
@@ -204,6 +215,31 @@ try {
   }
 } catch {
   /* cache + fallback both unavailable — orientation proceeds without the open-work view */
+}
+
+// GOVERNS what you're touching (KIT-T049) — the inverse of `q trail`. For the working tree's
+// currently-changed files, surface the OPEN tickets + in-force decisions that GOVERN them
+// (ticket `files:` / decision `scope`/`paths`), so a captured item that owns these exact files
+// can't stay invisible while they're worked (the HOD-T048 failure: it sat `todo` while its
+// governed files were edited and nothing surfaced it). Single-scope (root) — only THIS
+// project's items govern its own tree. Deduped against the standing decisions already shown
+// above (no point listing HOD-D015 twice). Fail-open: any error is swallowed.
+try {
+  const filePaths = changedPaths.filter((p) => /\.[a-z0-9]+$/i.test(p)); // files, not bare dirs
+  if (filePaths.length) {
+    const { rows: govRows } = await query('governing', filePaths, { root, cwdRoot: root });
+    const already = new Set(standing && standing.shownIds ? standing.shownIds : []);
+    const fresh = (govRows || []).filter((r) => !already.has(r.id));
+    if (fresh.length) {
+      out.push('');
+      out.push('--- GOVERNS what you\'re touching (open — address or cite; q governing <path>) ---');
+      for (const r of fresh) {
+        out.push(`  [${r.store === 'decisions' ? 'decision' : r.status}] ${r.id} — ${r.summary}${r.more ? ' ' + r.more : ''}  (matched: ${r.matched})`);
+      }
+    }
+  }
+} catch {
+  /* governing query unavailable — orientation proceeds without the file-governance view */
 }
 
 const lineage = readLineage(root);
