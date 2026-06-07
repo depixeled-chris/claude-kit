@@ -4,7 +4,7 @@
 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { payload, git, gitRoot, adopted } from './lib.mjs';
+import { payload, git, gitRoot, adopted, pathExcluded, excludeFooter } from './lib.mjs';
 import { checkIds } from '../scripts/id-utils.mjs';
 
 const CODE = new Set(
@@ -77,7 +77,11 @@ if (changed.some((f) => /(^|\/)(ROADMAP|DECISIONS)\.md$/i.test(f) || /\.ai\/(tic
 if (/\b[A-Z]{2,}-[TDNQ]\d+\b|\[no-log/.test(command)) process.exit(0);
 
 // Does the change actually touch code? (docs/config-only commits are fine)
-const touchesCode = changed.some((f) => CODE.has((f.split('.').pop() || '').toLowerCase()));
+// KIT-T051: a code file path excluded from `commit-log` doesn't count toward the
+// citation requirement — so a generated/vendored tree can be committed uncited.
+const touchesCode = changed.some(
+  (f) => CODE.has((f.split('.').pop() || '').toLowerCase()) && !pathExcluded(root, 'commit-log', f),
+);
 if (!touchesCode) process.exit(0);
 
 const blockedLine = centralized
@@ -95,6 +99,7 @@ const options = centralized
       "  - if genuinely not trackable work, include '[no-log: <reason>]'.",
     ];
 process.stderr.write(
-  ['', blockedLine, '', 'Before committing, do ONE of:', ...options, '', 'Unlogged work is lost across sessions. This gate is the enforcement, not memory.', ''].join('\n'),
+  ['', blockedLine, '', 'Before committing, do ONE of:', ...options, '', 'Unlogged work is lost across sessions. This gate is the enforcement, not memory.', ''].join('\n') +
+    excludeFooter('commit-log'),
 );
 process.exit(2);

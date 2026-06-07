@@ -35,6 +35,56 @@ repo, like `pre-write`); only the enforcement hooks no-op on unadopted repos.
 - Wired into `~/.claude/settings.json` via `user-config/settings.recommended.json`;
   installed/symlinked by `bootstrap.sh`.
 
+## Exclusions — `.claude-kit-ignore.yaml` + in-source markers (KIT-T051)
+Philosophy: **halts in anything but exclusions.** Every gate keeps its hard block by
+default — the ONLY non-halt path is an explicit, documented exclusion. No check is
+softened (magic numbers, `SELECT *`, file length, etc. all STAY blocks). The escape hatch
+exists so a genuine false positive (or a generated tree the rule doesn't apply to) has an
+obvious, committed way out. Every block/warn message ends with `excludeFooter(<check-id>)`,
+which names the id and shows BOTH surfaces below. Both are **dependency-free** (tolerant
+line-scan, no YAML dep) and **fail-open** (a malformed ignore file → no exclusions, never a
+wedged write).
+
+**1. Path globs — `.claude-kit-ignore.yaml` at the project root.** A map of `check-id →
+[glob, ...]`; a `'*'` (alias `all`) key excludes from EVERY check. Globs are repo-root-
+relative and support `**` (any depth), `*` (within a segment), `?`. Template:
+`.claude-kit-ignore.yaml.example`.
+
+```yaml
+magic-numbers:
+  - tools/asset-preview/**
+  - "src/**/geometry/**"
+file-length:
+  - "src/generated/**"
+"*":
+  - vendor/**
+```
+
+**2. In-source markers** — exclude a code BLOCK or LINE in the file's own comments
+(`//`, `#`, or `--` styles):
+
+| Marker | Scope |
+| --- | --- |
+| `// claude-kit-ignore-file  <id\|all>` | the whole file |
+| `// claude-kit-ignore-start <id\|all>` … `// claude-kit-ignore-end` | the lines between |
+| `// claude-kit-ignore-line  <id\|all>` | the next line |
+| `someCode();  // claude-kit-ignore <id\|all>` | that one line (trailing) |
+
+**Check-ids** (named in every gate message, so you always know which key to use):
+
+| Gate | Check-ids | Exclusion level |
+| --- | --- | --- |
+| `pre-write` | `todo-markers` · `dead-code` · `magic-numbers` · `select-star` · `sql-injection` · `file-length` · `broken-doc-links` | path glob **and** in-source markers (line/block for `magic-numbers`; whole-file for `file-length`) |
+| `query-gate` | `store-grep` · `source-discovery` | path glob (on a path-ish command arg) |
+| `jscpd` | `duplication` | path glob |
+| `lint` | `lint` | path glob |
+| `commit-gate` | `commit-log` | path glob (an excluded code path doesn't require a citation) |
+| `request-gate` | `request-capture` | repo-wide glob over `.ai/` disables the gate (like `capture.enabled: false`) |
+
+**lib helpers** (`hooks/lib.mjs`): `loadIgnoreConfig(root)` → `{ checkId: globs[] }`;
+`pathExcluded(root, checkId, filePath)` → bool; `markerExcludedLines(source, checkId)` →
+`{ wholeFile, lines:Set }`; `excludeFooter(checkId)` → the uniform footer string.
+
 > Status: **fully ported to Node** — `lib`, `orient`, `commit-gate`, `flush`, `pre-write`,
 > `lint`, `jscpd`, `housekeeping`. The hooks layer is Node-only; no bash hooks remain.
 > Wired via `user-config/settings.recommended.json` + `bootstrap.sh`. Verified against

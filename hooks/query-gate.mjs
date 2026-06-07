@@ -18,7 +18,7 @@
 
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { payload, gitRoot, adopted } from './lib.mjs';
+import { payload, gitRoot, adopted, pathExcluded, excludeFooter } from './lib.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const Q = join(KIT, 'scripts', 'q.mjs');
@@ -40,7 +40,8 @@ async function main() {
   const p = await payload();
   const cmd = ((p.tool_input && p.tool_input.command) || '').trim();
   if (!cmd) process.exit(0);
-  if (!adopted(gitRoot())) process.exit(0); // opt-in: only KIT-adopted repos
+  const root = gitRoot();
+  if (!adopted(root)) process.exit(0); // opt-in: only KIT-adopted repos
 
   // The leader (everything before the first pipe) is what READS files; segments after
   // a pipe only filter the leader's OUTPUT, so a `... | grep x` is never a file search.
@@ -51,11 +52,25 @@ async function main() {
     if (!c) continue;
     const verdict = judge(c);
     if (verdict) {
-      process.stderr.write(verdict);
+      // KIT-T051 exclusion: a path glob under the verdict's check-id in
+      // .claude-kit-ignore.yaml lets a command through (e.g. allow grepping a generated
+      // tree). Match any path-ish token in the command against that id. Fail-open.
+      if (excludedByConfig(root, verdict.id, c)) continue;
+      process.stderr.write(verdict.msg + excludeFooter(verdict.id));
       process.exit(2);
     }
   }
   process.exit(0);
+}
+
+// True iff any path-ish argument in the command is excluded from `id` by a config glob.
+function excludedByConfig(root, id, c) {
+  try {
+    const toks = c.split(/\s+/).filter((t) => t && !t.startsWith('-') && /[\\/.]/.test(t));
+    return toks.some((t) => pathExcluded(root, id, t.replace(/^["']|["']$/g, '')));
+  } catch {
+    return false;
+  }
 }
 
 // Return a block message, or null to allow. One simple command (no pipe/chain).
@@ -69,17 +84,17 @@ function judge(c) {
   const isFind = tool === 'find' || tool === 'get-childitem' || tool === 'gci';
 
   // RULE 1 — never grep/read the work store; query it.
-  if ((isSearch || isRead || isFind) && STORE.test(c)) return storeMsg(c);
+  if ((isSearch || isRead || isFind) && STORE.test(c)) return { id: 'store-grep', msg: storeMsg(c) };
 
   // RULE 2 — discovery search of the source tree belongs to the code graph.
   if (isSearch) {
     const args = (gitGrep ? tok.slice(2) : tok.slice(1)).filter((a) => !a.startsWith('-'));
     const targetsOneFile = args.some((a) => FILEISH.test(a)); // a concrete file = "you know where"
     const recursive = RECURSIVE_FLAG.test(c) || tool === 'rg' || tool === 'ag' || tool === 'ack' || gitGrep;
-    if (recursive && !targetsOneFile) return graphMsg(c);
+    if (recursive && !targetsOneFile) return { id: 'source-discovery', msg: graphMsg(c) };
   }
   // find/gci that LOCATES files (-name/-path/-recurse) is discovery too.
-  if (isFind && /(?:^|\s)(?:-i?name\b|-i?path\b|-recurse\b)/i.test(c)) return graphMsg(c);
+  if (isFind && /(?:^|\s)(?:-i?name\b|-i?path\b|-recurse\b)/i.test(c)) return { id: 'source-discovery', msg: graphMsg(c) };
 
   return null;
 }

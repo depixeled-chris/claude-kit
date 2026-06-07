@@ -153,9 +153,24 @@ repo has `.ai/`.
   bug is why the hooks are Node.)
 - Surface a hook's warning (exit 0 + stderr) to the user in the next response; don't
   swallow it.
-- On an apparent false-positive block, STOP and discuss before adding a
-  `.claude-hook-ignore` entry (per-check, per-glob, with a stated reason).
-- Per-project overrides: `.claude-hook-ignore` (granular check ignores),
+- **Halts in anything but exclusions.** Every gate keeps its hard block by default; the
+  ONLY non-halt path is an explicit, documented exclusion. No check is softened (magic
+  numbers especially STAY a block). On an apparent false-positive block, STOP and discuss
+  before adding an exclusion (per-check, per-path, with a stated reason).
+- **Two exclusion surfaces** (both dependency-free + fail-open — a malformed ignore file
+  never wedges a write; every gate message ends with a footer naming the check-id and both
+  surfaces):
+  - `.claude-kit-ignore.yaml` (project root) — a map of `check-id → [path globs]`; a `'*'`
+    / `all` key excludes from EVERY check. Globs support `**`, `*`, `?`. Template:
+    `.claude-kit-ignore.yaml.example`.
+  - in-source comment markers (`//`, `#`, `--`): `claude-kit-ignore-file <id|all>` (whole
+    file), `claude-kit-ignore-start <id|all>` … `claude-kit-ignore-end` (a block),
+    `claude-kit-ignore-line <id|all>` / trailing `claude-kit-ignore <id|all>` (one line).
+  - Check-ids: `todo-markers`, `dead-code`, `magic-numbers`, `select-star`,
+    `sql-injection`, `file-length`, `broken-doc-links` (pre-write); `store-grep`,
+    `source-discovery` (query-gate); `duplication` (jscpd); `lint`; `commit-log`
+    (commit-gate); `request-capture` (request-gate).
+- Per-project overrides: `.claude-kit-ignore.yaml` (exclude paths/blocks from gate checks),
   `.claude-tooling-ok` (silence missing-tool warnings).
 
 # MEMORY HYGIENE

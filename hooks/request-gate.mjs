@@ -13,7 +13,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { gitRoot, adopted, payload } from './lib.mjs';
+import { gitRoot, adopted, payload, pathExcluded, excludeFooter } from './lib.mjs';
 
 // Built-in defaults — overridable/extendable via `capture.signals` in .ai/config.yml.
 // Two families: polite/future asks AND blunt imperatives / bug reports / feel-tuning (the way
@@ -57,6 +57,9 @@ async function main() {
 
   const cfg = loadCapture(root);
   if (cfg.enabled === false) process.exit(0);
+  // KIT-T051: a repo-wide exclusion (a glob covering the .ai store under `request-capture`
+  // or '*') disables this process gate, mirroring `capture.enabled: false`.
+  if (pathExcluded(root, 'request-capture', '.ai/inbox')) process.exit(0);
 
   const tx = p.transcript_path;
   if (!tx || !existsSync(tx)) process.exit(0);
@@ -73,7 +76,8 @@ async function main() {
   const quote = lastUser.replace(/\s+/g, ' ').trim().slice(0, 120);
   process.stderr.write(
     `⚠ Possible un-captured request: "${quote}"\n` +
-    `Route it (cap / a ticket / a decision) or add "[no-capture: reason]" to your reply, then stop.\n`
+    `Route it (cap / a ticket / a decision) or add "[no-capture: reason]" to your reply, then stop.\n` +
+    excludeFooter('request-capture')
   );
   process.exit(cfg.mode === 'warn' ? 0 : 2);            // block-once (rigid) unless mode: warn
 }

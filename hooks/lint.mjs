@@ -10,7 +10,7 @@
 
 import { existsSync } from 'node:fs';
 import { dirname, basename, join } from 'node:path';
-import { payload, VENDORED, projectRoot, have, run, logGap, nodeCli } from './lib.mjs';
+import { payload, VENDORED, projectRoot, have, run, logGap, nodeCli, pathExcluded } from './lib.mjs';
 
 const HEAD_CLIPPY = 60;
 const HEAD_LINT = 40;
@@ -28,6 +28,8 @@ if (/(\.lock|\.sum)$|(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|
 const ext = basename(norm).includes('.') ? basename(norm).split('.').pop().toLowerCase() : '';
 
 const root = projectRoot(dirname(file));
+// KIT-T051: a path glob under `lint` (or '*') exempts this file from linting.
+if (pathExcluded(root, 'lint', file)) process.exit(0);
 const toolingOk = existsSync(join(root, '.claude-tooling-ok'));
 const hasDocker =
   existsSync(join(root, 'Dockerfile')) ||

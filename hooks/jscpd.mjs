@@ -7,7 +7,7 @@
 
 import { existsSync } from 'node:fs';
 import { dirname, basename } from 'node:path';
-import { payload, VENDORED, nodeCli, runStatus, logGap } from './lib.mjs';
+import { payload, VENDORED, nodeCli, runStatus, logGap, projectRoot, pathExcluded, excludeFooter } from './lib.mjs';
 
 const THRESHOLD_PCT = 5;
 const MIN_LINES = 8;
@@ -25,6 +25,8 @@ const ext = basename(norm).includes('.') ? basename(norm).split('.').pop().toLow
 if (SKIP_EXT.has(ext)) process.exit(0);
 
 const dir = dirname(file);
+// KIT-T051: a path glob under `duplication` (or '*') exempts this file from the DRY warn.
+if (pathExcluded(projectRoot(dir), 'duplication', file)) process.exit(0);
 const bin = nodeCli('jscpd', dir);
 if (!bin) {
   logGap('missing-tool', file, 'jscpd not installed (install: npm install -g jscpd)');
@@ -52,7 +54,8 @@ if (code !== 0 && /duplicated lines/i.test(out)) {
   process.stderr.write(
     `WARN [jscpd] duplication detected in ${dir}:\n` +
       out.split('\n').filter(Boolean).slice(-TAIL).map((l) => '  ' + l).join('\n') +
-      '\n',
+      '\n' +
+      excludeFooter('duplication'),
   );
   logGap('duplication-warned', dir, 'jscpd flagged duplication above threshold');
 }

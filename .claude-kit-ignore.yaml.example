@@ -1,0 +1,50 @@
+# .claude-kit-ignore.yaml — exclude paths from claude-kit gate checks.
+#
+# Copy this file to `.claude-kit-ignore.yaml` at your project root to use it.
+#
+# PHILOSOPHY: the gates HALT by default. They keep their hard blocks; the ONLY way to
+# make a check not-halt is an explicit exclusion here (or an in-source marker — see below).
+# No check is softened. Magic numbers, SELECT *, file length, etc. all STAY blocks; this
+# file is the documented escape hatch for a genuine false positive or a directory that the
+# rule legitimately does not apply to.
+#
+# FORMAT: a map of CHECK-ID → a list of path globs to exclude from that check. A path is
+# excluded from a check when it matches ANY glob under that check's id, OR any glob under
+# the catch-all `'*'` (alias `all`) key, which excludes from EVERY check.
+#
+# Globs are repo-root-relative, forward-slash, and support:
+#   **  any depth (matches across `/`)        e.g.  src/**/generated/**
+#   *   anything within one path segment       e.g.  src/*.gen.ts
+#   ?   exactly one character
+#
+# CHECK-IDS (the id is named in every gate's block/warn message, so you always know which
+# to put here):
+#   pre-write gate:   todo-markers · dead-code · magic-numbers · select-star ·
+#                     sql-injection · file-length · broken-doc-links
+#   query gate:       store-grep · source-discovery
+#   post-write:       duplication (jscpd) · lint
+#   process gates:    commit-log (commit-gate) · request-capture (request-gate)
+#
+# For excluding a single code BLOCK or LINE (not a whole path), use an in-source marker
+# instead — in the file's own comments, in //, #, or -- style:
+#   // claude-kit-ignore-file  <check-id|all>          (whole file)
+#   // claude-kit-ignore-start <check-id|all>          (start of a block)
+#   ...lines...
+#   // claude-kit-ignore-end                           (end of the block)
+#   // claude-kit-ignore-line  <check-id|all>          (the NEXT line)
+#   someCode();  // claude-kit-ignore <check-id|all>   (this one line, trailing)
+#
+# A malformed ignore file is FAIL-OPEN: it is treated as "no exclusions", never as a wedge.
+
+# --- examples (delete what you don't need) ----------------------------------------
+
+magic-numbers:
+  - tools/asset-preview/**
+  - "src/**/geometry/**"
+
+file-length:
+  - "src/generated/**"
+
+# Exclude a whole tree from EVERY check:
+"*":
+  - vendor/**
