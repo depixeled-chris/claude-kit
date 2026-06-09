@@ -96,6 +96,14 @@ try {
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: '/* threshold 1337\n   ceiling 9000 */\nconst r = compute();\n' } }, clean).code === 0);
   ok('pre-write: bare code constant still blocks even with prose numbers present (KIT-T032)',
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'function f(x) {\n  return x * 1337; // was 9000 before\n}\n' } }, clean).code === 2);
+  ok('pre-write: plain css one-off literals pass (no first-class variables)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.css', content: '.a { font-size: 30px; font-weight: 700; }\n' } }, clean).code === 0);
+  ok('pre-write: scss reused literal hardcoded blocks (should be a token)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.scss', content: '.a{padding:24px}.b{margin:24px}.c{gap:24px}\n' } }, clean).code === 2);
+  ok('pre-write: scss reused color hardcoded blocks (should be a token)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.scss', content: '.a{color:#3366ff}.b{border-color:#3366ff}.c{background:#3366ff}\n' } }, clean).code === 2);
+  ok('pre-write: scss literal declared as variable passes',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.scss', content: '$gap: 24px;\n.a{padding:$gap}.b{margin:$gap}.c{gap:$gap}\n' } }, clean).code === 0);
 
   // orient / flush emit in adopted repos, stay silent otherwise
   ok('orient: adopted repo emits orientation', /ORIENTATION/.test(hook('orient.mjs', { hook_event_name: 'SessionStart' }, clean).out));

@@ -16,6 +16,21 @@ const NATIVE_LINTED = new Set(['rs', 'py', 'go', 'sh', 'bash', 'zsh']);
 const DOC = new Set(['md', 'markdown', 'mdx', 'txt', 'rst', 'adoc']);
 const DATA = new Set(['json', 'jsonl', 'yaml', 'yml', 'toml', 'xml', 'csv', 'ini', 'cfg']);
 const MARKUP = new Set(['html', 'htm', 'xhtml', 'svg']); // markup, not logic — numbers in text/attrs aren't magic constants
+// Plain CSS has no first-class variables (custom properties are optional), so a one-off
+// literal value (font-size: 30px) is idiomatic, not a magic number — exempt it.
+const PLAIN_STYLE = new Set(['css']);
+// Preprocessors DO have variables. A spacing/color/breakpoint literal reused across the
+// file should be a token, and literals inside @if/@for/@function logic are real magic
+// numbers — these get a stylesheet-aware check below, not a blanket pass.
+const PREPROC_STYLE = new Set(['scss', 'sass', 'less', 'styl']);
+const REPEAT_STYLE = 3; // a literal used this many times should become a variable/token
+// less variables are `@name:`; these at-rules are NOT variable declarations.
+const AT_KEYWORDS = new Set([
+  'media', 'import', 'include', 'if', 'else', 'each', 'for', 'while', 'mixin',
+  'function', 'return', 'use', 'forward', 'content', 'extend', 'supports',
+  'keyframes', 'charset', 'namespace', 'font-face', 'page', 'warn', 'error',
+  'debug', 'at-root', 'apply', 'layer', 'container', 'property',
+]);
 
 // Blank every NON-CODE span — string/template/char literals and line/block comments —
 // to spaces, preserving newlines so line numbers are unchanged. A single forward scan
@@ -66,6 +81,16 @@ if (/\/(node_modules|vendor|\.venv|venv|dist|build|target|\.git)\//.test(norm)) 
 if (/(\.lock|\.sum)$|(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|poetry\.lock|uv\.lock)$/.test(norm)) {
   process.exit(0);
 }
+// Per-repo opt-out: a `.claudekit-ignore` marker anywhere on the path disables the
+// source gate for that repo. Graphics/physics/shader codebases are legitimately
+// numeric-literal heavy, where the magic-number rule is noise. Other repos are
+// untouched. Walk ancestors up to the filesystem root.
+for (let dir = dirname(norm); ; ) {
+  if (existsSync(resolve(dir, '.claudekit-ignore'))) process.exit(0);
+  const parent = dirname(dir);
+  if (parent === dir) break;
+  dir = parent;
+}
 const base = basename(norm);
 if (/^(LICENSE|COPYING|NOTICE|AUTHORS)(\..*)?$/.test(base)) process.exit(0);
 
@@ -91,7 +116,71 @@ if (DOC.has(ext)) {
   }
   process.exit(0);
 }
-if (DATA.has(ext) || MARKUP.has(ext)) process.exit(0); // config/data/markup is not logic-source
+if (DATA.has(ext) || MARKUP.has(ext) || PLAIN_STYLE.has(ext)) process.exit(0); // config/data/markup/plain-css is not logic-source
+
+// Shared reporter: warnings to stderr (exit 0), violations block (exit 2).
+function finish(viols, warns) {
+  if (warns.length) {
+    process.stderr.write(`WARN pre-write (${file}):\n` + warns.map((w) => '-- ' + w).join('\n\n') + '\n');
+  }
+  if (viols.length) {
+    process.stderr.write(
+      `\nBLOCKED: pre-write check failed for ${file}\n\n` +
+        viols.map((v) => '-- ' + v).join('\n\n') +
+        '\n\nFix before the write proceeds; if you believe it is a false positive, STOP and discuss.\n',
+    );
+    process.exit(2);
+  }
+  process.exit(0);
+}
+
+// Preprocessor stylesheets: literals that should be variables/tokens.
+if (PREPROC_STYLE.has(ext)) {
+  const styleLines = content.split('\n');
+  const isVarDecl = (l) => {
+    if (/^\s*\$[\w-]+\s*:/.test(l)) return true; // scss  $name:
+    if (/^\s*--[\w-]+\s*:/.test(l)) return true; // custom property --name:
+    if (ext === 'styl' && /^\s*[\w-]+\s*=\s*[^=]/.test(l)) return true; // stylus name =
+    const m = l.match(/^\s*@([\w-]+)\s*:/); // less @name: (but not @media/@include/...)
+    return !!m && !AT_KEYWORDS.has(m[1].toLowerCase());
+  };
+  const tokensOf = (l) => {
+    const out = [];
+    for (const m of l.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) out.push(m[0].toLowerCase()); // colors
+    const cleaned = l.replace(/#[0-9a-fA-F]{3,8}\b/g, '').replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
+    for (const m of cleaned.matchAll(/(?<![\w.$@#-])(\d+(?:\.\d+)?)(px|em|rem|%|vh|vw|vmin|vmax|ms|deg|fr|pt|ch|ex|rad|turn)?/g)) {
+      const num = m[1];
+      if (num === '0' || num === '1') continue; // 0 and unitless 1 are not tokens
+      out.push(num + (m[2] || ''));
+    }
+    return out;
+  };
+  const count = new Map();
+  const seenAt = new Map();
+  const sViols = [];
+  const sWarns = [];
+  for (let i = 0; i < styleLines.length; i++) {
+    const l = styleLines[i];
+    if (/^\s*(\/\/|\*|\/\*)/.test(l)) continue; // comment
+    // literals inside preprocessor logic are magic numbers regardless of repetition
+    if (/^\s*@(if|else|while|for|return|function)\b/.test(l) && /[^A-Za-z0-9_.#-]\d/.test(l)) {
+      sWarns.push(`Literal in stylesheet logic (extract a variable):\n${i + 1}: ${l.trim()}`);
+    }
+    if (isVarDecl(l)) continue; // the declaration line is the literal's rightful home
+    for (const tok of tokensOf(l)) {
+      count.set(tok, (count.get(tok) || 0) + 1);
+      if (!seenAt.has(tok)) seenAt.set(tok, i + 1);
+    }
+  }
+  const repeated = [...count.entries()].filter(([, c]) => c >= REPEAT_STYLE).sort((a, b) => b[1] - a[1]).slice(0, MAX_SHOWN);
+  if (repeated.length) {
+    sViols.push(
+      'Repeated literals — extract a variable/token (spacing, color, breakpoint):\n' +
+        repeated.map(([tok, c]) => `  ${tok} used ${c}× (first at line ${seenAt.get(tok)})`).join('\n'),
+    );
+  }
+  finish(sViols, sWarns.slice(0, MAX_SHOWN));
+}
 
 const isTest = /(\.test\.|\.spec\.|\/__tests__\/|\/tests?\/)/.test(norm);
 const isMig = /\/(migrations|alembic\/versions)\//.test(norm);
@@ -146,15 +235,4 @@ if (sqlStr.length) warns.push('POSSIBLE string-built SQL (injection risk — par
 if (lines.length > FILE_HARD) viols.push(`File length ${lines.length} exceeds hard limit ${FILE_HARD} — split into cohesive modules.`);
 else if (lines.length > FILE_SOFT) warns.push(`File length ${lines.length} exceeds soft limit ${FILE_SOFT} — consider splitting.`);
 
-if (warns.length) {
-  process.stderr.write(`WARN pre-write (${file}):\n` + warns.map((w) => '-- ' + w).join('\n\n') + '\n');
-}
-if (viols.length) {
-  process.stderr.write(
-    `\nBLOCKED: pre-write check failed for ${file}\n\n` +
-      viols.map((v) => '-- ' + v).join('\n\n') +
-      '\n\nFix before the write proceeds; if you believe it is a false positive, STOP and discuss.\n',
-  );
-  process.exit(2);
-}
-process.exit(0);
+finish(viols, warns);
