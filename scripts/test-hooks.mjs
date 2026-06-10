@@ -24,8 +24,8 @@ const TMP_REG = join(mkdtempSync(join(tmpdir(), 'kit-reg-')), 'registry.json');
 fixtures.push(dirname(TMP_REG));
 const ENV = { ...process.env, CLAUDE_KIT_REGISTRY: TMP_REG };
 
-function hook(name, payload, cwd) {
-  const r = spawnSync(process.execPath, [join(HOOKS, name)], { input: JSON.stringify(payload), cwd, encoding: 'utf8', env: ENV });
+function hook(name, payload, cwd, extraEnv) {
+  const r = spawnSync(process.execPath, [join(HOOKS, name)], { input: JSON.stringify(payload), cwd, encoding: 'utf8', env: { ...ENV, ...extraEnv } });
   return { code: r.status, out: `${r.stdout || ''}${r.stderr || ''}` };
 }
 function survey(args, cwd, regPath) {
@@ -200,6 +200,105 @@ try {
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.scss', content: '$gap: 24px;\n.a{padding:$gap}.b{margin:$gap}.c{gap:$gap}\n' } }, clean).code === 0);
 
   // orient / flush emit in adopted repos, stay silent otherwise
+  // KIT-T058 — coverage for the formerly zero-test hooks ----------------------------
+
+  // housekeeping: thresholds against a throwaway HOME (USERPROFILE drives os.homedir()).
+  const homeEnv = (h) => ({ USERPROFILE: h, HOME: h });
+  {
+    const freshHome = mkdtempSync(join(tmpdir(), 'kit-home-'));
+    fixtures.push(freshHome);
+    const enc = freshHome.replace(/[:\\/ ]/g, '-');
+    mkdirSync(join(freshHome, '.claude', 'projects', enc, 'memory'), { recursive: true });
+    writeFileSync(join(freshHome, '.claude', 'projects', enc, 'memory', '.last-reviewed'), '');
+    writeFileSync(join(freshHome, '.claude', '.maintenance-last-reviewed'), '');
+    const r = hook('housekeeping.mjs', {}, clean, homeEnv(freshHome));
+    ok('housekeeping: fresh review timestamps stay silent', r.code === 0 && !r.out.includes('REVIEW DUE'));
+
+    const staleHome = mkdtempSync(join(tmpdir(), 'kit-home-'));
+    fixtures.push(staleHome);
+    const s = hook('housekeeping.mjs', {}, clean, homeEnv(staleHome));
+    ok('housekeeping: missing timestamps nag BOTH reviews', s.code === 0 && s.out.includes('MEMORY REVIEW DUE') && s.out.includes('MAINTENANCE REVIEW DUE'));
+    const stop = hook('housekeeping.mjs', { hook_event_name: 'Stop' }, clean, homeEnv(staleHome));
+    ok('housekeeping: Stop repeats pending reviews', stop.code === 0 && stop.out.includes('pending before end-of-session'));
+  }
+
+  // hydrate-cache: contract = NEVER wedges; DB isolated via CLAUDE_PLUGIN_ROOT.
+  {
+    const dbBase = mkdtempSync(join(tmpdir(), 'kit-db-'));
+    fixtures.push(dbBase);
+    const dbEnv = { CLAUDE_PLUGIN_ROOT: dbBase };
+    ok('hydrate-cache: unadopted repo no-ops', hook('hydrate-cache.mjs', {}, repo(), dbEnv).code === 0);
+    const hyd = adopted(false);
+    mkdirSync(join(hyd, '.ai', 'tickets'), { recursive: true });
+    writeFileSync(join(hyd, '.ai', 'tickets', 'H-T001-x.md'), '---\nid: H-T001\ntitle: x\nstatus: todo\n---\n');
+    writeFileSync(TMP_REG, JSON.stringify({ projects: { hydeproj: hyd } }));
+    const r1 = hook('hydrate-cache.mjs', {}, hyd, dbEnv);
+    const r2 = hook('hydrate-cache.mjs', {}, hyd, dbEnv);
+    ok('hydrate-cache: refresh path exits clean (fail-open contract)', r1.code === 0 && r2.code === 0);
+    ok('hydrate-cache: second run is fresh (no refresh receipt)', !r2.out.includes('refreshed'));
+    writeFileSync(TMP_REG, 'garbage{{{not json');
+    ok('hydrate-cache: broken registry fails open', hook('hydrate-cache.mjs', {}, hyd, dbEnv).code === 0);
+    writeFileSync(TMP_REG, '{}');
+  }
+
+  // lint + jscpd: skip rules + advisory-never-block. Gap logs go to a throwaway HOME.
+  {
+    const gapHome = mkdtempSync(join(tmpdir(), 'kit-home-'));
+    fixtures.push(gapHome);
+    const env = homeEnv(gapHome);
+    const lr = adopted(false);
+    writeFileSync(join(lr, 'package-lock.json'), '{}');
+    let r = hook('lint.mjs', { tool_input: { file_path: join(lr, 'package-lock.json') } }, lr, env);
+    ok('lint: lockfile skipped silently', r.code === 0 && r.out.trim() === '');
+    mkdirSync(join(lr, 'node_modules', 'x'), { recursive: true });
+    writeFileSync(join(lr, 'node_modules', 'x', 'y.js'), 'var a = 1;\n');
+    r = hook('lint.mjs', { tool_input: { file_path: join(lr, 'node_modules', 'x', 'y.js') } }, lr, env);
+    ok('lint: vendored path skipped silently', r.code === 0 && r.out.trim() === '');
+    writeFileSync(join(lr, 'app.ts'), 'export const a = 1;\n');
+    r = hook('lint.mjs', { tool_input: { file_path: join(lr, 'app.ts') } }, lr, env);
+    ok('lint: ts without package.json warns but never blocks', r.code === 0 && r.out.includes('No package.json'));
+
+    writeFileSync(join(lr, 'README.md'), '# x\n');
+    r = hook('jscpd.mjs', { tool_input: { file_path: join(lr, 'README.md') } }, lr, env);
+    ok('jscpd: doc/data ext skipped silently', r.code === 0 && r.out.trim() === '');
+    r = hook('jscpd.mjs', { tool_input: { file_path: join(lr, 'node_modules', 'x', 'y.js') } }, lr, env);
+    ok('jscpd: vendored path skipped silently', r.code === 0 && r.out.trim() === '');
+    r = hook('jscpd.mjs', { tool_input: { file_path: join(lr, 'app.ts') } }, lr, env);
+    ok('jscpd: missing tool fails open (gap logged, no warn, exit 0)', r.code === 0 && !r.out.includes('WARN'));
+  }
+
+  // commit-gate: id-integrity branch (duplicate ids in the store block the commit).
+  {
+    const dup = adopted(false);
+    mkdirSync(join(dup, '.ai', 'tickets'), { recursive: true });
+    writeFileSync(join(dup, '.ai', 'tickets', 'T-001-a.md'), '---\nid: T-001\ntitle: a\nstatus: todo\n---\n');
+    writeFileSync(join(dup, '.ai', 'tickets', 'T-001-b.md'), '---\nid: T-001\ntitle: b\nstatus: todo\n---\n');
+    execFileSync('git', ['add', '-A'], { cwd: dup, stdio: 'ignore' });
+    const r = hook('commit-gate.mjs', { tool_input: { command: `git -C ${dup} commit -m x` } }, clean);
+    ok('commit-gate: duplicate store ids block the commit (id-integrity)', r.code === 2 && r.out.includes('DUPLICATE'));
+  }
+
+  // orient: standing-decision scope filter (KIT-T046 behavior).
+  {
+    const o = adopted(false);
+    mkdirSync(join(o, '.ai', 'decisions'), { recursive: true });
+    writeFileSync(join(o, '.ai', 'decisions', 'D-001.md'), '---\nid: D-001\ntitle: out-of-scope worldgen rule\nstanding: true\nscope: worldgen\n---\n');
+    writeFileSync(join(o, '.ai', 'decisions', 'D-002.md'), '---\nid: D-002\ntitle: parser files rule\nstanding: true\npaths: src/parser/*\n---\n');
+    writeFileSync(join(o, '.ai', 'decisions', 'D-003.md'), '---\nid: D-003\ntitle: global invariant\nstanding: true\n---\n');
+    mkdirSync(join(o, 'src', 'parser'), { recursive: true });
+    writeFileSync(join(o, 'src', 'parser', 'lex.ts'), 'export const t = 1;\n');
+    // stage so porcelain reports the FILE path (untracked dirs collapse to `?? src/`,
+    // which no paths-glob can match)
+    execFileSync('git', ['add', '-A'], { cwd: o, stdio: 'ignore' });
+    const r = hook('orient.mjs', {}, o);
+    ok('orient: in-scope (paths glob) standing decision surfaces', r.out.includes('D-002'));
+    ok('orient: scope-less standing decision always surfaces', r.out.includes('D-003'));
+    ok('orient: out-of-scope standing decision collapses to a scope pointer',
+      r.out.includes('+1 more standing decision(s) out of scope (scopes: worldgen)'));
+    const standingSection = r.out.split('--- STANDING')[1].split('\n---')[0];
+    ok('orient: standing section itself omits the out-of-scope decision', !standingSection.includes('D-001'));
+  }
+
   ok('orient: adopted repo emits orientation', /ORIENTATION/.test(hook('orient.mjs', { hook_event_name: 'SessionStart' }, clean).out));
   ok('flush: adopted repo emits flush reminder', /COMPACTION|flush/i.test(hook('flush.mjs', { hook_event_name: 'PreCompact' }, clean).out));
   const bare = repo();
