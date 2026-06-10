@@ -26,15 +26,24 @@ try {
   const aiDir = join(root, '.ai');
   if (!(norm + sep).startsWith(resolve(aiDir) + sep)) process.exit(0);
 
-  // Write-time STRUCTURE lint (KIT-T075): a hand-edit that malforms the frontmatter (no closing
-  // `---`, missing id, leftover template placeholder) is named on stderr — the suspenders to the
-  // `t` CLI's belt. Strictly advisory: fail-open, never blocks the write (this is PostToolUse).
+  // Write-time advisories (fail-open, never block — this is PostToolUse). `t` mutations are fs
+  // writes that bypass this hook, so these specifically nudge a HAND-EDIT that sidesteps the CLI:
+  //   - STRUCTURE lint (KIT-T075): malformed frontmatter / leftover template placeholder.
+  //   - EVIDENCE floor (KIT-T061): an active ticket flipped to its closing state with no test
+  //     artifact cited — the commit-gate will hard-block it, so warn early at write time.
   try {
-    const { lintStoreText } = await import('../scripts/t.mjs');
-    for (const w of lintStoreText(readFileSync(norm, 'utf8'), norm)) {
+    const text = readFileSync(norm, 'utf8');
+    const { lintStoreText, evidenceFloor, readConfig } = await import('../scripts/t.mjs');
+    for (const w of lintStoreText(text, norm)) {
       process.stderr.write(`[ingest-data] structure lint: ${norm} — ${w}\n`);
     }
-  } catch { /* lint is advisory; never let it wedge the ingest */ }
+    if (/(^|[\\/])tickets[\\/]/.test(norm) && !/[\\/]archive[\\/]/.test(norm)) {
+      const floor = evidenceFloor(text, readConfig(root).uatDefault);
+      if (floor.needsEvidence) {
+        process.stderr.write(`[ingest-data] evidence floor: ${norm} → ${floor.closing} cites no test artifact — add a test path / "npm test" / sha, or [no-test: reason] (the commit-gate will block otherwise; KIT-T061).\n`);
+      }
+    }
+  } catch { /* advisories never wedge the ingest */ }
 
   const { hydrate, defaultDbPath } = await import('../scripts/hydrate-db.mjs');
   const r = await hydrate({ root, dbPath: defaultDbPath() });

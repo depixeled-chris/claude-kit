@@ -60,6 +60,12 @@ On "work T-001" (or when I pull it from the drain):
    happens** (append-only — never edit a prior line): it's the task's audit trail.
 5. When all criteria pass: set `status: review`, record `(fixed) <sha>` + the
    `fixed_commit` frontmatter in History, stop, summarize the diff.
+   **Evidence floor (KIT-T061):** the closing transition (→`review` when
+   `config.uat: required`, →`done` when `none`) requires the ticket's Notes/History
+   to cite a **test artifact** — a test path, a suite-run reference (`npm test`,
+   "N passed"), or the test/fixing commit sha — OR an explicit `[no-test: <reason>]`.
+   The commit gate blocks the commit otherwise; "review/done" must mean test-backed,
+   not self-asserted.
 6. Chris sets `status: done` after merge (a `statuses.human_only` status — **never
    set it myself**). On done, the ticket moves to `.ai/tickets/archive/`.
 

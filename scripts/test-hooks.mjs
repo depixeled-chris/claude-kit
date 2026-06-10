@@ -305,6 +305,41 @@ try {
     ok('commit-gate: duplicate store ids block the commit (id-integrity)', r.code === 2 && r.out.includes('DUPLICATE'));
   }
 
+  // commit-gate: evidence floor (KIT-T061) — a CLOSING transition needs a test artifact or escape.
+  {
+    const seed = (status, notes) => `---\nid: KIT-T001\ntitle: seed\ntype: feature\nstatus: ${status}\n---\n\n## Notes\n${notes}\n`;
+    const mkEf = () => {
+      const ef = adopted(false);
+      execFileSync('git', ['config', 'user.email', 't@t'], { cwd: ef, stdio: 'ignore' });
+      execFileSync('git', ['config', 'user.name', 't'], { cwd: ef, stdio: 'ignore' });
+      writeFileSync(join(ef, '.ai', 'config.yml'), 'uat:\n  default: none\nids:\n  key: "KIT"\n  prefix: "KIT-T"\n  pad: 3\n');
+      mkdirSync(join(ef, '.ai', 'tickets'), { recursive: true });
+      return ef;
+    };
+    const seedCommit = (d, text) => {
+      const p = join(d, '.ai', 'tickets', 'KIT-T001-x.md');
+      writeFileSync(p, text);
+      execFileSync('git', ['add', '-A'], { cwd: d, stdio: 'ignore' });
+      execFileSync('git', ['commit', '-q', '-m', 'seed'], { cwd: d, stdio: 'ignore' });
+      return p;
+    };
+    const stageEdit = (d, p, text) => { writeFileSync(p, text); execFileSync('git', ['add', '-A'], { cwd: d, stdio: 'ignore' }); };
+    const cg = (d) => hook('commit-gate.mjs', { tool_input: { command: `git -C ${d} commit -m x` } }, clean);
+
+    const a = mkEf(); stageEdit(a, seedCommit(a, seed('doing', 'working.')), seed('done', 'finished it.'));
+    const ra = cg(a);
+    ok('commit-gate: closing transition with no test evidence blocks (KIT-T061)', ra.code === 2 && /KIT-T061/.test(ra.out) && ra.out.includes('KIT-T001'));
+
+    const b = mkEf(); stageEdit(b, seedCommit(b, seed('doing', 'working.')), seed('done', 'ran npm test — 5 passed.'));
+    ok('commit-gate: closing transition WITH a suite-run reference passes (KIT-T061)', cg(b).code === 0);
+
+    const c = mkEf(); stageEdit(c, seedCommit(c, seed('doing', 'working.')), seed('done', 'docs only [no-test: pure doc edit].'));
+    ok('commit-gate: [no-test: reason] escape passes the floor (KIT-T061)', cg(c).code === 0);
+
+    const e = mkEf(); stageEdit(e, seedCommit(e, seed('todo', 'initial.')), seed('todo', 'expanded the description.'));
+    ok('commit-gate: a non-closing ticket edit is unaffected by the floor (KIT-T061)', cg(e).code === 0);
+  }
+
   // orient: standing-decision scope filter (KIT-T046 behavior).
   {
     const o = adopted(false);

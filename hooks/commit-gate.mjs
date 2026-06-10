@@ -2,7 +2,7 @@
 // PreToolUse (Bash|PowerShell) — block a `git commit` of code that isn't tied to the
 // plan-of-record / a ticket. exit 2 = block, 0 = allow. No-ops on unadopted repos.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { payload, git, gitRoot, adopted, pathExcluded, excludeFooter, ID_CITE_SRC } from './lib.mjs';
 
@@ -125,6 +125,57 @@ if (changed.some((f) => /(^|\/)(?:\.ai\/)?(?:tickets|decisions|notes|questions)\
     }
   } catch {
     /* integrity scan is best-effort — never wedge a commit on a scan error */
+  }
+}
+
+// EVIDENCE FLOOR (KIT-T061): a ticket reaching its CLOSING transition must cite test evidence
+// (a test path / suite-run reference / commit sha) OR carry an explicit [no-test: reason]. The
+// closing transition follows config.uat (KIT-D034): doing→done where uat resolves `none`,
+// doing→review where `required`. Runs BEFORE the plan-of-record early-allow below, so the act
+// of touching the ticket can't bypass its own floor. A "transition" = the staged status equals
+// the closing state while HEAD's did not (so re-touching an already-closed ticket never blocks).
+// Fail-open on any read/parse error per the HOOK CONTRACT.
+const ticketChanges = changed.filter(
+  (f) => /(^|\/)\.ai\/tickets\/(?:archive\/)?[^/]+\.md$/.test(f) && !/(^|\/)(?:_TEMPLATE|INDEX)\.md$/.test(f),
+);
+if (ticketChanges.length) {
+  try {
+    const { evidenceFloor, readConfig } = await import('../scripts/t.mjs');
+    const uatDefault = readConfig(root).uatDefault;
+    const statusOf = (text) => {
+      const fm = (text.match(/^---\n([\s\S]*?)\n---/) || [, ''])[1];
+      const m = fm.match(/^status:[ \t]*(.*)$/m);
+      return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
+    };
+    const offenders = [];
+    for (const f of ticketChanges) {
+      const abs = join(root, f);
+      if (!existsSync(abs)) continue; // a delete (e.g. the rename SOURCE of an archive move)
+      const text = readFileSync(abs, 'utf8');
+      const floor = evidenceFloor(text, uatDefault);
+      if (!floor.needsEvidence) continue; // not at the closing state, or evidence/escape present
+      const head = git(['-C', root, 'show', `HEAD:${f}`]);
+      if (head && statusOf(head) === floor.closing) continue; // already closed in HEAD — not new
+      const id = (text.match(/^id:[ \t]*(.*)$/m) || [, f])[1].trim();
+      offenders.push({ id, closing: floor.closing });
+    }
+    if (offenders.length) {
+      const lines = ['', 'BLOCKED: a ticket reached its closing transition without test evidence (KIT-T061).', ''];
+      for (const o of offenders) lines.push(`  ${o.id} → ${o.closing}, but its Notes/History cite no test artifact.`);
+      lines.push(
+        '',
+        'UAT needs a floor: a closing transition must be test-backed, not self-asserted.',
+        'Add ONE to the ticket (then re-commit):',
+        '  - a test path (e.g. scripts/foo.test.mjs) or suite-run reference (npm test, "N passed"),',
+        '  - the test/fixing commit sha, or',
+        '  - an explicit escape:  [no-test: <reason>]',
+        '',
+      );
+      process.stderr.write(lines.join('\n'));
+      process.exit(2);
+    }
+  } catch {
+    /* evidence scan is best-effort — never wedge a commit on a read/parse error */
   }
 }
 

@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { scaffoldNew, setStatus, tick, link, lintStoreText, readConfig, findTicket } from './t.mjs';
+import { scaffoldNew, setStatus, tick, link, lintStoreText, readConfig, findTicket, evidenceFloor } from './t.mjs';
 
 const SCRIPT = fileURLToPath(import.meta.url).replace(/\.test\.mjs$/, '.mjs');
 let pass = 0;
@@ -161,6 +161,15 @@ ok('lint: flags the template sentinel id', lintStoreText('---\nid: KIT-T000\ntit
 ok('lint: flags an angle-bracket title placeholder', lintStoreText('---\nid: KIT-T9\ntitle: <short imperative title>\n---\n', 'tickets/x.md').some((w) => /placeholder/.test(w)));
 ok('lint: flags an unclosed frontmatter block', lintStoreText('---\nid: KIT-T9\ntitle: x\nbody with no close', 'tickets/x.md').some((w) => /closing/.test(w)));
 ok('lint: clean on a well-formed ticket', lintStoreText(readFileSync(findTicket(tr, 'KIT-T001').path, 'utf8'), 'tickets/x.md').length === 0);
+
+// --- evidenceFloor: the UAT evidence gate logic (KIT-T061) ---
+const ef = (status, uat, notes) => evidenceFloor(`---\nid: KIT-T1\nstatus: ${status}\n${uat ? `uat: ${uat}\n` : ''}---\n## Notes\n${notes}\n`, 'none');
+ok('evidenceFloor: closing (done, uat=none) without evidence needs evidence', ef('done', '', 'just finished it').needsEvidence === true);
+ok('evidenceFloor: a suite-run reference satisfies the floor', ef('done', '', 'ran npm test — all green').needsEvidence === false);
+ok('evidenceFloor: a test path satisfies the floor', ef('done', '', 'covered by scripts/foo.test.mjs').needsEvidence === false);
+ok('evidenceFloor: the [no-test:] escape satisfies the floor', ef('done', '', '[no-test: pure doc edit]').needsEvidence === false);
+ok('evidenceFloor: doing is NOT the closing state under uat=none', ef('doing', '', 'wip').atClosing === false);
+ok('evidenceFloor: per-ticket uat=required override closes at review', evidenceFloor('---\nid: KIT-T1\nstatus: review\nuat: required\n---\nno tests here', 'none').needsEvidence === true);
 
 // --- integration: the real CLI regenerates the board (refresh wiring) ---
 const cli = project({ uatDefault: 'none' }, { 'KIT-T001': {} });

@@ -378,6 +378,42 @@ export function lintStoreText(text, relpath = '') {
   return warns;
 }
 
+// --- evidence floor (shared with commit-gate + ingest-data; KIT-T061) ----------------------
+
+// The explicit, documented non-evidence path — same philosophy as the commit gate's [no-log:].
+export const NO_TEST_ESCAPE = /\[no-test:\s*[^\]]+\]/i;
+
+// What COUNTS as test evidence in a ticket's Notes/History (or a frontmatter fixed_commit):
+// a test file path, a suite-run reference, or a commit sha. Deliberately broad — the floor is a
+// floor, and over-strictness causes false blocks; the explicit [no-test:] escape is the relief
+// valve, not a tight evidence grammar.
+export const EVIDENCE_PATTERNS = [
+  /\b[\w./-]+\.(?:test|spec)\.[a-z]+\b/i,        // scripts/foo.test.mjs, app.spec.ts
+  /\btests?[\\/][\w./-]+/i,                        // a test/ or tests/ path
+  /\b(?:npm|pnpm|yarn)\s+test\b/i,                // suite-run reference
+  /\bnode\s+--test\b/i,
+  /\b(?:pytest|go\s+test|cargo\s+test|jest|vitest|mocha)\b/i,
+  /\b\d+\s+(?:pass(?:ed|ing)|tests? pass)/i,      // "43 passed", "5 passing"
+  /\bsuite green\b/i,
+  /\b[0-9a-f]{7,40}\b/,                            // a test/fixing commit sha
+];
+
+// Resolve whether a ticket file's text sits at its CLOSING transition for the project's uat
+// resolution (KIT-D034) and whether it carries the required evidence. PURE — the commit-gate
+// (blocker) and ingest-data (advisory) decide what to DO with `needsEvidence`. The closing
+// transition is doing→review where uat resolves `required`, doing→done where `none`; a
+// per-ticket `uat:` frontmatter field overrides the project default.
+export function evidenceFloor(text, uatDefault = 'required') {
+  const parts = splitFrontmatter(text);
+  const status = parts ? field(parts.fm, 'status') : '';
+  const uat = (parts && field(parts.fm, 'uat')) || uatDefault;
+  const closing = uat === 'required' ? 'review' : 'done';
+  const atClosing = status === closing;
+  const hasEvidence = EVIDENCE_PATTERNS.some((re) => re.test(text));
+  const hasEscape = NO_TEST_ESCAPE.test(text);
+  return { status, closing, atClosing, hasEvidence, hasEscape, needsEvidence: atClosing && !hasEvidence && !hasEscape };
+}
+
 // --- refresh (CLI-only side effect) --------------------------------------------------------
 
 // Regenerate the derived board + ingest the cache after a mutation, BOTH fail-open. index-tickets

@@ -18,7 +18,11 @@ updated: <YYYY-MM-DDThh:mm:ssZ>
 <what and why>
 
 ## Acceptance Criteria
-<!-- Each must be a checkable observation. Claude ticks these as it satisfies them. -->
+<!-- Each must be a checkable observation. Claude ticks these as it satisfies them.
+     EVIDENCE FLOOR (KIT-T061): the closing transition (→review when config.uat: required,
+     →done when none) requires this ticket to cite a test artifact — a test path, a suite-run
+     reference (npm test / "N passed"), or the fixing commit sha — OR an explicit
+     [no-test: <reason>]. The commit gate blocks the close otherwise. -->
 - [ ]
 
 ## Plan
