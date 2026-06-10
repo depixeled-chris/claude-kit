@@ -44,7 +44,7 @@
 | KIT-T079 | bug | todo | high | Provenance-first: agent edited/debugged a module without checking git history, missed a superseded duplicate |
 | KIT-T080 | bug | todo | medium | query-gate RULE 1 blocks a targeted read of a SPECIFIC store file (e.g. .ai/config.yml), contradicting its own allowed-case |
 | KIT-T081 | bug | todo | high | GIT WORKFLOW 'branch first' default is wrong for multi-agent shared-FS repos — must mandate worktrees/trunk, not feature branches |
-| KIT-T082 | feature | todo | critical | Branch-switch guard — block git switch / checkout -b in a shared checkout; force worktrees for parallel agents |
+| KIT-T082 | feature | review | critical | Branch-switch guard — block git switch / checkout -b in a shared checkout; force worktrees for parallel agents |
 
 ## Superseded (8)
 | id | status | title | superseded by |
