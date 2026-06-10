@@ -30,7 +30,8 @@ Add to SessionStart nagging:
 
 ## Acceptance Criteria
 - [ ] Inbox-age nag with configurable threshold (default 2 days), per project.
-- [ ] Review-queue nag (count + oldest) phrased as waiting-on-human.
+- [ ] Review-queue nag (count + oldest) phrased as waiting-on-human — review IS the UAT stage (KIT-D033).
+- [ ] UAT-queue presentation is FREQUENT (maintainer directive 2026-06-10): SessionStart (full list when small, count+oldest when large) AND Stop (one line when the queue grew this turn). Every session — not weekly-review cadence.
 - [ ] orient emits a one-line SESSION-stale warning when SESSION.md mtime/date < last commit date.
 - [ ] Nags are one line each, capped, and silent when clean (no noise tax).
 - [ ] Tests for each threshold (fresh = silent, stale = nag).
@@ -42,3 +43,7 @@ Add to SessionStart nagging:
 
 ## Notes
 - 2026-06-09: opened from the lifecycle review — "the intake side is over-built, the closure side is barely built."
+- 2026-06-10: maintainer directive (interjection): "Are we supporting a UAT status now?
+  That needs to be presented to me frequently." → KIT-D033 (review IS UAT; no separate
+  status) + the frequency criterion above. Priority of this ticket effectively rises:
+  it now carries a standing maintainer expectation.
