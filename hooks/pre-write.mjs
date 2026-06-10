@@ -52,7 +52,12 @@ const AT_KEYWORDS = new Set([
 function codeOnly(src) {
   const out = Array.from(src);
   const blank = (i) => { if (out[i] !== '\n') out[i] = ' '; };
+  // Keywords a regex literal may directly follow (`return /x/`) — after any OTHER
+  // identifier, `/` is division.
+  const REGEX_AFTER = new Set(['return', 'case', 'typeof', 'in', 'of', 'delete', 'void', 'do', 'else']);
   let i = 0;
+  let prev = '('; // last structural char — drives the regex-vs-division call (KIT-T077)
+  let word = ''; // trailing identifier, for the keyword check
   const n = src.length;
   while (i < n) {
     const c = src[i];
@@ -65,9 +70,31 @@ function codeOnly(src) {
         blank(i); i++;
       }
       i++; // closing quote (or EOF)
+      prev = quote; // a `/` right after a string is division, not a regex
       continue;
     }
     if (c === '/' && d === '/') { while (i < n && src[i] !== '\n') { blank(i); i++; } continue; }
+    // Regex literal (KIT-T077): `/` is a regex START only after an operator/opener —
+    // after an identifier/number it's division, which must stay visible to the scan.
+    // A newline before the closing `/` means we misjudged: bail, blank nothing.
+    if (c === '/' && d !== '*' && (/[=(,[{;:!&|?+\-*%<>^~]/.test(prev) || REGEX_AFTER.has(word))) {
+      let j = i + 1;
+      let inClass = false;
+      while (j < n && src[j] !== '\n') {
+        const ch = src[j];
+        if (ch === '\\') { j += 2; continue; }
+        if (ch === '[') inClass = true;
+        else if (ch === ']') inClass = false;
+        else if (ch === '/' && !inClass) break;
+        j++;
+      }
+      if (j < n && src[j] === '/') {
+        while (i <= j) { blank(i); i++; }
+        while (i < n && /[a-z]/.test(src[i])) { blank(i); i++; } // flags
+        prev = ')'; // a regex VALUE ends like a closing expression
+        continue;
+      }
+    }
     if (c === '#') { while (i < n && src[i] !== '\n') { blank(i); i++; } continue; }
     if (c === '-' && d === '-') { while (i < n && src[i] !== '\n') { blank(i); i++; } continue; }
     if (c === '/' && d === '*') {
@@ -76,6 +103,9 @@ function codeOnly(src) {
       if (i < n) { blank(i); blank(i + 1); i += 2; }
       continue;
     }
+    if (!/\s/.test(c)) prev = c;
+    if (/[A-Za-z_$]/.test(c)) word += c;
+    else if (!/\s/.test(c)) word = ''; // whitespace keeps the word (`return /x/`)
     i++;
   }
   return out.join('');
@@ -265,6 +295,10 @@ if (!NATIVE_LINTED.has(ext) && !isTest && !isMig && !excludedFile('magic-numbers
     if (excludedAt('magic-numbers', i + 1)) continue; // glob/marker-excluded line
     if (/\b(const|constexpr|let|var|final|#define|enum|static|readonly)\b/.test(raw)) continue; // declaration
     if (/^\s*[A-Za-z_]\w*\s*[:=][^=]/.test(raw)) continue; // name: / name=
+    // KIT-T077 precision: values that are NAMED at the use site, or pure data rows.
+    if (/^[\s\d.,;[\]{}()-]+$/.test(raw)) continue; // continuation row of a multi-line initializer
+    if (/[A-Za-z_$][\w$.\])]*\s*(?<![=!<>])[:=](?!=)\s*-?\.?\d/.test(raw)) continue; // `opts.timeout = 5000`, `(attempts = 5)`, `{retries: 3}` — comparisons excluded
+    if (/\b(parseInt|toString)\s*\([^)]*\d+\s*\)/.test(raw)) continue; // radix argument
     const stripped = code.replace(/\d+(px|em|rem)/g, '');
     const m = stripped.match(/[^A-Za-z0-9_.](-?\d+(\.\d+)?)/);
     if (m && !ALLOWED.has(m[1])) hits.push(`${i + 1}: ${raw.trim()}`);

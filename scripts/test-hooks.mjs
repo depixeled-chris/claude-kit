@@ -190,6 +190,24 @@ try {
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: '/* threshold 1337\n   ceiling 9000 */\nconst r = compute();\n' } }, clean).code === 0);
   ok('pre-write: bare code constant still blocks even with prose numbers present (KIT-T032)',
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'function f(x) {\n  return x * 1337; // was 9000 before\n}\n' } }, clean).code === 2);
+  // KIT-T077 — magic-number precision: named/data/radix/regex idioms pass; real magic still blocks.
+  ok('pre-write: multi-line const array data rows pass (KIT-T077)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'const DIMS = [\n  1920,\n  1080,\n];\n' } }, clean).code === 0);
+  ok('pre-write: named default parameter passes (KIT-T077)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'function retry(fn, attempts = 5) {\n  return fn(attempts);\n}\n' } }, clean).code === 0);
+  ok('pre-write: mid-line named assignment passes (KIT-T077)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'if (!opts.timeout) opts.timeout = 5000;\n' } }, clean).code === 0);
+  ok('pre-write: parseInt radix passes (KIT-T077)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'export function toInt(s) {\n  return parseInt(s, 10);\n}\n' } }, clean).code === 0);
+  ok('pre-write: regex-literal quantifiers pass after = (KIT-T077)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'export function f(id) {\n  const ok = /^x{4}-y{6}$/;\n  return ok.test(id);\n}\n' } }, clean).code === 0);
+  ok('pre-write: regex-literal after return passes (KIT-T077)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'export function isId(s) {\n  return /^[a-z]{8}$/.test(s);\n}\n' } }, clean).code === 0);
+  ok('pre-write: division by a magic number STILL blocks (KIT-T077 non-regression)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'export function third(x) {\n  return x / 3;\n}\n' } }, clean).code === 2);
+  ok('pre-write: comparison to a magic number STILL blocks (KIT-T077 non-regression)',
+    hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'export function gone(s) {\n  return s.status === 404;\n}\n' } }, clean).code === 2);
+
   ok('pre-write: plain css one-off literals pass (no first-class variables)',
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.css', content: '.a { font-size: 30px; font-weight: 700; }\n' } }, clean).code === 0);
   ok('pre-write: scss reused literal hardcoded blocks (should be a token)',
