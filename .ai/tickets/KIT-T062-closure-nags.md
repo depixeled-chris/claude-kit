@@ -2,7 +2,7 @@
 id: KIT-T062
 title: Make the system as loud about unfinished work as it is about uncaptured work (closure nags)
 type: feature
-status: doing
+status: review
 priority: high
 milestone: M2-close-the-loop
 labels: [hooks, lifecycle]
@@ -13,7 +13,7 @@ links: [KIT-T054, KIT-T060]
 supersedes:
 superseded_by:
 created: 2026-06-10T03:10:00Z
-updated: 2026-06-10T20:58:09Z
+updated: 2026-06-10T21:08:55Z
 ---
 
 ## Description
@@ -68,3 +68,4 @@ Add to SessionStart nagging:
 - [2026-06-10 21:07] (comment) ticked: orient emits a one-line SESSION-stale warning when SESSION.md mtime/date < last commit date.
 - [2026-06-10 21:07] (comment) ticked: Nags are one line each, capped, and silent when clean (no noise tax).
 - [2026-06-10 21:07] (comment) ticked: Tests for each threshold (fresh = silent, stale = nag).
+- [2026-06-10 21:08] (status) doing → review

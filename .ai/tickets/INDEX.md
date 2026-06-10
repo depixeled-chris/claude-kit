@@ -25,7 +25,7 @@
 | KIT-T047 | tech-debt | todo | medium | researcher/design-doc agent preflight — search prior art (docs/research + cited docs) before commissioning, EXTEND the canonical doc, never spawn a parallel one |
 | KIT-T048 | feature | todo | high | Provenance enforcement — q trail (walk-up summary), ticket-start gate, missing-antecedent lint, item summaries |
 | KIT-T061 | feature | review | high | Entering review requires test evidence (or an explicit [no-test: reason]) — UAT gets a floor |
-| KIT-T062 | feature | doing | high | Make the system as loud about unfinished work as it is about uncaptured work (closure nags) |
+| KIT-T062 | feature | review | high | Make the system as loud about unfinished work as it is about uncaptured work (closure nags) |
 | KIT-T063 | feature | todo | medium | INDEX.md (and SUPERSEDED/REGRESSIONS indexes) regenerate via hook, not memory |
 | KIT-T064 | feature | todo | low | Question drain — answer_self_questions gets a verb; questions/ stops being a dead store |
 | KIT-T065 | feature | todo | high | Triage-time provenance inference — bugs without user-given provenance get inferred links |
