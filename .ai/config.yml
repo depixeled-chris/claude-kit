@@ -42,10 +42,24 @@ priorities: [critical, high, medium, low]
 # ---------------------------------------------------------------------------
 statuses:
   flow: [todo, doing, review, done]
-  human_only: [done]        # Claude moves to review; only Chris marks done.
+  # EMPTY here: claude-kit runs `uat: none` (KIT-D034) — the maintainer delegated
+  # acceptance ("you are more informed than I am on this particular project to do the
+  # UAT"). The project TEMPLATE keeps human_only: [done].
+  human_only: []
   # `superseded` is OFF-FLOW: a newer ticket retired this one (set `superseded_by:` here +
   # `supersedes:` on the replacement). It drops out of the active board + drain (KIT-T024).
   off_board: [superseded]
+
+# ---------------------------------------------------------------------------
+# UAT — who ACCEPTS finished work (KIT-D034). `review` is the UAT stage (KIT-D033).
+#   default: required — finished work parks in `review`; only the human sets `done`.
+#            none     — Claude closes work directly (review -> skipped) once every
+#                       acceptance criterion passes WITH test evidence; the evidence
+#                       floor (KIT-T061) applies at the closing transition either way.
+#   Per-ticket override: frontmatter `uat: required|none` beats the project default.
+# ---------------------------------------------------------------------------
+uat:
+  default: none   # this repo: acceptance delegated to the agent (KIT-D034)
 
 # ---------------------------------------------------------------------------
 # DRAIN — how the queue empties without Chris driving it.

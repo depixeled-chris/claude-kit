@@ -37,7 +37,7 @@ Surface:
 - [ ] `t new <type> "<title>"` scaffolds a ticket: mints the id via next-id, filename = id, complete valid frontmatter, section skeleton — prose body stays manual (Edit). Kills the T039-T043 placeholder-text failure class.
 - [ ] Write-time structure lint in ingest-data: malformed frontmatter on a store file warns (named field, fail-open — never blocks the write).
 - [ ] `t status` enforces config.statuses flow + human_only guard; auto History line; index regen + cache ingest in the same invocation.
-- [ ] `t status <id> done --human` archives to tickets/archive/ and prompts for fixed_commit on bug/regression types (KIT-T060 behavior absorbed).
+- [ ] `t status <id> done` honors `config.uat` (KIT-D034): agent-callable when uat resolves `none` for the ticket (project default + frontmatter override); requires `--human` when `required`. The done tail (archive to tickets/archive/, fixed_commit prompt on bug/regression types) runs either way (KIT-T060 behavior absorbed).
 - [ ] `t tick` and `t link` implemented with id/shape validation; supersedes writes both sides.
 - [ ] /done command doc rewritten as a wrapper over `t status ... done --human`.
 - [ ] /work + /drain docs updated: status flips and criterion ticks go through `t`, prose notes stay direct-edit.

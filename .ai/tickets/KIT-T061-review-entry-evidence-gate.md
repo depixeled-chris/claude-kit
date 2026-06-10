@@ -28,7 +28,7 @@ ingest path or at commit time), require its Notes/History to cite a test artifac
 file path, `npm test` output reference, or test commit sha) OR carry `[no-test: reason]`.
 
 ## Acceptance Criteria
-- [ ] doing→review transition without test evidence or `[no-test: reason]` is blocked (exit 2) with a message naming exactly what to add.
+- [ ] The CLOSING transition without test evidence or `[no-test: reason]` is blocked (exit 2) with a message naming exactly what to add. Closing transition = doing→review where `config.uat` is `required`, doing→done where `none` (KIT-D034) — the evidence floor applies in BOTH modes; uat only changes who accepts.
 - [ ] Evidence patterns documented (test path, suite-run reference, sha).
 - [ ] Fail-open on malformed payloads/tickets per HOOK CONTRACT.
 - [ ] Tests: blocked transition, evidence-satisfied transition, no-test escape, non-status edits unaffected.

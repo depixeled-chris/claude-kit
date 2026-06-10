@@ -45,6 +45,17 @@ statuses:
   human_only: [done]        # Claude moves to review; only Chris marks done.
 
 # ---------------------------------------------------------------------------
+# UAT — who ACCEPTS finished work (KIT-D034). `review` is the UAT stage.
+#   default: required — finished work parks in `review`; only the human sets `done`
+#                       (pair with human_only: [done] above).
+#            none     — Claude closes work directly once every acceptance criterion
+#                       passes WITH test evidence (pair with human_only: []).
+#   Per-ticket override: frontmatter `uat: required|none` beats the project default.
+# ---------------------------------------------------------------------------
+uat:
+  default: required
+
+# ---------------------------------------------------------------------------
 # DRAIN — how the queue empties without Chris driving it.
 # ---------------------------------------------------------------------------
 drain:

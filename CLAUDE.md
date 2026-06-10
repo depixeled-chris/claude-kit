@@ -58,9 +58,12 @@ On "work KIT-T001" (or when I pull it from the drain):
    native tasks are throwaway; **the ticket file is truth.**
 4. As each criterion is satisfied, check its box `[x]` in the ticket and append
    to `## Notes` (a log — never delete prior notes).
-5. When all criteria pass: set `status: review`, stop, summarize the diff.
-6. Chris sets `status: done` after merge. **Never set a `statuses.human_only`
-   status myself.**
+5. When all criteria pass WITH test evidence, consult `config.uat` (KIT-D034):
+   - `none` (THIS repo — per-ticket `uat:` frontmatter overrides): set `status: done`
+     directly, move the file to `tickets/archive/`, regenerate the index, summarize.
+   - `required`: set `status: review`, stop, summarize the diff for Chris.
+6. **Never set a `statuses.human_only` status myself** (this repo's list is empty —
+   acceptance is delegated per KIT-D034; the template keeps `done` human-only).
 
 ### Backlog vs roadmap
 - **Backlog** = tickets with `status: todo` and no `milestone`. Everything
