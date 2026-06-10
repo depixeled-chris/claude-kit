@@ -38,7 +38,7 @@
 | KIT-T072 | tech-debt | todo | low | Quiet the per-turn hook chatter — dedupe advisories, conditional receipts |
 | KIT-T073 | tech-debt | todo | low | Progressive disclosure for the global contract — specialist sections become on-demand skills |
 | KIT-T074 | tech-debt | todo | medium | maintenance-gaps gets a drain path — nags without resolution train you to ignore them |
-| KIT-T075 | feature | todo | high | Store mutation CLI — t status / t tick / t link; hand-edits remain for prose only |
+| KIT-T075 | feature | review | high | Store mutation CLI — t status / t tick / t link; hand-edits remain for prose only |
 | KIT-T076 | tech-debt | todo | medium | Cache hardening — q verify (staleness self-check) + DB/fallback parity tests |
 | KIT-T078 | tech-debt | review | low | Command-level model tiering — static `model:` on fixed-cost read-only commands |
 | KIT-T079 | bug | todo | high | Provenance-first: agent edited/debugged a module without checking git history, missed a superseded duplicate |

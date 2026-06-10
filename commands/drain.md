@@ -20,8 +20,9 @@ Keep going item-to-item until the queue needs them or they stop.
      priority) · a milestone name = drain only that milestone.
 2. WORK it via the `/work` contract: read the ticket, **restate its acceptance criteria**,
    confirm scope in ONE line (wait for OK only if the plan changes scope or touches files
-   outside the ticket), set `doing`, mirror criteria into native tasks, execute, check `[x]`
-   each criterion + append to Notes.
+   outside the ticket), then drive STRUCTURED mutations through the `t` CLI (KIT-T075) — never
+   hand-edited frontmatter: `t status <id> doing`, mirror criteria into native tasks, execute,
+   `t tick <id> <ordinal|match>` each criterion as it passes. Narrative Notes stay direct-edit.
 3. BOLDNESS per `drain.auto_execute`:
    - `within-patterns-low-risk`: start the item if it follows established patterns and is
      low-risk; otherwise surface ONE line — `next up: <id> — your call: <why>` — and wait.
