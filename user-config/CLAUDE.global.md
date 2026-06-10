@@ -140,6 +140,29 @@ handoff — live in the repo's CLAUDE.md `.ai/` contract.
 - Enforcement is hooks, not judgment. A hook blocking is the system working — fix the
   root cause, never weaken it.
 
+## Process failure — an IMMEDIATE, self-triggered stop-and-capture
+A **process failure** is the strongest signal that the workflow itself broke, not just a
+task — so it fires the SAME response every time, the moment it's noticed, WITHOUT the
+maintainer having to point it out (having to point it out is itself part of the failure).
+
+**It is a process failure when you:**
+- propose / plan / start building something that ALREADY EXISTS (a shipped export, an
+  editor-previewed path, a prior ticket's deliverable);
+- lose or re-derive a fact already in the durable record (work store, existing WASM/API
+  surface, research docs, prior session decisions/commits);
+- contradict the on-disk record — almost always because you did NOT ground first.
+
+**Trigger → immediately, unprompted, in this order:**
+1. STOP the work resting on the lost/duplicated fact (don't build the thing twice).
+2. Capture it as a KIT issue (`cap bug …`): the failure + its ROOT CAUSE (what you failed
+   to ground in), not just the symptom.
+3. Keep THIS trigger + response codified here, and push toward hook enforcement — capture
+   must be structural, not memory-dependent.
+
+The antidote is upstream: **ground before you propose.** Query the work store, the code
+graph, and existing exports/research for the thing you're about to build — assume it may
+already exist until you've checked.
+
 # HOOK CONTRACT
 Portable Node enforcement hooks (from claude-kit) install into `~/.claude/hooks/` and
 gate Write/Edit (code quality), `git commit` (the work-log gate), SessionStart
