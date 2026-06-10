@@ -4,9 +4,9 @@
 // exits: code 2 = block, 0 = allow.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, appendFileSync, writeFileSync, mkdirSync, readdirSync, realpathSync } from 'node:fs';
+import { existsSync, statSync, readFileSync, appendFileSync, writeFileSync, mkdirSync, readdirSync, realpathSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 
 export async function readStdin() {
@@ -549,5 +549,150 @@ export function logGap(kind, file, detail) {
     appendFileSync(MAINT_LOG, `${new Date().toISOString()}\t${row}\n`);
   } catch {
     /* gap logging is best-effort — never let it break a hook */
+  }
+}
+
+// --- closure nags (KIT-T062) ----------------------------------------------------
+// The intake side is loud (request-gate, capture ratchet); the CLOSURE side rotted
+// silently (inbox sat days untriaged, review piled up, SESSION went stale). These
+// shared scanners feed the SessionStart/Stop nags in housekeeping + orient. Every one
+// is FAIL-OPEN: any read/parse slip returns the empty/clean result, never throws — a
+// nag must never wedge a session (the hook contract).
+
+const MS_PER_DAY = 86400000;
+
+// Age in whole days of a path by mtime; null when it can't be stat'd.
+function ageDays(path) {
+  try {
+    return Math.floor((Date.now() - statSync(path).mtimeMs) / MS_PER_DAY);
+  } catch {
+    return null;
+  }
+}
+
+// Untriaged inbox: `.ai/inbox/*.md` (the triaged/ subdir + README are NOT intake).
+// triage drains inbox into the durable stores, so a file lingering here past a
+// threshold is un-actioned capture. Returns { total, stale, oldestDays } where `stale`
+// counts files older than thresholdDays. Empty/clean ({total:0}) on any error.
+export function scanInbox(root, thresholdDays) {
+  const out = { total: 0, stale: 0, oldestDays: 0 };
+  try {
+    const dir = join(root, '.ai', 'inbox');
+    const files = readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md');
+    for (const f of files) {
+      const age = ageDays(join(dir, f));
+      if (age === null) continue;
+      out.total++;
+      if (age > out.oldestDays) out.oldestDays = age;
+      if (age >= thresholdDays) out.stale++;
+    }
+  } catch {
+    /* no inbox dir / unreadable — nothing to nag about */
+  }
+  return out;
+}
+
+// The project's UAT resolution (KIT-D034): `required` (review IS the human acceptance
+// stage — the queue waits on the human) or `none` (the agent closes directly, so no
+// queue accrues). Read line-wise from .ai/config.yml — same tolerant subset the rest of
+// the tooling uses, no yaml dep. Defaults to `required` (the template default) on any miss.
+export function uatDefault(root) {
+  try {
+    const cfg = readFileSync(join(root, '.ai', 'config.yml'), 'utf8');
+    const m = cfg.match(/^uat:[ \t]*\n(?:[ \t]+.*\n)*?[ \t]+default:[ \t]*(\w+)/m);
+    if (m) return m[1];
+  } catch {
+    /* no config — fall through to the template default */
+  }
+  return 'required';
+}
+
+// A ticket file's frontmatter `status` and per-ticket `uat:` override (either may be '').
+// Tolerant line-wise parse mirroring survey/t — only the two fields the review scan needs.
+function ticketStatusAndUat(text) {
+  const fm = (text.match(/^---\n([\s\S]*?)\n---/) || [, ''])[1];
+  const pick = (k) => {
+    const m = fm.match(new RegExp(`^${k}:[ \\t]*(.*)$`, 'm'));
+    return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
+  };
+  return { status: pick('status'), uat: pick('uat') };
+}
+
+// Review queue = tickets parked in `status: review` whose UAT resolves `required` (so the
+// stage genuinely waits on the human — a per-ticket `uat:` beats the project default). Where
+// uat resolves `none` the project closes its own work, so the queue is empty BY CONSTRUCTION
+// and the caller's nag stays silent. Returns { count, oldestDays, ids } (waiting-ticket count,
+// the oldest by file mtime, and their ids for a short-list render). Clean ({count:0}) on any
+// error or when uat is project-wide `none`.
+export function scanReviewQueue(root) {
+  const out = { count: 0, oldestDays: 0, ids: [] };
+  try {
+    const dir = join(root, '.ai', 'tickets');
+    const def = uatDefault(root);
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith('.md') || f.startsWith('_') || f === 'INDEX.md') continue;
+      const path = join(dir, f);
+      let text;
+      try { text = readFileSync(path, 'utf8'); } catch { continue; }
+      const { status, uat } = ticketStatusAndUat(text);
+      if (status !== 'review') continue;
+      if ((uat || def) !== 'required') continue; // `none` → not a human-waiting queue
+      out.count++;
+      const id = (text.match(/^id:[ \t]*(.+)$/m) || [, f.replace(/\.md$/, '')])[1].trim();
+      out.ids.push(id);
+      const age = ageDays(path);
+      if (age !== null && age > out.oldestDays) out.oldestDays = age;
+    }
+  } catch {
+    /* no tickets dir / unreadable — empty queue */
+  }
+  return out;
+}
+
+// Per-repo turn snapshot for the Stop "review queue GREW this turn" nag. SessionStart writes
+// the current review count; Stop compares + rewrites it. Machine-local + disposable (the temp
+// dir), keyed by a sanitized repo path so parallel projects don't collide. FAIL-OPEN: a read
+// returns null (Stop then can't claim growth, so it stays silent — the safe direction); a write
+// is best-effort. CLAUDE_KIT_TURN_STATE overrides the dir so the test harness can isolate it.
+function turnStatePath(root) {
+  const base = process.env.CLAUDE_KIT_TURN_STATE || join(tmpdir(), 'claude-kit-turnstate');
+  const key = String(root).replace(/[:\\/ ]/g, '-').replace(/^-+/, '') || 'root';
+  return join(base, `${key}.json`);
+}
+
+export function readTurnState(root) {
+  try {
+    return JSON.parse(readFileSync(turnStatePath(root), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+export function writeTurnState(root, state) {
+  try {
+    const p = turnStatePath(root);
+    mkdirSync(dirname(p), { recursive: true });
+    writeFileSync(p, JSON.stringify(state) + '\n');
+  } catch {
+    /* turn state is best-effort — never break a hook */
+  }
+}
+
+// Is SESSION.md staler than the project's last commit? The plan-of-record going stale is
+// "itself a failure" per the contract, so orient surfaces it in one line. Compares SESSION's
+// mtime against the last commit's author date (epoch seconds). Returns { stale, sessionDays }
+// — stale only when SESSION pre-dates the last commit AND a commit exists. FAIL-OPEN: any
+// missing file / git hiccup returns { stale:false } so orientation never breaks.
+export function sessionStale(root) {
+  try {
+    const session = join(root, '.ai', 'SESSION.md');
+    const sMtime = statSync(session).mtimeMs;
+    const lastCommit = git(['-C', root, 'log', '-1', '--format=%ct']).trim();
+    if (!lastCommit) return { stale: false, sessionDays: 0 };
+    const commitMs = Number(lastCommit) * 1000;
+    const sessionDays = Math.max(0, Math.floor((Date.now() - sMtime) / MS_PER_DAY));
+    return { stale: sMtime < commitMs, sessionDays };
+  } catch {
+    return { stale: false, sessionDays: 0 };
   }
 }

@@ -4,7 +4,7 @@
 // hooks directly (no install needed), so it's the fast pre-ship gate. exit 0 = all pass.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync, readFileSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -250,6 +250,124 @@ try {
     ok('housekeeping: missing timestamps nag BOTH reviews', s.code === 0 && s.out.includes('MEMORY REVIEW DUE') && s.out.includes('MAINTENANCE REVIEW DUE'));
     const stop = hook('housekeeping.mjs', { hook_event_name: 'Stop' }, clean, homeEnv(staleHome));
     ok('housekeeping: Stop repeats pending reviews', stop.code === 0 && stop.out.includes('pending before end-of-session'));
+  }
+
+  // KIT-T062 — closure nags (inbox age, review queue, SESSION staleness). Each tested at its
+  // threshold: fresh = silent, stale = nag. A throwaway HOME keeps the weekly-review nags quiet
+  // so the closure lines are the only signal; the turn-state dir is isolated per-test.
+  {
+    const SEC_PER_DAY = 86400;
+    const PAST_THRESHOLD_DAYS = 4; // > the hook's 2d inbox threshold
+    const README_AGE_DAYS = 9; // arbitrary old age for the never-counted README
+    const STALE_SESSION_DAYS = 6; // backdate SESSION before its repo's last commit
+    const ageFile = (p, days) => { const t = Date.now() / 1000 - days * SEC_PER_DAY; utimesSync(p, t, t); };
+    const closureHome = mkdtempSync(join(tmpdir(), 'kit-home-'));
+    fixtures.push(closureHome);
+    const enc = closureHome.replace(/[:\\/ ]/g, '-');
+    mkdirSync(join(closureHome, '.claude', 'projects', enc, 'memory'), { recursive: true });
+    writeFileSync(join(closureHome, '.claude', 'projects', enc, 'memory', '.last-reviewed'), '');
+    writeFileSync(join(closureHome, '.claude', '.maintenance-last-reviewed'), '');
+    const turnDir = mkdtempSync(join(tmpdir(), 'kit-turn-'));
+    fixtures.push(turnDir);
+    const env = { ...homeEnv(closureHome), CLAUDE_KIT_TURN_STATE: turnDir };
+
+    // A reusable adopted repo factory: config (uat default), inbox/, tickets/.
+    const mkProj = (uat) => {
+      const d = adopted(false);
+      execFileSync('git', ['config', 'user.email', 't@t'], { cwd: d, stdio: 'ignore' });
+      execFileSync('git', ['config', 'user.name', 't'], { cwd: d, stdio: 'ignore' });
+      writeFileSync(join(d, '.ai', 'config.yml'), `uat:\n  default: ${uat}\nids:\n  key: "KIT"\n`);
+      mkdirSync(join(d, '.ai', 'inbox'), { recursive: true });
+      mkdirSync(join(d, '.ai', 'tickets'), { recursive: true });
+      return d;
+    };
+    const reviewTicket = (d, id, age) => {
+      const p = join(d, '.ai', 'tickets', `${id}-x.md`);
+      writeFileSync(p, `---\nid: ${id}\ntitle: a review item\nstatus: review\n---\n`);
+      if (age !== undefined) ageFile(p, age);
+      return p;
+    };
+
+    // -- inbox-age nag -------------------------------------------------------
+    const freshIb = mkProj('required');
+    writeFileSync(join(freshIb, '.ai', 'inbox', 'a.md'), '(idea) new\n'); // just-created → fresh
+    let r = hook('housekeeping.mjs', {}, freshIb, env);
+    ok('housekeeping: fresh inbox stays silent (KIT-T062)', r.code === 0 && !r.out.includes('INBOX UN-TRIAGED'));
+
+    const staleInbox = mkProj('required');
+    const ib = join(staleInbox, '.ai', 'inbox', 'old.md');
+    writeFileSync(ib, '(idea) stale\n');
+    ageFile(ib, PAST_THRESHOLD_DAYS);
+    writeFileSync(join(staleInbox, '.ai', 'inbox', 'README.md'), '# inbox\n'); // README is never counted
+    ageFile(join(staleInbox, '.ai', 'inbox', 'README.md'), README_AGE_DAYS);
+    r = hook('housekeeping.mjs', {}, staleInbox, env);
+    ok('housekeeping: stale inbox item nags with count + oldest age (KIT-T062)',
+      r.code === 0 && /INBOX UN-TRIAGED: 1 item\(s\).*oldest 4d/.test(r.out));
+    ok('housekeeping: inbox README is not counted as a capture (KIT-T062)',
+      !/INBOX UN-TRIAGED: 2 item/.test(r.out));
+
+    // -- review-queue nag (uat=required) waits on the human ------------------
+    const noReview = mkProj('required');
+    r = hook('housekeeping.mjs', {}, noReview, env);
+    ok('housekeeping: empty review queue stays silent (KIT-T062)', r.code === 0 && !r.out.includes('REVIEW QUEUE'));
+
+    const withReview = mkProj('required');
+    reviewTicket(withReview, 'KIT-T201');
+    reviewTicket(withReview, 'KIT-T202');
+    r = hook('housekeeping.mjs', {}, withReview, env);
+    ok('housekeeping: review queue nags, phrased as waiting on the human (KIT-T062)',
+      r.code === 0 && r.out.includes('REVIEW QUEUE') && /waiting on YOUR `\/done`/.test(r.out));
+    ok('housekeeping: small review queue lists the ids (KIT-T062)',
+      r.out.includes('KIT-T201') && r.out.includes('KIT-T202'));
+
+    // -- uat=none: review IS the agent's to close → naturally SILENT --------
+    const uatNone = mkProj('none');
+    reviewTicket(uatNone, 'KIT-T301');
+    reviewTicket(uatNone, 'KIT-T302');
+    r = hook('housekeeping.mjs', {}, uatNone, env);
+    ok('housekeeping: review nag is SILENT under uat=none (KIT-T062 / KIT-D034)',
+      r.code === 0 && !r.out.includes('REVIEW QUEUE'));
+
+    // -- Stop: review queue GREW this turn (one line, only on growth) -------
+    {
+      const grow = mkProj('required');
+      const turn2 = mkdtempSync(join(tmpdir(), 'kit-turn-'));
+      fixtures.push(turn2);
+      const genv = { ...homeEnv(closureHome), CLAUDE_KIT_TURN_STATE: turn2 };
+      reviewTicket(grow, 'KIT-T401'); // queue = 1 at SessionStart
+      hook('housekeeping.mjs', {}, grow, genv); // SessionStart snapshots the count
+      let s = hook('housekeeping.mjs', { hook_event_name: 'Stop' }, grow, genv);
+      ok('housekeeping Stop: no growth → silent about the review queue (KIT-T062)', s.code === 0 && !s.out.includes('Review queue GREW'));
+      reviewTicket(grow, 'KIT-T402'); // queue grows to 2 during the turn
+      s = hook('housekeeping.mjs', { hook_event_name: 'Stop' }, grow, genv);
+      ok('housekeeping Stop: review queue GREW this turn nags once (KIT-T062)',
+        s.code === 0 && /Review queue GREW this turn \(1 → 2\)/.test(s.out));
+      // uat=none never accrues a queue, so Stop is silent even as review tickets appear
+      const growNone = mkProj('none');
+      const turn3 = mkdtempSync(join(tmpdir(), 'kit-turn-'));
+      fixtures.push(turn3);
+      const nenv = { ...homeEnv(closureHome), CLAUDE_KIT_TURN_STATE: turn3 };
+      hook('housekeeping.mjs', {}, growNone, nenv);
+      reviewTicket(growNone, 'KIT-T501');
+      s = hook('housekeeping.mjs', { hook_event_name: 'Stop' }, growNone, nenv);
+      ok('housekeeping Stop: uat=none stays silent about review growth (KIT-T062)', s.code === 0 && !s.out.includes('Review queue GREW'));
+    }
+
+    // -- orient: SESSION.md staleness, one line, only when stale ------------
+    {
+      const so = mkProj('required');
+      writeFileSync(join(so, 'f.txt'), 'x\n');
+      execFileSync('git', ['add', '-A'], { cwd: so, stdio: 'ignore' });
+      execFileSync('git', ['commit', '-q', '-m', 'KIT-T062 seed'], { cwd: so, stdio: 'ignore' });
+      const sess = join(so, '.ai', 'SESSION.md');
+      writeFileSync(sess, '# SESSION\nfresh\n'); // written AFTER the commit → current
+      let ro = hook('orient.mjs', {}, so);
+      ok('orient: a SESSION newer than the last commit is NOT flagged stale (KIT-T062)', !ro.out.includes('SESSION.md is STALE'));
+      ageFile(sess, STALE_SESSION_DAYS); // backdate SESSION before the commit
+      ro = hook('orient.mjs', {}, so);
+      ok('orient: a SESSION older than the last commit is flagged stale, one line (KIT-T062)',
+        ro.out.includes('SESSION.md is STALE') && /STALE \(\d+d/.test(ro.out));
+    }
   }
 
   // hydrate-cache: contract = NEVER wedges; DB isolated via CLAUDE_PLUGIN_ROOT.

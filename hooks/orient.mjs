@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
-import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, centralDataRoot, globToRegExp, WIP_FILES, WIP_COMMITS } from './lib.mjs';
+import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, centralDataRoot, globToRegExp, sessionStale, WIP_FILES, WIP_COMMITS } from './lib.mjs';
 // q.mjs / id-utils.mjs are imported DYNAMICALLY at their (try-wrapped) use sites so a
 // broken scripts/ tree degrades that one section instead of crashing orientation (KIT-T055).
 
@@ -150,6 +150,10 @@ if (divergedLabels.length) {
 if (existsSync(session)) {
   out.push('');
   out.push('--- .ai/SESSION.md (working memory — resume here) ---');
+  // KIT-T062: a plan-of-record staler than the last commit is "itself a failure" (the contract).
+  // One line, only when SESSION pre-dates HEAD — silent when current. Fail-open inside the helper.
+  const ss = sessionStale(root);
+  if (ss.stale) out.push(`!! SESSION.md is STALE (${ss.sessionDays}d, older than the last commit) — reconcile it to the work below before trusting it.`);
   out.push(head(session, SESSION_LINES));
 }
 if (roadmap) {

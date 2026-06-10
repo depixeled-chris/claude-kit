@@ -10,7 +10,7 @@
 import { statSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { payload, MAINT_LOG, git, gitRoot, adopted, wipSummary } from './lib.mjs';
+import { payload, MAINT_LOG, git, gitRoot, adopted, wipSummary, scanInbox, scanReviewQueue, readTurnState, writeTurnState } from './lib.mjs';
 
 const REVIEW_DAYS = 7;
 const MISSING_AGE = 999;
@@ -19,6 +19,9 @@ const PROJECT_TAIL = 20;
 // KIT-T054: "push at every task boundary" is contract; nag (never block) when local-only
 // commits pile up at end of turn. Threshold > 1 so a single mid-task commit stays quiet.
 const UNPUSHED_NAG = 3;
+// KIT-T062 — closure nags. The intake side is loud; make the CLOSURE side just as loud.
+const INBOX_STALE_DAYS = 2; // an inbox capture older than this is un-triaged debt
+const REVIEW_LIST_MAX = 6; // list review tickets individually below this; else count + oldest
 
 const claudeDir = join(homedir(), '.claude');
 const encodedHome = homedir().replace(/[:\\/ ]/g, '-');
@@ -33,6 +36,15 @@ function daysSince(f) {
   }
 }
 
+// Render the review queue: the FULL short list (ids) when small enough to be useful, else a
+// count + oldest age so a large backlog stays one line. Keeps the SessionStart nag scannable.
+function reviewQueueLine(rq) {
+  if (rq.count <= REVIEW_LIST_MAX && rq.ids.length) {
+    return `${rq.count} in review (${rq.ids.join(', ')})`;
+  }
+  return `${rq.count} in review, oldest ${rq.oldestDays}d`;
+}
+
 const memAge = daysSince(memTs);
 const maintAge = daysSince(maintTs);
 const p = await payload();
@@ -44,12 +56,23 @@ if (isStop) {
   if (maintAge >= REVIEW_DAYS) msgs.push(`Maintenance review is still overdue (${maintAge}d). Present the gaps summary before ending.`);
   try {
     const root = gitRoot();
-    // remote-less repos have nothing to push to — every commit would count, all noise
-    if (adopted(root) && git(['-C', root, 'remote']).trim()) {
-      const unpushed = wipSummary(root).unpushed.length;
-      if (unpushed >= UNPUSHED_NAG) {
-        msgs.push(`${unpushed} unpushed commit(s) on this repo — push at the task boundary (cross-machine rewind point).`);
+    if (adopted(root)) {
+      // remote-less repos have nothing to push to — every commit would count, all noise
+      if (git(['-C', root, 'remote']).trim()) {
+        const unpushed = wipSummary(root).unpushed.length;
+        if (unpushed >= UNPUSHED_NAG) {
+          msgs.push(`${unpushed} unpushed commit(s) on this repo — push at the task boundary (cross-machine rewind point).`);
+        }
       }
+      // KIT-T062: surface the review/UAT queue FREQUENTLY — at Stop, one line ONLY when it
+      // GREW this turn (the snapshot was written at SessionStart). uat=none projects accrue
+      // no queue, so this is naturally silent there. A null snapshot can't prove growth → quiet.
+      const rq = scanReviewQueue(root);
+      const prev = readTurnState(root);
+      if (prev && typeof prev.review === 'number' && rq.count > prev.review) {
+        msgs.push(`Review queue GREW this turn (${prev.review} → ${rq.count}) — these wait on YOUR \`/done\`, not on me.`);
+      }
+      writeTurnState(root, { review: rq.count });
     }
   } catch {
     /* fail-open — a git hiccup never blocks a stop */
@@ -92,6 +115,30 @@ if (existsSync(MAINT_LOG)) {
   } catch {
     /* best-effort */
   }
+}
+
+// KIT-T062 — closure nags for the active project (no-op unless it has adopted .ai/). Each is
+// ONE capped line, silent when clean. Also snapshot the review count so Stop can detect growth.
+try {
+  const root = gitRoot();
+  if (adopted(root)) {
+    const inbox = scanInbox(root, INBOX_STALE_DAYS);
+    if (inbox.stale) {
+      reminders.push(
+        `INBOX UN-TRIAGED: ${inbox.stale} item(s) ≥ ${INBOX_STALE_DAYS}d (oldest ${inbox.oldestDays}d) sitting in .ai/inbox/. ` +
+          `Drain it (\`/triage\`) — un-triaged capture rots silently.`,
+      );
+    }
+    // The review/UAT queue waits on the HUMAN (KIT-D033: review IS the UAT stage). Surface it
+    // every SessionStart where uat resolves `required`; uat=none accrues no queue → silent.
+    const rq = scanReviewQueue(root);
+    if (rq.count) {
+      reminders.push(`REVIEW QUEUE: ${reviewQueueLine(rq)} — waiting on YOUR \`/done\`, not on me.`);
+    }
+    writeTurnState(root, { review: rq.count });
+  }
+} catch {
+  /* closure nags are best-effort — never break orientation */
 }
 
 if (reminders.length) {
