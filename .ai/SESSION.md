@@ -1,37 +1,41 @@
 # SESSION HANDOFF — claude-kit
 
-Updated: 2026-06-03  |  Branch: main  |  Active: KIT-T001 (scope-aware /prime)
+Updated: 2026-06-09  |  Branch: main  |  Active: remediation plan committed (M1 next: KIT-T052)
 
 ## Goal (this session)
-Capture the agreed design for a scope-aware `/prime` as claude-kit's first real ticket
-(KIT-T001), and fill in this previously-empty handoff note.
-
-## Acceptance criteria (DONE = all true) — see .ai/tickets/KIT-T001-scope-aware-prime.md
-- [ ] `/prime` (no arg) → cross-project "what needs me?" briefing, waiting-on-you first
-- [ ] no-arg briefing is LAZY: deep only on the active (session-folder) project, others one-line
-- [ ] `/prime <project…>` → deep resume of named project(s) from anywhere
-- [ ] output reads like a human briefing, not a raw note dump
-- [ ] git temperature included per project when its repo is known on this machine
-- [ ] machine-local project→repo map, self-healed by orient; NOT committed to synced data
-- [ ] `npm test` covers survey + registry
+Full-plugin process review (three researcher sweeps: hooks pipeline, command/skill
+surface, live .ai store health) + token-caching review + lifecycle/provenance review →
+plan-of-record: 23 tickets (KIT-T052–T074), 4 milestones on ROADMAP.md, decisions
+KIT-D029/030/031.
 
 ## Current state
-KIT-T001 BUILT and verified — status `review`. lib.mjs (registry + shared wip/format helpers),
-orient.mjs (self-heals registry), scripts/survey.mjs (lazy briefing + named deep-dive),
-commands/prime.md (rewritten). `npm test` 21/21. Version 0.1.4. Awaiting maintainer review
-(+ `/plugin update` on other machines to ship the new prime).
+- main was DIVERGED across machines (5cb1cf3 local vs 8beb1fa remote, both editing
+  hooks/pre-write.mjs). Rebased + resolved: stylesheet checks joined the T051 exclusion
+  system under the `magic-numbers` id; finish() takes {id,msg} + excludeFooter. All 49
+  hook tests green. Rebased commit: ddcd4f1. **PUSH PENDING (push to origin/main was
+  permission-denied this session — Chris pushes).**
+- Plan committed: ROADMAP has M1-gate-integrity (T052-T059) → M2-close-the-loop
+  (T060-T064) → M3-provenance (T065-T067) → M4-one-truth (T068-T070); T071-T074
+  deliberately unscheduled (KIT-D031).
+- Inbox still holds 25 untriaged caps from 2026-06-06 (14 uncommitted); ~16 are HOD
+  items misfiled by the cap cwd-walk bug (now KIT-T067).
 
 ## Next 3 steps
-1. Maintainer: try `/prime` (lazy) and `/prime <name>` (deep); set KIT-T001 `done` if good.
-2. On other machines, `/plugin update` to pull 0.1.4 (dev-link is live here already).
-3. Then back to hustle-or-die: Rust migration A–D decisions (gated on maintainer).
+1. Chris: `git push` (main ahead of origin), review/ratify the plan tickets.
+2. `/triage` the 25-item inbox (re-home HOD strays per KIT-T067's plan; the 1813 cap
+   promotes to KIT-T067).
+3. Drain M1 starting at KIT-T052 (commit-gate PowerShell bypass — critical).
 
 ## Exact commands / facts (verbatim — do not paraphrase)
-- claude-kit is LOCAL-mode (.ai/ lives in-repo; no .claude-project). IDs: KIT-<TYPE><NUM> (KIT-T001, KIT-D010; pad 3).
-- This is claude-kit's FIRST ticket — prior work (plugin, hooks, KIT-D008/9/10) was tracked via
-  decisions + the hustle-or-die pilot notebook. KIT-T001 starts claude-kit tracking itself.
-- Builds on KIT-D010 (orient already surfaces per-repo working-tree temperature + watch_repos).
+- Conflict resolution: PREPROC stylesheet block in hooks/pre-write.mjs exits early via
+  `excludedFile('magic-numbers')`; entries are `{id, msg}`; reporter is `finish()`.
+- Test runs: `node scripts/test-hooks.mjs` (31 pass) + `node hooks/exclusions.test.mjs`
+  (18 pass).
+- Next ids at time of writing: tickets KIT-T075, decisions KIT-D032.
+- Native Claude Code `/status` built-in collides with the kit's /status → KIT-D029
+  (keep /standup, delete /status in KIT-T068).
 
 ## Re-prime line (paste into a fresh session)
-Read .ai/SESSION.md, the active ticket .ai/tickets/KIT-T001-*.md. Confirm scope, then
-continue from "Next 3 steps". Nothing built yet — get the go before editing files.
+Read .ai/SESSION.md and .ai/ROADMAP.md. Plan-of-record is KIT-T052–T074 across M1–M4.
+If main is still ahead of origin, ask Chris to push before starting M1. Then /drain M1
+(KIT-T052 first). Confirm scope before editing files.
