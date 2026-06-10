@@ -7,19 +7,6 @@ onto a milestone by setting their `milestone:` frontmatter. The drain works the
 
 ## Current milestone
 
-## M1-gate-integrity — the gates stop lying and stop leaking
-Rationale: every other milestone trusts the enforcement layer; fix the layer first.
-- [ ] KIT-T052 commit-gate fires on PowerShell + judges the commit's pathspec (critical)
-- [ ] KIT-T053 sync-data truthful receipts — verify push, handle divergence (critical)
-- [ ] KIT-T054 orient divergence detection + unpushed-work nag
-- [ ] KIT-T055 pre-write fail-open guard + lib readdirSync import bug
-- [ ] KIT-T056 query-gate hardening (pipe-segment escape, store-path false positive)
-- [ ] KIT-T058 tests for the zero-test hooks
-- [ ] KIT-T057 retire legacy .claudekit-ignore
-- [ ] KIT-T059 lib consolidation (one glob, one ext-parser, one root-walk, one id-regex)
-
-## Upcoming
-
 ## M2-close-the-loop — the system gets as loud about unfinished work as uncaptured work
 Rationale: 0 tickets ever done, 23 in review, inbox rots silently — closure is the
 weakest stage of the lifecycle and it poisons regression tracking downstream.
@@ -54,4 +41,13 @@ templates, command overlap, config drift) each breed future misbehavior.
      inbox (re-home HOD strays per KIT-T067). -->
 
 ## Shipped
-<!-- move completed milestones here -->
+
+## M1-gate-integrity — shipped 2026-06-10 (all 8 done + archived, UAT per KIT-D034)
+- [x] KIT-T052 commit-gate fires on PowerShell + judges the commit's pathspec
+- [x] KIT-T053 sync-data truthful receipts — verify push, handle divergence
+- [x] KIT-T054 orient divergence detection + unpushed-work nag
+- [x] KIT-T055 pre-write fail-open guard + lib readdirSync import bug
+- [x] KIT-T056 query-gate hardening (pipe-segment escape, store-path false positive)
+- [x] KIT-T058 tests for the zero-test hooks
+- [x] KIT-T057 retire legacy .claudekit-ignore
+- [x] KIT-T059 lib consolidation (one glob, one ext-parser, one root-walk, one id-regex)

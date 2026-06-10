@@ -4,7 +4,7 @@ title: Sessions must be cache-backed, searchable, and history-tracked across ses
 
 ORPHAN CEREMONY (added): open/close are PAIRED lifecycle events; a session that started but never properly closed (crash, /clear or end without flush, machine died) is an ORPHAN. On SessionStart, detect the unclosed prior session and CLOSE IT with the proper ceremony (flush a final summary, stamp a close/boundary event, mark it closed in the store) BEFORE opening the new one — never silently overwrite/adopt. So: SessionStart = reconcile-then-open (close any orphan first), SessionEnd/PreCompact/Stop = clean close. State machine: open -> closed | orphaned->closed. This makes "clean breaks" enforced, not best-effort.
 type: feature
-status: todo
+status: superseded
 priority: medium
 milestone:             # blank = backlog; set to schedule onto ROADMAP.md
 labels: []

@@ -7,3 +7,4 @@ superseded when a newer one sets `supersedes:` (or it carries `superseded_by:` /
 
 - **KIT-T037**  →  **KIT-T014**  · 1 superseded
 - **# ticket id this one RETIRES (set on the NEWER ticket)**  →  **KIT-T043**  · 1 superseded
+- **KIT-T060**  →  **KIT-T075**  · 1 superseded
