@@ -10,12 +10,15 @@
 import { statSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { payload, MAINT_LOG } from './lib.mjs';
+import { payload, MAINT_LOG, git, gitRoot, adopted, wipSummary } from './lib.mjs';
 
 const REVIEW_DAYS = 7;
 const MISSING_AGE = 999;
 const MS_PER_DAY = 86400000;
 const PROJECT_TAIL = 20;
+// KIT-T054: "push at every task boundary" is contract; nag (never block) when local-only
+// commits pile up at end of turn. Threshold > 1 so a single mid-task commit stays quiet.
+const UNPUSHED_NAG = 3;
 
 const claudeDir = join(homedir(), '.claude');
 const encodedHome = homedir().replace(/[:\\/ ]/g, '-');
@@ -39,6 +42,18 @@ if (isStop) {
   const msgs = [];
   if (memAge >= REVIEW_DAYS) msgs.push(`Memory review is still overdue (${memAge}d). Present the rundown before ending.`);
   if (maintAge >= REVIEW_DAYS) msgs.push(`Maintenance review is still overdue (${maintAge}d). Present the gaps summary before ending.`);
+  try {
+    const root = gitRoot();
+    // remote-less repos have nothing to push to — every commit would count, all noise
+    if (adopted(root) && git(['-C', root, 'remote']).trim()) {
+      const unpushed = wipSummary(root).unpushed.length;
+      if (unpushed >= UNPUSHED_NAG) {
+        msgs.push(`${unpushed} unpushed commit(s) on this repo — push at the task boundary (cross-machine rewind point).`);
+      }
+    }
+  } catch {
+    /* fail-open — a git hiccup never blocks a stop */
+  }
   if (msgs.length) {
     process.stdout.write('[housekeeping] pending before end-of-session:\n' + msgs.map((m) => '  - ' + m).join('\n') + '\n');
   }

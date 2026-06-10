@@ -9,6 +9,8 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { aheadBehind } from '../hooks/lib.mjs';
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HOOKS = join(ROOT, 'hooks');
 const SCRIPTS = join(ROOT, 'scripts');
@@ -96,6 +98,57 @@ try {
   execFileSync('git', ['add', 'README.md'], { cwd: stagedDocs, stdio: 'ignore' });
   ok('commit-gate: bare commit judges the staged set, not the dirty tree (KIT-T052)',
     hook('commit-gate.mjs', { tool_input: { command: `git -C ${stagedDocs} commit -m x` } }, clean).code === 0);
+
+  // aheadBehind + unpushed nag (KIT-T054)
+  {
+    const base = mkdtempSync(join(tmpdir(), 'kit-ab-'));
+    fixtures.push(base);
+    const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const bare = join(base, 'r.git');
+    mkdirSync(bare);
+    g(['init', '-q', '--bare', bare], base);
+    const cloneOf = (name) => {
+      const d = join(base, name);
+      g(['clone', '-q', bare, d], base);
+      g(['config', 'user.email', 't@t'], d);
+      g(['config', 'user.name', 't'], d);
+      return d;
+    };
+    const a = cloneOf('a');
+    writeFileSync(join(a, 'f.txt'), 'seed\n');
+    g(['add', '-A'], a); g(['commit', '-q', '-m', 'seed'], a); g(['push', '-q', '-u', 'origin', 'HEAD'], a);
+    const b = cloneOf('b');
+
+    writeFileSync(join(b, 'g.txt'), 'B\n');
+    g(['add', '-A'], b); g(['commit', '-q', '-m', 'B1'], b); g(['push', '-q'], b);
+    let ab = aheadBehind(a, { fetch: true });
+    ok('aheadBehind: behind-only after the other machine pushes', !!ab && ab.ahead === 0 && ab.behind === 1 && !ab.diverged);
+
+    writeFileSync(join(a, 'f.txt'), 'A\n');
+    g(['add', '-A'], a); g(['commit', '-q', '-m', 'A1'], a);
+    ab = aheadBehind(a);
+    ok('aheadBehind: diverged when both machines moved', !!ab && ab.ahead === 1 && ab.behind === 1 && ab.diverged);
+
+    g(['pull', '-q', '--rebase'], a);
+    ab = aheadBehind(a);
+    ok('aheadBehind: ahead-only after rebase', !!ab && ab.ahead === 1 && ab.behind === 0 && !ab.diverged);
+
+    g(['remote', 'set-url', 'origin', join(base, 'nonexistent.git')], a);
+    ab = aheadBehind(a, { fetch: true });
+    ok('aheadBehind: offline fetch fails open (stale counts, no throw)', !!ab && ab.ahead === 1 && ab.behind === 0);
+
+    ok('aheadBehind: no upstream -> null', aheadBehind(repo()) === null);
+
+    // Stop-time unpushed nag: adopted repo, remote configured, >=3 local-only commits
+    g(['remote', 'set-url', 'origin', bare], a);
+    mkdirSync(join(a, '.ai'));
+    writeFileSync(join(a, 'h.txt'), '1\n'); g(['add', '-A'], a); g(['commit', '-q', '-m', 'c2'], a);
+    writeFileSync(join(a, 'h.txt'), '2\n'); g(['add', '-A'], a); g(['commit', '-q', '-m', 'c3'], a);
+    const nag = hook('housekeeping.mjs', { hook_event_name: 'Stop' }, a);
+    ok('housekeeping Stop nags on unpushed pile-up', nag.code === 0 && nag.out.includes('unpushed commit(s)'), );
+    const fresh = hook('housekeeping.mjs', { hook_event_name: 'Stop' }, clean);
+    ok('housekeeping Stop stays quiet about pushes on a clean repo', fresh.code === 0 && !fresh.out.includes('unpushed commit(s)'));
+  }
 
   // pre-write (code-quality gate; strings are stripped so payload 42s are intentional)
   ok('pre-write: bare magic number blocks (non-declaration line)',

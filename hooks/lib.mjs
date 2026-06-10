@@ -82,6 +82,27 @@ export function wipSummary(repoRoot) {
   };
 }
 
+// Ahead/behind vs upstream for a repo's current branch, with an optional bounded fetch
+// so cross-machine divergence is visible at session start (KIT-T054 — wipSummary alone
+// is ahead-only, which made a diverged main invisible until `git pull` failed mid-task).
+// Fail-open everywhere: offline fetch is swallowed (counts run against last-known remote
+// refs), and no-upstream / detached HEAD return null so callers degrade gracefully.
+const FETCH_TIMEOUT_MS = 4000;
+export function aheadBehind(repoRoot, { fetch = false } = {}) {
+  if (fetch) {
+    try {
+      execFileSync('git', ['-C', repoRoot, 'fetch', '--quiet'], { stdio: 'ignore', timeout: FETCH_TIMEOUT_MS });
+    } catch {
+      /* offline / slow / no remote — judge against the refs we have */
+    }
+  }
+  const m = git(['-C', repoRoot, 'rev-list', '--left-right', '--count', 'HEAD...@{upstream}']).trim().match(/^(\d+)\s+(\d+)$/);
+  if (!m) return null;
+  const ahead = Number(m[1]);
+  const behind = Number(m[2]);
+  return { ahead, behind, diverged: ahead > 0 && behind > 0 };
+}
+
 // Multi-line working-tree readout for one repo, shared by orient (single-project resume)
 // and survey (cross-project deep view) so the format is defined once.
 export const WIP_FILES = 12; // uncommitted files listed before collapsing to "+N more"

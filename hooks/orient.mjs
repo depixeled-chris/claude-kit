@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
-import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, WIP_FILES, WIP_COMMITS } from './lib.mjs';
+import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, WIP_FILES, WIP_COMMITS } from './lib.mjs';
 import { query } from '../scripts/q.mjs';
 import { readIdConfig } from '../scripts/id-utils.mjs';
 
@@ -138,7 +138,21 @@ for (const rel of watchRepos(root)) {
 }
 out.push('');
 out.push('--- Working tree (uncommitted + unpushed — reconcile vs the plan; the record may lag reality) ---');
-for (const [r, label] of repos) out.push(formatWip(label, r, WIP_FILES, WIP_COMMITS));
+// KIT-T054: per-repo ahead/behind vs origin (bounded fetch, fail-open offline). DIVERGED
+// means two machines hold history the other lacks — the case that produced a mid-task
+// merge conflict; it gets a banner at the very top, not a buried line.
+const divergedLabels = [];
+for (const [r, label] of repos) {
+  out.push(formatWip(label, r, WIP_FILES, WIP_COMMITS));
+  const ab = aheadBehind(r, { fetch: true });
+  if (ab && (ab.behind || ab.diverged)) {
+    out.push(`  vs origin: ahead ${ab.ahead} / behind ${ab.behind}${ab.diverged ? ' — DIVERGED' : ''}`);
+    if (ab.diverged) divergedLabels.push(label);
+  }
+}
+if (divergedLabels.length) {
+  out.splice(1, 0, `!! DIVERGED FROM ORIGIN: ${divergedLabels.join(', ')} — fetch + rebase BEFORE working; two machines hold different history.`);
+}
 
 if (existsSync(session)) {
   out.push('');
