@@ -2,9 +2,9 @@
 // SessionStart — inject the on-disk record into a fresh/compacted context so work
 // never starts blind. No-ops unless the repo has adopted .ai/.
 
-import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
-import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, WIP_FILES, WIP_COMMITS } from './lib.mjs';
+import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, centralDataRoot, globToRegExp, WIP_FILES, WIP_COMMITS } from './lib.mjs';
 // q.mjs / id-utils.mjs are imported DYNAMICALLY at their (try-wrapped) use sites so a
 // broken scripts/ tree degrades that one section instead of crashing orientation (KIT-T055).
 
@@ -73,7 +73,9 @@ const recentDecisions = (n) => {
   }).join('\n');
 };
 const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
-const globToRe = (g) => new RegExp('^' + g.split('*').map((p) => p.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$', 'i');
+// `paths:` globs use lib's ONE dialect (KIT-T059): `**` any depth, `*` within a segment.
+// (Previously a private dialect where bare `*` matched across `/` — decisions relying on
+// that must say `**`.)
 // STANDING decisions are the anti-relitigation backbone — settled calls that must never be
 // re-asked. But surfacing ALL of them every session is unsustainable + wasteful, so they are
 // SCOPE-FILTERED: a standing decision shows only when it pertains to what this session is
@@ -90,7 +92,7 @@ const standingDecisions = (signals, changed) => {
   const inScope = (m) => {
     if (!m.scope && !m.paths.length) return true; // global invariant
     if (m.scope && sig.includes(m.scope.toLowerCase())) return true;
-    return m.paths.some((g) => { const re = globToRe(g); return changed.some((p) => re.test(p)); });
+    return m.paths.some((g) => { const re = globToRegExp(g); return changed.some((p) => re.test(p)); });
   };
   const shown = all.filter(inScope);
   const deferred = all.filter((m) => !inScope(m));
@@ -118,16 +120,7 @@ out.push(git(['-C', root, 'log', '--oneline', `-${COMMITS}`]).trim());
 // Resolve the central data repo (centralized projects: .ai is a junction into it; local
 // projects: .ai is in-repo, so this stays null), then self-heal the machine-local registry
 // so the cross-project /prime briefing can later find this project's repo on this machine.
-let dataRoot = null;
-try {
-  const ai = join(root, '.ai');
-  if (existsSync(ai)) {
-    const dr = gitRoot(realpathSync(ai));
-    if (dr && realpathSync(dr) !== realpathSync(root)) dataRoot = dr;
-  }
-} catch {
-  /* no .ai junction */
-}
+const dataRoot = centralDataRoot(root);
 recordProject(projectName(root), root, dataRoot);
 
 const repos = [[root, `project (${basename(root)})`]];

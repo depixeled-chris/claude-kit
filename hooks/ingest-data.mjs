@@ -8,21 +8,8 @@
 // FAIL-OPEN: a sync error (or no engine, or a non-store path) must NEVER wedge the tool call.
 // Every path exits 0; the worst case is a slightly stale cache the Stop-hook refresh repairs.
 
-import { existsSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
-import { payload } from './lib.mjs';
-
-// The nearest ancestor of `start` whose <dir>/.ai/config.yml exists — the project root whose
-// store the file belongs to. Mirrors cap.mjs's walk so capture + ingest agree on "which store".
-function findRoot(start) {
-  let dir = resolve(start);
-  for (;;) {
-    if (existsSync(join(dir, '.ai', 'config.yml'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) return null;
-    dir = parent;
-  }
-}
+import { payload, storeRoot } from './lib.mjs';
 
 try {
   const p = await payload();
@@ -30,7 +17,7 @@ try {
   if (!file) process.exit(0);
 
   const norm = resolve(file);
-  const root = findRoot(dirname(norm));
+  const root = storeRoot(resolve(dirname(norm)));
   if (!root) process.exit(0); // not under any managed .ai store
 
   // Only ingest edits that actually live INSIDE that root's .ai store dir (a sibling source

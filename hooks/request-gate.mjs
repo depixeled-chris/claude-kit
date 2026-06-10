@@ -13,7 +13,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { gitRoot, adopted, payload, pathExcluded, excludeFooter } from './lib.mjs';
+import { gitRoot, adopted, payload, pathExcluded, excludeFooter, loadCaptureConfig, ID_CITE_SRC } from './lib.mjs';
 
 // Built-in defaults — overridable/extendable via `capture.signals` in .ai/config.yml.
 // Two families: polite/future asks AND blunt imperatives / bug reports / feel-tuning (the way
@@ -37,7 +37,12 @@ const DEFAULT_SIGNALS = [
 ];
 
 // A reply satisfies the gate if it carries a routing receipt or an explicit dismissal.
-const RECEIPT = /\[no-?capture\b|(?:→|->)\s*[^\n]*\b(logged|filed|captured|routed|recorded|opened|amended)\b|\b[A-Z]{2,}-[A-Z]\d{1,4}\b[^\n]*\b(logged|filed|captured|recorded|amended|created|opened)\b/i;
+// The id atom is the shared ID_CITE_SRC (KIT-T059 — this regex previously accepted any
+// [A-Z] type letter while commit-gate required [TDNQ]).
+const RECEIPT = new RegExp(
+  String.raw`\[no-?capture\b|(?:→|->)\s*[^\n]*\b(logged|filed|captured|routed|recorded|opened|amended)\b|\b${ID_CITE_SRC}\b[^\n]*\b(logged|filed|captured|recorded|amended|created|opened)\b`,
+  'i',
+);
 
 // The file-valve counts only NEW frictionless captures (the inbox — where `cap` writes). It
 // deliberately does NOT count tickets/decisions/etc., because active work edits those EVERY
@@ -55,7 +60,7 @@ async function main() {
   const root = gitRoot();
   if (!adopted(root)) process.exit(0);
 
-  const cfg = loadCapture(root);
+  const cfg = loadCaptureConfig(root, DEFAULT_SIGNALS);
   if (cfg.enabled === false) process.exit(0);
   // KIT-T051: a repo-wide exclusion (a glob covering the .ai store under `request-capture`
   // or '*') disables this process gate, mirroring `capture.enabled: false`.
@@ -155,30 +160,5 @@ function capturedSince(root, ms) {
   return false;
 }
 
-// --- config (tolerant scan; no YAML dep, mirroring lib.mjs's approach) ---------
-
-function loadCapture(root) {
-  const out = { enabled: true, mode: 'block-once', signals: compile(DEFAULT_SIGNALS) };
-  let text;
-  try { text = readFileSync(join(root, '.ai', 'config.yml'), 'utf8'); } catch { return out; }
-  const block = text.match(/^capture:[ \t]*\n((?:[ \t]+.*\n?)*)/m);
-  if (!block) return out;
-  const body = block[1];
-  if (/^\s*enabled:\s*false\b/m.test(body)) out.enabled = false;
-  const mode = body.match(/^\s*mode:\s*["']?([a-z-]+)/m);
-  if (mode) out.mode = mode[1];
-  const sig = body.match(/^\s*signals:[ \t]*\n((?:\s*-\s*.*\n?)+)/m);
-  if (sig) {
-    const list = [...sig[1].matchAll(/^\s*-\s*["']?(.+?)["']?\s*$/gm)].map((m) => m[1]);
-    if (list.length) out.signals = compile(list);
-  }
-  return out;
-}
-
-function compile(patterns) {
-  const res = [];
-  for (const p of patterns) {
-    try { res.push(new RegExp(p, 'i')); } catch { /* skip a bad pattern, keep the rest */ }
-  }
-  return res;
-}
+// Config parsing lives in lib.loadCaptureConfig (KIT-T059) — one home for every
+// tolerant YAML-subset scanner.

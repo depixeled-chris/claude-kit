@@ -1,6 +1,6 @@
 # SESSION HANDOFF — claude-kit
 
-Updated: 2026-06-09  |  Branch: main  |  Active: remediation plan committed (M1 next: KIT-T052)
+Updated: 2026-06-09 (drain)  |  Branch: main  |  Active: M1 COMPLETE — all 8 tickets (T052-T059) at review; M2 next (T075 first)
 
 ## Goal (this session)
 Full-plugin process review (three researcher sweeps: hooks pipeline, command/skill
@@ -21,10 +21,12 @@ KIT-D029/030/031.
   items misfiled by the cap cwd-walk bug (now KIT-T067).
 
 ## Next 3 steps
-1. Chris: `git push` (main ahead of origin), review/ratify the plan tickets.
-2. `/triage` the 25-item inbox (re-home HOD strays per KIT-T067's plan; the 1813 cap
-   promotes to KIT-T067).
-3. Drain M1 starting at KIT-T052 (commit-gate PowerShell bypass — critical).
+1. Chris: `git push` (main far ahead of origin; push denied to agent) + review M1's 8
+   tickets in `review`: T052 5a3c5c2 · T053 8ae7430 · T054 f6c0caa · T055 27c7ee1 ·
+   T056 c0f8cdd · T058 fbee936 · T057 f7593ce · T059 (this commit).
+2. `/triage` the 25-item inbox (re-home HOD strays per KIT-T067) + sweep HOD standing
+   decisions for single-`*` paths globs (T059 dialect change, see its Notes).
+3. Drain M2: KIT-T075 (mutation CLI) first, then T061/T062/T063/T064.
 
 ## Exact commands / facts (verbatim — do not paraphrase)
 - Conflict resolution: PREPROC stylesheet block in hooks/pre-write.mjs exits early via

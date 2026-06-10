@@ -5,7 +5,7 @@
 
 import { existsSync } from 'node:fs';
 import { basename, dirname, isAbsolute, resolve } from 'node:path';
-import { payload, projectRoot, pathExcluded, markerExcludedLines, excludeFooter } from './lib.mjs';
+import { payload, projectRoot, pathExcluded, markerExcludedLines, excludeFooter, VENDORED, LOCKFILES, fileExt } from './lib.mjs';
 
 // Fail-open guard (KIT-T055): an unexpected throw anywhere below must never wedge a
 // write. The HOOK CONTRACT requires EXPLICIT fail-open; before this, an uncaught throw
@@ -87,10 +87,8 @@ const content = (p.tool_input && (p.tool_input.content ?? p.tool_input.new_strin
 if (!file) process.exit(0);
 
 const norm = file.replace(/\\/g, '/');
-if (/\/(node_modules|vendor|\.venv|venv|dist|build|target|\.git)\//.test(norm)) process.exit(0);
-if (/(\.lock|\.sum)$|(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|poetry\.lock|uv\.lock)$/.test(norm)) {
-  process.exit(0);
-}
+if (VENDORED.test(norm)) process.exit(0);
+if (LOCKFILES.test(norm)) process.exit(0);
 // Legacy `.claudekit-ignore` (whole-repo, every check silently off) is RETIRED
 // (KIT-T057) — a blanket bypass contradicted "halts in anything but exclusions".
 // Finding one now WARNS with the .claude-kit-ignore.yaml migration and is not honored.
@@ -113,7 +111,7 @@ for (let dir = dirname(norm); ; ) {
 const base = basename(norm);
 if (/^(LICENSE|COPYING|NOTICE|AUTHORS)(\..*)?$/.test(base)) process.exit(0);
 
-const ext = base.includes('.') ? base.split('.').pop().toLowerCase() : '';
+const ext = fileExt(norm);
 
 // Unified exclusion (KIT-T051): a check is skipped for this file when its path matches a
 // glob under that check-id (or '*') in .claude-kit-ignore.yaml, OR the whole file is

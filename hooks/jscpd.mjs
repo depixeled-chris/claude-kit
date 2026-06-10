@@ -6,8 +6,8 @@
 // whose gap-dedup key never matched the log format.
 
 import { existsSync } from 'node:fs';
-import { dirname, basename } from 'node:path';
-import { payload, VENDORED, nodeCli, runStatus, logGap, projectRoot, pathExcluded, excludeFooter } from './lib.mjs';
+import { dirname } from 'node:path';
+import { payload, VENDORED, fileExt, nodeCli, runStatus, logGap, projectRoot, pathExcluded, excludeFooter } from './lib.mjs';
 
 const THRESHOLD_PCT = 5;
 const MIN_LINES = 8;
@@ -21,7 +21,7 @@ if (!file || !existsSync(file)) process.exit(0);
 
 const norm = file.replace(/\\/g, '/');
 if (VENDORED.test(norm)) process.exit(0);
-const ext = basename(norm).includes('.') ? basename(norm).split('.').pop().toLowerCase() : '';
+const ext = fileExt(norm);
 if (SKIP_EXT.has(ext)) process.exit(0);
 
 const dir = dirname(file);

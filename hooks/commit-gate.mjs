@@ -4,7 +4,7 @@
 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { payload, git, gitRoot, adopted, pathExcluded, excludeFooter } from './lib.mjs';
+import { payload, git, gitRoot, adopted, pathExcluded, excludeFooter, ID_CITE_SRC } from './lib.mjs';
 
 const CODE = new Set(
   'ts tsx js jsx mjs cjs rs py go java rb php cs swift kt c cc cpp cxx h hpp css scss sass less vue svelte sql'.split(' '),
@@ -134,8 +134,8 @@ if (changed.some((f) => /(^|\/)(ROADMAP|DECISIONS)\.md$/i.test(f) || /\.ai\/(tic
   process.exit(0);
 }
 // Commit cites a logged item, or explicitly overrides? Scheme <KEY>-<TYPE><NUM> (HOD-T045,
-// KIT-D010), type letter one of T/D/N/Q · or [no-log:].
-if (/\b[A-Z]{2,}-[TDNQ]\d+\b|\[no-log/.test(command)) process.exit(0);
+// KIT-D010) via the shared atom (KIT-T059) · or [no-log:].
+if (new RegExp(String.raw`\b${ID_CITE_SRC}\b|\[no-log`).test(command)) process.exit(0);
 
 // Does the change actually touch code? (docs/config-only commits are fine)
 // KIT-T051: a code file path excluded from `commit-log` doesn't count toward the
