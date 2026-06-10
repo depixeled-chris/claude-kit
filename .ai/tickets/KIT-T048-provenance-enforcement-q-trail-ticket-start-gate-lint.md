@@ -2,9 +2,9 @@
 id: KIT-T048
 title: Provenance enforcement — q trail (walk-up summary), ticket-start gate, missing-antecedent lint, item summaries
 type: feature
-status: doing
+status: todo
 priority: high
-milestone:
+milestone: M3-provenance
 labels: [process, provenance, hooks]
 links: [KIT-D028]
 files: [scripts/q.mjs]
@@ -34,3 +34,4 @@ Implement the provenance law ([[KIT-D028]]): make the trail enforced by hooks, n
 
 ## Notes
 - 2026-06-06: `q trail` shipped and dogfooded on HOD-T106 — it PROVES the failure that started this: T106's trail surfaces D015/D017/D010/D016… but NEVER reaches HOD-D003 (Rust owns world-gen), because the inception-out link to D003 was never authored; it also flags HOD-D007 as dangling and the wrong HOD-D017 in the chain. Data reconciliation (link T106/T107→D003, dispose of D017) is maintainer-gated (edits were halted).
+- 2026-06-09: was stale `doing` (phase 1 shipped in 4448742; no active work). Re-queued `todo` under M3-provenance — remaining criteria (summary frontmatter, ticket-start gate, antecedent lint, doc indexing, orient exposure) are M3 scope alongside KIT-T065/T066; doc-indexing criterion stays gated on KIT-T041/T042.

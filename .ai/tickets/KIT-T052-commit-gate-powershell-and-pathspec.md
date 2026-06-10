@@ -2,7 +2,7 @@
 id: KIT-T052
 title: commit-gate must fire on PowerShell and judge the commit's pathspec, not the whole dirty tree
 type: bug
-status: todo
+status: review
 priority: critical
 milestone: M1-gate-integrity
 labels: [hooks, gates]
@@ -27,10 +27,10 @@ Two holes in the work-log gate:
    `git commit <ticket.md>` while code is dirty early-allows.
 
 ## Acceptance Criteria
-- [ ] commit-gate matcher is `Bash|PowerShell` in hooks.json (and settings.recommended.json stays in sync — see KIT-T069).
-- [ ] The gate extracts the pathspec from the commit command and judges only the files actually being committed (fall back to the staged set for a bare `git commit`).
-- [ ] Regression tests: PowerShell-issued commit is gated; pathspec-limited docs commit passes with dirty unrelated code; pathspec-limited code commit without citation blocks.
-- [ ] Existing test-hooks suite stays green.
+- [x] commit-gate matcher is `Bash|PowerShell` in hooks.json (and settings.recommended.json stays in sync — see KIT-T069).
+- [x] The gate extracts the pathspec from the commit command and judges only the files actually being committed (fall back to the staged set for a bare `git commit`).
+- [x] Regression tests: PowerShell-issued commit is gated; pathspec-limited docs commit passes with dirty unrelated code; pathspec-limited code commit without citation blocks.
+- [x] Existing test-hooks suite stays green.
 
 ## Plan
 1. hooks.json matcher fix.
@@ -39,3 +39,14 @@ Two holes in the work-log gate:
 
 ## Notes
 - 2026-06-09: opened from the full-plugin process review (gate bypass confirmed by inspection of hooks.json:11 vs :15).
+- 2026-06-09: implemented. hooks.json matcher → `Bash|PowerShell`. commit-gate gained
+  `commitSpec()`: explicit pathspec → `git status --porcelain -- <paths>` (git does the
+  matching, renames + quoted paths handled); `-a/--all` → tracked-modified + staged; bare
+  commit → STAGED set only; unparseable → whole-dirty-tree fallback (strict direction —
+  the gate may narrow, never leak). Option parsing consumes value-taking opts (`-m`, `-F`,
+  `--fixup`, …) and honors `--` pathspec separator. Tests: 4 new (wiring assert from
+  hooks.json, docs-pathspec pass, code-pathspec block, staged-set bare commit);
+  `adopted(true)` fixture now STAGES foo.ts to match the new bare-commit semantics.
+  test-hooks 35/35, full `npm test` green. PowerShell-issued gating is enforced by the
+  matcher (hook itself is transport-agnostic — reads tool_input.command), asserted via
+  the wiring test.

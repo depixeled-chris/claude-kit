@@ -4,7 +4,7 @@
 // hooks directly (no install needed), so it's the fast pre-ship gate. exit 0 = all pass.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,7 +45,11 @@ function repo(withCode) {
 function adopted(withCode) {
   const d = repo();
   mkdirSync(join(d, '.ai'));
-  if (withCode) writeFileSync(join(d, 'foo.ts'), 'function f() { return doStuff(42); }\n');
+  if (withCode) {
+    // staged, not just untracked — KIT-T052: a bare `git commit` is judged on the STAGED set
+    writeFileSync(join(d, 'foo.ts'), 'function f() { return doStuff(42); }\n');
+    execFileSync('git', ['add', 'foo.ts'], { cwd: d, stdio: 'ignore' });
+  }
   return d;
 }
 function surveyRepo() {
@@ -73,6 +77,25 @@ try {
     hook('commit-gate.mjs', { tool_input: { command: 'git commit -m x' } }, clean).code === 0);
   ok('commit-gate: non-commit no-ops',
     hook('commit-gate.mjs', { tool_input: { command: `cd ${tgt} && git status` } }, clean).code === 0);
+
+  // commit-gate (KIT-T052: PowerShell wiring + pathspec/staged judging)
+  const wiring = JSON.parse(readFileSync(join(HOOKS, 'hooks.json'), 'utf8'));
+  const cgMatcher = wiring.hooks.PreToolUse.find((e) => e.hooks.some((h) => h.command.includes('commit-gate'))).matcher;
+  ok('commit-gate: wired for PowerShell as well as Bash', /\bBash\b/.test(cgMatcher) && /\bPowerShell\b/.test(cgMatcher));
+
+  const mixed = adopted(true); // staged foo.ts + an untracked doc
+  writeFileSync(join(mixed, 'README.md'), '# readme\n');
+  ok('commit-gate: pathspec docs-only commit passes despite dirty code (KIT-T052)',
+    hook('commit-gate.mjs', { tool_input: { command: `git -C ${mixed} commit -m x README.md` } }, clean).code === 0);
+  ok('commit-gate: pathspec code commit, no cite -> block (KIT-T052)',
+    hook('commit-gate.mjs', { tool_input: { command: `git -C ${mixed} commit -m x foo.ts` } }, clean).code === 2);
+
+  const stagedDocs = adopted(false); // docs staged, code merely untracked
+  writeFileSync(join(stagedDocs, 'foo.ts'), 'function f() { return doStuff(42); }\n');
+  writeFileSync(join(stagedDocs, 'README.md'), '# readme\n');
+  execFileSync('git', ['add', 'README.md'], { cwd: stagedDocs, stdio: 'ignore' });
+  ok('commit-gate: bare commit judges the staged set, not the dirty tree (KIT-T052)',
+    hook('commit-gate.mjs', { tool_input: { command: `git -C ${stagedDocs} commit -m x` } }, clean).code === 0);
 
   // pre-write (code-quality gate; strings are stripped so payload 42s are intentional)
   ok('pre-write: bare magic number blocks (non-declaration line)',

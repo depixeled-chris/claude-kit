@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PreToolUse (Bash) — block a `git commit` of code that isn't tied to the
+// PreToolUse (Bash|PowerShell) — block a `git commit` of code that isn't tied to the
 // plan-of-record / a ticket. exit 2 = block, 0 = allow. No-ops on unadopted repos.
 
 import { existsSync } from 'node:fs';
@@ -37,13 +37,73 @@ if (!adopted(root)) process.exit(0);
 const centralized = existsSync(join(root, '.claude-project'));
 
 const lines = (s) => s.split('\n').map((x) => x.trim()).filter(Boolean);
-const changed = [
-  ...new Set([
+const uniq = (a) => [...new Set(a)];
+
+// KIT-T052: judge the COMMIT'S file set, not the whole dirty tree.
+//   explicit pathspec -> git's own matching (`status --porcelain -- <paths>`)
+//   -a/--all          -> tracked modified + staged
+//   bare commit       -> staged set only
+// Shell parsing is heuristic: anything unrecognized falls back to the whole
+// dirty tree — the strict direction, so the gate may narrow but never leak.
+function commitSpec(cmd) {
+  const m = cmd.match(/\bgit\s+(?:-C\s+(?:"[^"]+"|'[^']+'|\S+)\s+|--?\S+\s+)*commit\b/);
+  if (!m) return { mode: 'tree' };
+  let seg = '';
+  let q = '';
+  for (const ch of cmd.slice(m.index + m[0].length)) {
+    if (q) { seg += ch; if (ch === q) q = ''; continue; }
+    if (ch === '"' || ch === "'") { q = ch; seg += ch; continue; }
+    if (ch === ';' || ch === '|' || ch === '&') break;
+    seg += ch;
+  }
+  // options whose value arrives as the NEXT token (long form without '=')
+  const VALUE_OPTS = new Set(['-m', '-F', '-t', '-c', '-C', '--message', '--file', '--template', '--author', '--date', '--cleanup', '--fixup', '--squash', '--reuse-message', '--reedit-message', '--trailer', '--pathspec-from-file']);
+  const toks = [...seg.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map((t) => t[1] ?? t[2] ?? t[3]);
+  const paths = [];
+  let all = false;
+  for (let i = 0; i < toks.length; i++) {
+    const t = toks[i];
+    if (t === '--') { paths.push(...toks.slice(i + 1)); break; }
+    if (t === '-a' || t === '--all') { all = true; continue; }
+    if (t.startsWith('--')) { if (VALUE_OPTS.has(t)) i++; continue; }
+    if (t.startsWith('-')) {
+      // short cluster (-am): 'a' flags all; a trailing value-taking letter consumes the next token
+      if (t.includes('a')) all = true;
+      if (/[mFtcC]$/.test(t)) i++;
+      continue;
+    }
+    paths.push(t);
+  }
+  if (paths.length) return { mode: 'paths', paths };
+  return { mode: all ? 'all' : 'staged' };
+}
+
+// porcelain v1: two status columns + space, renames as `R  old -> new`
+const porcelainFiles = (raw) =>
+  raw.split('\n').filter(Boolean).map((l) => {
+    let p = l.slice('XY '.length);
+    if (p.includes(' -> ')) p = p.split(' -> ').pop();
+    return p.replace(/^"|"$/g, '');
+  });
+
+const spec = commitSpec(command);
+let changed;
+if (spec.mode === 'paths') {
+  changed = uniq(porcelainFiles(git(['-C', root, 'status', '--porcelain', '--', ...spec.paths])));
+} else if (spec.mode === 'staged') {
+  changed = uniq(lines(git(['-C', root, 'diff', '--cached', '--name-only'])));
+} else if (spec.mode === 'all') {
+  changed = uniq([
+    ...lines(git(['-C', root, 'diff', '--name-only', 'HEAD'])),
+    ...lines(git(['-C', root, 'diff', '--cached', '--name-only'])),
+  ]);
+} else {
+  changed = uniq([
     ...lines(git(['-C', root, 'diff', '--name-only', 'HEAD'])),
     ...lines(git(['-C', root, 'diff', '--cached', '--name-only'])),
     ...lines(git(['-C', root, 'ls-files', '--others', '--exclude-standard'])),
-  ]),
-];
+  ]);
+}
 if (!changed.length) process.exit(0);
 
 // ID integrity: if this commit touches the markdown stores, refuse it when the

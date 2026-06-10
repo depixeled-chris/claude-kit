@@ -36,6 +36,7 @@ reach done).
 - [ ] KIT-T067 cap routing fix + re-home the ~16 misfiled HOD captures (critical — provenance roots)
 - [ ] KIT-T065 triage-time provenance inference (files → q governing items → git log candidates)
 - [ ] KIT-T066 regression link integrity in the id-integrity slot
+- [ ] KIT-T048 provenance enforcement remainder (summary frontmatter, ticket-start gate, antecedent lint — phase 1 `q trail` shipped 4448742)
 
 ## M4-one-truth — one written contract, no split-brain
 Rationale: five documented self-contradictions (Notes/History, triage semantics, ID
