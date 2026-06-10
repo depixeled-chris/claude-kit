@@ -34,6 +34,8 @@ Surface:
 - All subcommands: fail loudly on unknown id; never invent ids (next-id.mjs owns minting).
 
 ## Acceptance Criteria
+- [ ] `t new <type> "<title>"` scaffolds a ticket: mints the id via next-id, filename = id, complete valid frontmatter, section skeleton — prose body stays manual (Edit). Kills the T039-T043 placeholder-text failure class.
+- [ ] Write-time structure lint in ingest-data: malformed frontmatter on a store file warns (named field, fail-open — never blocks the write).
 - [ ] `t status` enforces config.statuses flow + human_only guard; auto History line; index regen + cache ingest in the same invocation.
 - [ ] `t status <id> done --human` archives to tickets/archive/ and prompts for fixed_commit on bug/regression types (KIT-T060 behavior absorbed).
 - [ ] `t tick` and `t link` implemented with id/shape validation; supersedes writes both sides.
@@ -52,3 +54,7 @@ Surface:
   programmatic status updates?"). Decision KIT-D032: mutations programmatic, format stays
   markdown+frontmatter (YAML-only rejected). Supersedes KIT-T060 (standalone /done) — its
   flip-tail requirements live on here as criterion 2.
+- 2026-06-10: scope extended per maintainer (CLI-vs-manual discussion): + `t new`
+  scaffolding (creation was a PROVEN failure point — T039-T043 placeholder text, id
+  collisions) and + write-time structure lint in ingest-data (belt = CLI, suspenders =
+  lint). Boundary unchanged: prose stays manual; enforce with gates, never locks.

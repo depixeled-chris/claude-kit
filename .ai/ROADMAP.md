@@ -48,7 +48,8 @@ templates, command overlap, config drift) each breed future misbehavior.
 <!-- Unscheduled backlog from the same review (deliberately NOT a milestone — schedule
      after M1–M4 land, per 2026-06-09 decision):
      KIT-T071 orient token budget · KIT-T072 hook output quieting ·
-     KIT-T073 CLAUDE.md progressive disclosure · KIT-T074 maintenance-gaps drain path
+     KIT-T073 CLAUDE.md progressive disclosure · KIT-T074 maintenance-gaps drain path ·
+     KIT-T076 cache hardening (q verify + DB/fallback parity)
      Plus standing ops (no tickets): push main at every boundary; /triage the 25-item
      inbox (re-home HOD strays per KIT-T067). -->
 
