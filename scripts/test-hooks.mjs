@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { aheadBehind } from '../hooks/lib.mjs';
+import { aheadBehind, projectAiDirs } from '../hooks/lib.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HOOKS = join(ROOT, 'hooks');
@@ -151,6 +151,24 @@ try {
   }
 
   // pre-write (code-quality gate; strings are stripped so payload 42s are intentional)
+  // fail-open + central enumeration (KIT-T055)
+  ok('pre-write: throw-inducing payload fails OPEN (exit 0, not 1)',
+    (() => { const r = hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 12345 } }, clean); return r.code === 0 && r.out.includes('failing open'); })());
+  {
+    const central = mkdtempSync(join(tmpdir(), 'kit-central-'));
+    fixtures.push(central);
+    mkdirSync(join(central, 'projects', 'centralonly'), { recursive: true });
+    writeFileSync(join(central, 'projects', 'centralonly', 'config.yml'), 'ids:\n  key: "CEN"\n');
+    writeFileSync(TMP_REG, JSON.stringify({ dataRoot: central, projects: {} }));
+    const prevReg = process.env.CLAUDE_KIT_REGISTRY;
+    process.env.CLAUDE_KIT_REGISTRY = TMP_REG;
+    const dirs = projectAiDirs();
+    if (prevReg === undefined) delete process.env.CLAUDE_KIT_REGISTRY; else process.env.CLAUDE_KIT_REGISTRY = prevReg;
+    writeFileSync(TMP_REG, '{}');
+    ok('projectAiDirs enumerates central-dataRoot-only projects (KIT-T055 readdirSync fix)',
+      dirs.some((d) => d.name === 'centralonly'));
+  }
+
   ok('pre-write: bare magic number blocks (non-declaration line)',
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.ts', content: 'function f(x) {\n  return x * 1337;\n}\n' } }, clean).code === 2);
   ok('pre-write: named constant passes',

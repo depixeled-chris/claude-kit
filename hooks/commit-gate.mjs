@@ -5,7 +5,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { payload, git, gitRoot, adopted, pathExcluded, excludeFooter } from './lib.mjs';
-import { checkIds } from '../scripts/id-utils.mjs';
 
 const CODE = new Set(
   'ts tsx js jsx mjs cjs rs py go java rb php cs swift kt c cc cpp cxx h hpp css scss sass less vue svelte sql'.split(' '),
@@ -113,6 +112,8 @@ if (!changed.length) process.exit(0);
 // by sync-data; here `root`'s own .ai is scanned. Fail open on any scan error.
 if (changed.some((f) => /(^|\/)(?:\.ai\/)?(?:tickets|decisions|notes|questions)\/[^/]+\.md$/.test(f))) {
   try {
+    // dynamic so a broken scripts/ tree degrades to fail-open instead of an import-time crash (KIT-T055)
+    const { checkIds } = await import('../scripts/id-utils.mjs');
     const { duplicates, mismatches } = checkIds(root);
     if (duplicates.length || mismatches.length) {
       const lines = ['', 'BLOCKED: .ai id integrity check failed.', ''];

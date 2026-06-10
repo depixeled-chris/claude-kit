@@ -5,8 +5,8 @@
 import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
 import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, WIP_FILES, WIP_COMMITS } from './lib.mjs';
-import { query } from '../scripts/q.mjs';
-import { readIdConfig } from '../scripts/id-utils.mjs';
+// q.mjs / id-utils.mjs are imported DYNAMICALLY at their (try-wrapped) use sites so a
+// broken scripts/ tree degrades that one section instead of crashing orientation (KIT-T055).
 
 const COMMITS = 12;
 const SESSION_LINES = 40;
@@ -210,6 +210,8 @@ if (decisionsDir) {
 // so a cache hiccup never blocks orientation (fail-open). Items are grouped by scope and
 // THIS project's in-flight (doing/review) is called out so a resume sees what's mid-work.
 try {
+  const { readIdConfig } = await import('../scripts/id-utils.mjs');
+  const { query } = await import('../scripts/q.mjs');
   const { key } = readIdConfig(root);
   const { rows: openRows } = await query('open', [], { cwdRoot: root });
   // scope = the id prefix (KIT from KIT-T049) — same grouping the cache uses, so no extra
@@ -241,6 +243,7 @@ try {
 try {
   const filePaths = changedPaths.filter((p) => /\.[a-z0-9]+$/i.test(p)); // files, not bare dirs
   if (filePaths.length) {
+    const { query } = await import('../scripts/q.mjs');
     const { rows: govRows } = await query('governing', filePaths, { root, cwdRoot: root });
     const already = new Set(standing && standing.shownIds ? standing.shownIds : []);
     const fresh = (govRows || []).filter((r) => !already.has(r.id));

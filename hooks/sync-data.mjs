@@ -7,7 +7,6 @@
 import { existsSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { gitRoot, git, gitTry } from './lib.mjs';
-import { checkIds } from '../scripts/id-utils.mjs';
 
 const proj = gitRoot();
 if (!proj) process.exit(0);
@@ -34,6 +33,8 @@ if (!git(['-C', dataRoot, 'status', '--porcelain']).trim()) process.exit(0);
 // (resolved through the junction). Block the stop so it's fixed now; fail open on
 // a scan error so a parse glitch never wedges the session.
 try {
+  // dynamic so a broken scripts/ tree degrades to fail-open instead of an import-time crash (KIT-T055)
+  const { checkIds } = await import('../scripts/id-utils.mjs');
   const { duplicates, mismatches } = checkIds(proj);
   if (duplicates.length || mismatches.length) {
     const lines = ['', '[sync-data] BLOCKED: .ai id integrity check failed — NOT committing.', ''];

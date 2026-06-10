@@ -4,7 +4,7 @@
 // exits: code 2 = block, 0 = allow.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, appendFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { createRequire } from 'node:module';

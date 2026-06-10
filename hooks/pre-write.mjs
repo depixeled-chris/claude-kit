@@ -7,6 +7,16 @@ import { existsSync } from 'node:fs';
 import { basename, dirname, isAbsolute, resolve } from 'node:path';
 import { payload, projectRoot, pathExcluded, markerExcludedLines, excludeFooter } from './lib.mjs';
 
+// Fail-open guard (KIT-T055): an unexpected throw anywhere below must never wedge a
+// write. The HOOK CONTRACT requires EXPLICIT fail-open; before this, an uncaught throw
+// exited 1 and was non-blocking only by exit-code accident.
+const failOpen = (e) => {
+  process.stderr.write(`[pre-write] internal error — failing open: ${(e && e.message) || e}\n`);
+  process.exit(0);
+};
+process.on('uncaughtException', failOpen);
+process.on('unhandledRejection', failOpen);
+
 const MAX_SHOWN = 5;
 const MAX_SQL = 3;
 const FILE_HARD = 800;

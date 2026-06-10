@@ -2,7 +2,7 @@
 id: KIT-T055
 title: pre-write gets the fail-open guard its comment claims; fix lib.mjs missing readdirSync import
 type: bug
-status: todo
+status: review
 priority: high
 milestone: M1-gate-integrity
 labels: [hooks, gates, fail-open]
@@ -30,10 +30,10 @@ Also audit the module-top imports from `../scripts/` in orient/commit-gate/sync-
 import-time error currently crashes the whole hook (same exit-1 accident).
 
 ## Acceptance Criteria
-- [ ] pre-write wraps its body in an explicit try/catch that exits 0 on unexpected error (warning to stderr), matching the comment.
-- [ ] `readdirSync` imported in lib.mjs; a test exercises projectAiDirs over a central dataRoot.
-- [ ] orient/commit-gate/sync-data survive a missing/broken `../scripts/` import without crashing the hook (lazy import or guarded top-level).
-- [ ] Regression test: a hook fed a payload that triggers an internal throw still exits 0.
+- [x] pre-write wraps its body in an explicit try/catch that exits 0 on unexpected error (warning to stderr), matching the comment.
+- [x] `readdirSync` imported in lib.mjs; a test exercises projectAiDirs over a central dataRoot.
+- [x] orient/commit-gate/sync-data survive a missing/broken `../scripts/` import without crashing the hook (lazy import or guarded top-level).
+- [x] Regression test: a hook fed a payload that triggers an internal throw still exits 0.
 
 ## Plan
 1. Guard pre-write.
@@ -42,3 +42,12 @@ import-time error currently crashes the whole hook (same exit-1 accident).
 
 ## Notes
 - 2026-06-09: opened from the full-plugin process review (hooks pipeline audit).
+- 2026-06-09: implemented. pre-write: process-level `uncaughtException`/`unhandledRejection`
+  handlers (warn + exit 0) — chosen over wrapping 280 lines of top-level-await body in a
+  main(); catches the same class including async throws. lib.mjs: `readdirSync` added to
+  the fs import (the silent ReferenceError that hid central-dataRoot-only projects from
+  projectAiDirs). Static `../scripts/` imports made DYNAMIC at try-wrapped use sites:
+  commit-gate + sync-data (checkIds), orient (q.mjs query ×2, id-utils readIdConfig) — a
+  broken scripts/ tree now degrades one section instead of crashing the hook. Tests:
+  throw-inducing payload (numeric content) fails OPEN with the warning; projectAiDirs
+  enumerates a central-only project via an isolated registry. 44/44 + full suite green.
