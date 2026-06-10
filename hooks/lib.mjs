@@ -35,6 +35,18 @@ export function git(args, cwd) {
   }
 }
 
+// Like git(), but the caller learns whether the command SUCCEEDED and sees stderr.
+// For paths that must not mistake failure for empty output (KIT-T053: sync-data's
+// push verification — git() swallowing a rejected push produced false receipts).
+export function gitTry(args, cwd) {
+  try {
+    return { ok: true, out: execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) };
+  } catch (e) {
+    const err = (e && e.stderr && e.stderr.toString()) || (e && e.message) || 'git failed';
+    return { ok: false, out: err };
+  }
+}
+
 export function gitRoot(cwd = process.cwd()) {
   return git(['rev-parse', '--show-toplevel'], cwd).trim();
 }
