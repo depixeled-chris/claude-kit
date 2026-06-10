@@ -1,5 +1,6 @@
 ---
 description: Mid-flight glance — show the cross-project "what needs me?" briefing without resuming or changing anything
+model: haiku
 argument-hint: "[project ...]"
 ---
 Read-only standup. Run the survey and SHOW it — do **not** confirm scope, do **not**

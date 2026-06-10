@@ -1,6 +1,7 @@
 ---
 name: doc-audit
 description: Audit a repo's docs against the actual code — broken links, stale references to renamed/deleted files or symbols, undocumented public surface, and out-of-date examples. Use after a refactor/rename, before a release, or when docs feel untrustworthy. Reports findings with pointers; you approve fixes.
+model: sonnet
 ---
 
 # Doc audit

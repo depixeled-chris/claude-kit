@@ -1,5 +1,6 @@
 ---
 description: Drain the inbox into tickets/questions/decisions and report a prioritized worklist
+model: sonnet
 ---
 Cross-project triage runs in lockstep with `scripts/triage.mjs` — the SCRIPT gathers and
 applies; you (the LLM) only classify the irreducible-prose caps in between. Do NOT scan the

@@ -1,5 +1,6 @@
 ---
 description: Catch up — cross-project "what needs me?" briefing by default, or a deep resume of named project(s)
+model: sonnet
 argument-hint: "[project ...]"
 ---
 `/prime` catches us BOTH up after a gap — a freshly-wiped you (Claude) and a human whose
