@@ -9,7 +9,8 @@ Resolve the maintainer's PENDING decisions as a structured questionnaire — nev
    - a research/design doc's "Decisions needed" / "Open decisions" / "Open scope" section —
      if a doc path is given as the arg, scope to it; otherwise scan `docs/research/*` for such
      sections (e.g. the A–D forks pattern),
-   - `.ai/questions/` items routed for the maintainer,
+   - `.ai/questions/` items routed for the maintainer (`answerable_by: chris`, including any
+     `/drain` deferred here as Chris-only),
    - any `.ai/decisions/` file marked pending/unresolved.
    Dedupe; skip anything already decided.
 2. **Present** via the **AskUserQuestion** tool — one question per decision, concrete options

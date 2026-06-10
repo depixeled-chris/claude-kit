@@ -27,7 +27,7 @@
 | KIT-T061 | feature | review | high | Entering review requires test evidence (or an explicit [no-test: reason]) — UAT gets a floor |
 | KIT-T062 | feature | review | high | Make the system as loud about unfinished work as it is about uncaptured work (closure nags) |
 | KIT-T063 | feature | review | medium | INDEX.md (and SUPERSEDED/REGRESSIONS indexes) regenerate via hook, not memory |
-| KIT-T064 | feature | todo | low | Question drain — answer_self_questions gets a verb; questions/ stops being a dead store |
+| KIT-T064 | feature | review | low | Question drain — answer_self_questions gets a verb; questions/ stops being a dead store |
 | KIT-T065 | feature | todo | high | Triage-time provenance inference — bugs without user-given provenance get inferred links |
 | KIT-T066 | feature | todo | medium | Regression-class tickets missing their links fail the id-integrity check |
 | KIT-T067 | bug | todo | critical | cap routes by cwd-walk and misfiles cross-project captures — fix routing + re-home the strays |
