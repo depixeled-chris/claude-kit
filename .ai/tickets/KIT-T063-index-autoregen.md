@@ -2,7 +2,7 @@
 id: KIT-T063
 title: INDEX.md (and SUPERSEDED/REGRESSIONS indexes) regenerate via hook, not memory
 type: feature
-status: doing
+status: review
 priority: medium
 milestone: M2-close-the-loop
 labels: [hooks, lifecycle]
@@ -13,7 +13,7 @@ links: [KIT-T060]
 supersedes:
 superseded_by:
 created: 2026-06-10T03:10:00Z
-updated: 2026-06-10T21:11:30Z
+updated: 2026-06-10T21:21:30Z
 ---
 
 ## Description
@@ -55,3 +55,4 @@ covering INDEX.md, SUPERSEDED.md, and REGRESSIONS.md.
 - [2026-06-10 21:20] (comment) ticked: Fail-open: a malformed ticket file degrades to a warning, never blocks the write.
 - [2026-06-10 21:20] (comment) ticked: T039-T043 placeholder-text rows in INDEX/SUPERSEDED are fixed as a side effect (supersede fields filled from frontmatter).
 - [2026-06-10 21:20] (comment) ticked: Test: write a ticket status change in a temp store → index reflects it.
+- [2026-06-10 21:21] (status) doing → review
