@@ -10,7 +10,14 @@
 
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
-import { payload, storeRoot } from './lib.mjs';
+import { payload, storeRoot, readTurnState, writeTurnState } from './lib.mjs';
+
+// Refractory window for the same-turn index regen (KIT-T063). A hand-edit to a ticket file
+// regenerates INDEX.md / SUPERSEDED.md / REGRESSIONS.md right away, but a BURST of ticket writes
+// in one turn must collapse to a single regen — the reconcile/dedup pass is not free. We record
+// the last regen time per store root in the (machine-local, KIT-T062) turn state and skip a
+// re-regen inside this window; the next edit past it (or the next turn) refreshes from disk.
+const INDEX_REGEN_DEBOUNCE_MS = 10000;
 
 try {
   const p = await payload();
@@ -49,6 +56,24 @@ try {
   const r = await hydrate({ root, dbPath: defaultDbPath() });
   if (r && r.ok && (r.reparsed || r.deleted)) {
     process.stderr.write(`[ingest-data] synced ${root} (+${r.reparsed} ~${r.deleted})\n`);
+  }
+
+  // Regenerate the GENERATED reference files (INDEX.md / SUPERSEDED.md / REGRESSIONS.md) when a
+  // HAND-EDIT lands a ticket file (KIT-T063). `t` mutations already regenerate via their own
+  // refresh(); a raw Write/Edit to a ticket's frontmatter bypassed that, so the board rotted. We
+  // only fire for ticket writes (never thrash on a note/decision/inbox edit) and debounce per
+  // turn. FAIL-OPEN in its own try/catch: a malformed ticket degrades to a warning, never blocks.
+  if (/(^|[\\/])tickets[\\/]/.test(norm)) {
+    try {
+      const last = (readTurnState(root) || {}).indexRegenAt || 0;
+      if (Date.now() - last >= INDEX_REGEN_DEBOUNCE_MS) {
+        const { regenerateIndexes } = await import('../scripts/index-tickets.mjs');
+        await regenerateIndexes(root);
+        writeTurnState(root, { ...(readTurnState(root) || {}), indexRegenAt: Date.now() });
+      }
+    } catch (e) {
+      process.stderr.write(`[ingest-data] index regen skipped (fail-open): ${e && e.message ? e.message : e}\n`);
+    }
   }
 } catch {
   /* fail-open — the cache is never a hard dependency, and the Stop refresh repairs drift */

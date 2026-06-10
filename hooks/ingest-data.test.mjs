@@ -6,7 +6,7 @@
 // DB assertions when no SQLite engine is present (the cache, and this hook, are optional).
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -36,12 +36,13 @@ async function test(name, fn) {
 }
 
 // Fire the hook exactly as the harness does: payload JSON on stdin, with the throwaway plugin
-// root so it writes the temp db, not the real one.
-function fire(filePath, raw) {
+// root so it writes the temp db, not the real one. `extraEnv` lets a case isolate the turn state
+// (CLAUDE_KIT_TURN_STATE) so the KIT-T063 index-regen debounce doesn't bleed across fires.
+function fire(filePath, raw, extraEnv = {}) {
   return spawnSync(process.execPath, [HOOK], {
     input: raw !== undefined ? raw : JSON.stringify({ tool_input: { file_path: filePath } }),
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT },
+    env: { ...process.env, CLAUDE_PLUGIN_ROOT: PLUGIN_ROOT, ...extraEnv },
   });
 }
 
@@ -68,6 +69,73 @@ await test('an edit OUTSIDE any .ai store is a no-op (exit 0)', () => {
   const r = fire(join(tmpdir(), 'somewhere', 'README.md'));
   assert.equal(r.status, 0);
 });
+
+// ---- KIT-T063: hand-edit to a ticket regenerates the board (no engine needed) ----------
+// A throwaway store with a tickets/ dir. Writing a ticket frontmatter via the hook must
+// regenerate INDEX.md from disk; the index-regen path is independent of the SQLite cache, so
+// these run unconditionally. Each fire gets its OWN turn-state dir so the regen debounce
+// (which collapses a burst within one turn) does not suppress the deliberate second regen.
+{
+  const tproj = mkdtempSync(join(tmpdir(), 'kit-ingest-idx-'));
+  const tai = join(tproj, '.ai');
+  mkdirSync(join(tai, 'tickets'), { recursive: true });
+  writeFileSync(join(tai, 'config.yml'), 'ids:\n  key: "ING"\n  pad: 3\n');
+  const tk = join(tai, 'tickets', 'ING-T001-x.md');
+  const indexPath = join(tai, 'tickets', 'INDEX.md');
+  const freshTurn = () => ({ CLAUDE_KIT_TURN_STATE: mkdtempSync(join(tmpdir(), 'kit-ingest-turn-')) });
+
+  await test('a ticket hand-edit regenerates INDEX.md reflecting its status (KIT-T063)', () => {
+    writeFileSync(tk, '---\nid: ING-T001\ntitle: a draft thing\ntype: feature\nstatus: todo\n---\n');
+    const r = fire(tk, undefined, freshTurn());
+    assert.equal(r.status, 0);
+    const idx = readFileSync(indexPath, 'utf8');
+    assert.ok(idx.includes('ING-T001') && /ING-T001 \| feature \| todo/.test(idx), 'board shows the new ticket as todo');
+  });
+
+  await test('a status change re-regenerates and the index reflects the NEW status (KIT-T063)', () => {
+    writeFileSync(tk, '---\nid: ING-T001\ntitle: a draft thing\ntype: feature\nstatus: doing\n---\n');
+    const r = fire(tk, undefined, freshTurn());
+    assert.equal(r.status, 0);
+    const idx = readFileSync(indexPath, 'utf8');
+    assert.ok(/ING-T001 \| feature \| doing/.test(idx), 'board now shows the ticket as doing');
+    assert.ok(!/ING-T001 \| feature \| todo/.test(idx), 'the stale todo row is gone');
+  });
+
+  await test('a blank superseded_by template line renders "—", not its placeholder comment (KIT-T063)', () => {
+    // The exact rot KIT-T063 fixes: a superseded ticket whose superseded_by: is the untouched
+    // template line (blank value + trailing # comment). The comment must NOT leak as the value.
+    const sup = join(tai, 'tickets', 'ING-T002-sup.md');
+    writeFileSync(sup, '---\nid: ING-T002\ntitle: retired idea\ntype: feature\nstatus: superseded\nsuperseded_by:         # ticket id that retired THIS one\n---\n');
+    const r = fire(sup, undefined, freshTurn());
+    assert.equal(r.status, 0);
+    const idx = readFileSync(indexPath, 'utf8');
+    assert.ok(/ING-T002 \| superseded \| retired idea \| — \|/.test(idx), 'superseded-by column is em-dash, not the comment');
+    assert.ok(!idx.includes('ticket id that retired THIS one'), 'the template comment never leaks into the board');
+  });
+
+  await test('many ticket writes in ONE turn regenerate at most once (debounce, KIT-T063)', () => {
+    // Share a single turn-state dir across two rapid fires; the second must be debounced, so the
+    // index keeps the FIRST burst write and does not reflect the (within-window) second one.
+    const turn = freshTurn();
+    writeFileSync(tk, '---\nid: ING-T001\ntitle: a draft thing\ntype: feature\nstatus: review\n---\n');
+    fire(tk, undefined, turn);
+    assert.ok(/ING-T001 \| feature \| review/.test(readFileSync(indexPath, 'utf8')), 'first write of the burst regenerated');
+    writeFileSync(tk, '---\nid: ING-T001\ntitle: a draft thing\ntype: feature\nstatus: done\n---\n');
+    const r = fire(tk, undefined, turn);
+    assert.equal(r.status, 0);
+    assert.ok(/ING-T001 \| feature \| review/.test(readFileSync(indexPath, 'utf8')), 'second write within the window was debounced (board still review)');
+  });
+
+  await test('a malformed ticket fails open — warns, never blocks the write (KIT-T063 / criterion 3)', () => {
+    // No frontmatter block at all + a regen that must not throw out to the tool call.
+    const bad = join(tai, 'tickets', 'ING-T003-bad.md');
+    writeFileSync(bad, 'this file has no frontmatter and a stray --- in the middle ---\nnot a ticket\n');
+    const r = fire(bad, undefined, freshTurn());
+    assert.equal(r.status, 0, 'a malformed ticket must never wedge the write');
+  });
+
+  rmSync(tproj, { recursive: true, force: true });
+}
 
 // ---- real ingest (skipped without an engine) ------------------------------
 if (!engine) {
