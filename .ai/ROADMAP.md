@@ -23,7 +23,7 @@ Rationale: every other milestone trusts the enforcement layer; fix the layer fir
 ## M2-close-the-loop — the system gets as loud about unfinished work as uncaptured work
 Rationale: 0 tickets ever done, 23 in review, inbox rots silently — closure is the
 weakest stage of the lifecycle and it poisons regression tracking downstream.
-- [ ] KIT-T060 /done command (flip tail: history, archive, index regen)
+- [ ] KIT-T075 store mutation CLI — t status/tick/link; absorbs /done (supersedes KIT-T060, per KIT-D032)
 - [ ] KIT-T061 review-entry evidence gate ([no-test: reason] escape)
 - [ ] KIT-T062 closure nags (inbox age, review queue, stale SESSION)
 - [ ] KIT-T063 INDEX/SUPERSEDED/REGRESSIONS auto-regen via hook

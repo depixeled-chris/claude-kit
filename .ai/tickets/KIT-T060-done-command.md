@@ -2,16 +2,16 @@
 id: KIT-T060
 title: "/done command — the human flip's mechanical tail (History line, archive move, index regen)"
 type: feature
-status: todo
+status: superseded
 priority: high
-milestone: M2-close-the-loop
+milestone:
 labels: [commands, lifecycle]
 files:
   - commands/done.md
   - scripts/index-tickets.mjs
 links: [KIT-T061, KIT-T062]
 supersedes:
-superseded_by:
+superseded_by: KIT-T075
 created: 2026-06-10T03:10:00Z
 updated: 2026-06-10T03:10:00Z
 ---
@@ -41,3 +41,6 @@ for clearing a review backlog.
 
 ## Notes
 - 2026-06-09: opened from the lifecycle review — closure is the system's weakest stage.
+- 2026-06-09: SUPERSEDED by KIT-T075 (store mutation CLI) per KIT-D032 — /done becomes a
+  thin wrapper over `t status <id> done --human`; the flip-tail requirements (history,
+  archive, index regen, fixed_commit prompt) carry over as T075 criterion 2.
