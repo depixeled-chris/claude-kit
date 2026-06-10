@@ -53,6 +53,19 @@ expect('allows rg on one specific file', run(d, 'rg usePhysics src/main.ts').cod
 expect('allows piped output filter', run(d, 'git log --oneline | grep physics').code, 0);
 expect('allows q output piped to grep', run(d, 'node scripts/q.mjs sql "select 1" | grep x').code, 0);
 
+// KIT-T056 — chain/pipe escapes are judged; legit user dirs named like stores pass.
+expect('blocks ||-chained store grep (leader-split escape)', run(d, 'true || grep -rn x .ai/decisions/').code, 2);
+expect('blocks ;-chained store grep after a pipe', run(d, 'git log | grep x; cat .ai/decisions/D-001.md').code, 2);
+expect('blocks piped grep that names a store PATH', run(d, 'echo x | grep y .ai/tickets/T-1.md').code, 2);
+expect('blocks find|xargs grep discovery', run(d, 'git ls-files | xargs grep -r usePhysics src/').code, 2);
+expect('allows grep of src/notes/ (user dir, not the store)', run(d, 'grep todo src/notes/api.md').code, 0);
+expect('allows cat of src/tickets/ file (user dir)', run(d, 'cat src/tickets/parser.ts').code, 0);
+expect('blocks centralized store path (projects/<name>/tickets)', run(d, 'grep x D:/data/projects/foo/tickets/T-1.md').code, 2);
+expect('still blocks bare store dir at token start', run(d, 'grep -rn x tickets/').code, 2);
+expect('allows piped grep with pattern containing no path', run(d, 'git log --oneline | grep -i decisions').code, 0);
+expect('allows piped filter whose quoted PATTERN has regex slashes', run(d, "npm test | select-string -pattern '^(all pass|\\d+ FAIL)'").code, 0);
+expect('allows piped grep with unquoted slashed PATTERN (no file arg)', run(d, 'git log | grep src/notes').code, 0);
+
 // ALLOW — the query tools themselves, ordinary commands, and unadopted repos.
 expect('allows q governing', run(d, 'node scripts/q.mjs governing src/main.ts').code, 0);
 expect('allows code-graph query', run(d, 'node scripts/code-graph.mjs --query defines PhysicsSim').code, 0);

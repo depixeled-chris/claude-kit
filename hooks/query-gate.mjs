@@ -28,8 +28,10 @@ const GRAPH = join(KIT, 'scripts', 'code-graph.mjs');
 const SEARCH = /^(?:grep|egrep|fgrep|rg|ag|ack|sed|awk|findstr|select-string|sls)$/;
 const READ = /^(?:cat|head|tail|type|get-content|gc)$/;
 // Anything in the .ai work store — the data `q` owns. Tickets/decisions/etc. may also
-// be referenced bare (a `cd` already inside .ai), so match the store dirs too.
-const STORE = /\.ai[\\/]|(?:^|[\\/\s"'])(?:tickets|decisions|inbox|questions|notes)[\\/]|\b(?:ROADMAP|DECISIONS)\.md\b/i;
+// be referenced bare (a `cd` already inside .ai), so match the store dirs at TOKEN START
+// only — `src/notes/` is a legit user directory, not the store (KIT-T056). The
+// `projects/<name>/<store>` form covers centralized data roots (no `.ai` in the path).
+const STORE = /\.ai[\\/]|(?:^|[\s"'=])\.?[\\/]?(?:tickets|decisions|inbox|questions|notes)[\\/]|[\\/]projects[\\/][^\\/\s"']+[\\/](?:tickets|decisions|inbox|questions|notes)[\\/]|\b(?:ROADMAP|DECISIONS)\.md\b/i;
 // A recursive/tree-wide grep is DISCOVERY ("find me where X is"), the code-graph's job.
 const RECURSIVE_FLAG = /(?:^|\s)(?:-[A-Za-z]*[rR][A-Za-z]*|--recursive|--include\b|--include-dir\b)/;
 const FILEISH = /\.[A-Za-z0-9]{1,6}$/; // a concrete file arg (has an extension)
@@ -43,14 +45,14 @@ async function main() {
   const root = gitRoot();
   if (!adopted(root)) process.exit(0); // opt-in: only KIT-adopted repos
 
-  // The leader (everything before the first pipe) is what READS files; segments after
-  // a pipe only filter the leader's OUTPUT, so a `... | grep x` is never a file search.
-  // The leader may itself chain commands (cd x && grep ...), so judge each one.
-  const leader = cmd.split('|')[0];
-  for (const raw of leader.split(/&&|;/)) {
-    const c = raw.trim();
+  // Judge EVERY segment, not just the leader (KIT-T056 — `true || grep .ai/` escaped).
+  // A segment after a single `|` receives the previous command's OUTPUT, so a search
+  // tool there with no path-ish args is filtering text (allowed); `||`/`&&`/`;` chains
+  // run against the FILESYSTEM and are judged in full.
+  for (const { text, after } of segments(cmd)) {
+    const c = text.trim();
     if (!c) continue;
-    const verdict = judge(c);
+    const verdict = judge(c, after === '|');
     if (verdict) {
       // KIT-T051 exclusion: a path glob under the verdict's check-id in
       // .claude-kit-ignore.yaml lets a command through (e.g. allow grepping a generated
@@ -61,6 +63,32 @@ async function main() {
     }
   }
   process.exit(0);
+}
+
+// Split a shell line into segments, each tagged with the operator BEFORE it ('start',
+// '|', '||', '&&', ';', '&'). Quote-aware so operators inside strings don't split.
+function segments(cmd) {
+  const out = [];
+  let cur = '';
+  let op = 'start';
+  let q = '';
+  for (let i = 0; i < cmd.length; i++) {
+    const ch = cmd[i];
+    if (q) { cur += ch; if (ch === q) q = ''; continue; }
+    if (ch === '"' || ch === "'") { q = ch; cur += ch; continue; }
+    if (ch === '|' || ch === '&' || ch === ';') {
+      const pair = ch + (cmd[i + 1] || '');
+      const sep = pair === '||' || pair === '&&' ? pair : ch;
+      if (sep.length === 2) i++;
+      out.push({ text: cur, after: op });
+      cur = '';
+      op = sep;
+      continue;
+    }
+    cur += ch;
+  }
+  out.push({ text: cur, after: op });
+  return out;
 }
 
 // True iff any path-ish argument in the command is excluded from `id` by a config glob.
@@ -74,14 +102,35 @@ function excludedByConfig(root, id, c) {
 }
 
 // Return a block message, or null to allow. One simple command (no pipe/chain).
-function judge(c) {
-  const tok = c.split(/\s+/).filter(Boolean);
+// `piped` = this segment reads the previous command's stdout.
+function judge(c, piped = false) {
+  let tok = c.split(/\s+/).filter(Boolean);
   if (!tok.length) return null;
-  const tool = tok[0].replace(/.*[\\/]/, '').toLowerCase(); // basename, lower
+  let tool = tok[0].replace(/.*[\\/]/, '').toLowerCase(); // basename, lower
+  // xargs feeds stdin as FILENAMES to its command — that command reads files, so
+  // unwrap and judge IT, un-piped (`find ... | xargs grep x` is discovery, not a filter).
+  if (tool === 'xargs') {
+    tok = tok.slice(1);
+    while (tok.length && tok[0].startsWith('-')) tok.shift();
+    if (!tok.length) return null;
+    tool = tok[0].replace(/.*[\\/]/, '').toLowerCase();
+    c = tok.join(' ');
+    piped = false;
+  }
   const gitGrep = tool === 'git' && (tok[1] || '').toLowerCase() === 'grep';
   const isSearch = SEARCH.test(tool) || gitGrep;
   const isRead = READ.test(tool);
   const isFind = tool === 'find' || tool === 'get-childitem' || tool === 'gci';
+  // A piped search/read with no FILE argument is filtering the previous command's
+  // OUTPUT — the explicitly-allowed case. Patterns must not count as paths: quoted
+  // spans are stripped (regexes carry \d, alternation /) and the first bare positional
+  // of a search tool is its pattern. (find/gci never filter stdin — no exemption.)
+  if (piped && (isSearch || isRead)) {
+    const unquoted = c.replace(/"[^"]*"|'[^']*'/g, ' ');
+    const positionals = unquoted.split(/\s+/).filter(Boolean).slice(gitGrep ? 2 : 1).filter((a) => !a.startsWith('-'));
+    const fileArgs = isRead ? positionals : positionals.slice(1);
+    if (!fileArgs.some((a) => /[\\/]/.test(a))) return null;
+  }
 
   // RULE 1 — never grep/read the work store; query it.
   if ((isSearch || isRead || isFind) && STORE.test(c)) return { id: 'store-grep', msg: storeMsg(c) };
