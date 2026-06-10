@@ -91,12 +91,21 @@ if (/\/(node_modules|vendor|\.venv|venv|dist|build|target|\.git)\//.test(norm)) 
 if (/(\.lock|\.sum)$|(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|poetry\.lock|uv\.lock)$/.test(norm)) {
   process.exit(0);
 }
-// Per-repo opt-out: a `.claudekit-ignore` marker anywhere on the path disables the
-// source gate for that repo. Graphics/physics/shader codebases are legitimately
-// numeric-literal heavy, where the magic-number rule is noise. Other repos are
-// untouched. Walk ancestors up to the filesystem root.
+// Legacy `.claudekit-ignore` (whole-repo, every check silently off) is RETIRED
+// (KIT-T057) — a blanket bypass contradicted "halts in anything but exclusions".
+// Finding one now WARNS with the .claude-kit-ignore.yaml migration and is not honored.
 for (let dir = dirname(norm); ; ) {
-  if (existsSync(resolve(dir, '.claudekit-ignore'))) process.exit(0);
+  if (existsSync(resolve(dir, '.claudekit-ignore'))) {
+    process.stderr.write(
+      `WARN [pre-write] legacy .claudekit-ignore found at ${dir} — RETIRED (KIT-T057), no longer honored.\n` +
+        'Migrate to .claude-kit-ignore.yaml at the repo root — per-check globs, e.g.:\n' +
+        '  magic-numbers:\n    - "src/**"\n' +
+        'or, ONLY if every check truly must be off repo-wide:\n' +
+        '  "*":\n    - "**"\n' +
+        'Then delete .claudekit-ignore. Template: .claude-kit-ignore.yaml.example\n',
+    );
+    break;
+  }
   const parent = dirname(dir);
   if (parent === dir) break;
   dir = parent;

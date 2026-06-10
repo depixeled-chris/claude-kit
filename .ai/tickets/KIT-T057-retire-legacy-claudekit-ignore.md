@@ -2,7 +2,7 @@
 id: KIT-T057
 title: Retire the legacy whole-repo .claudekit-ignore opt-out in favor of the KIT-T051 exclusion system
 type: tech-debt
-status: todo
+status: review
 priority: medium
 milestone: M1-gate-integrity
 labels: [hooks, gates, dx]
@@ -25,10 +25,10 @@ legacy marker is a blanket bypass that contradicts the "halts in anything but ex
 philosophy and confuses adopters.
 
 ## Acceptance Criteria
-- [ ] Legacy `.claudekit-ignore` ancestor-walk removed from pre-write.
-- [ ] Migration shim: when the legacy file is found, warn once with the exact `.claude-kit-ignore.yaml` equivalent (`'*': ['**']` or per-check globs) instead of silently honoring it.
-- [ ] Any repo of ours still relying on the legacy marker (graphics/physics repos) gets a committed `.claude-kit-ignore.yaml` equivalent.
-- [ ] Docs mention exactly ONE exclusion system.
+- [x] Legacy `.claudekit-ignore` ancestor-walk removed from pre-write.
+- [x] Migration shim: when the legacy file is found, warn once with the exact `.claude-kit-ignore.yaml` equivalent (`'*': ['**']` or per-check globs) instead of silently honoring it.
+- [x] Any repo of ours still relying on the legacy marker (graphics/physics repos) gets a committed `.claude-kit-ignore.yaml` equivalent.
+- [x] Docs mention exactly ONE exclusion system.
 
 ## Plan
 1. Remove walk; add warn-shim.
@@ -37,3 +37,10 @@ philosophy and confuses adopters.
 
 ## Notes
 - 2026-06-09: opened from the full-plugin process review.
+- 2026-06-09: implemented. pre-write's ancestor-walk no longer exits 0 on the marker —
+  it WARNS with the per-check yaml migration (and the repo-wide `"*": ["**"]` form for
+  the rare true case) and proceeds to gate normally. Swept D:\dev on this machine: zero
+  repos carry the legacy marker (criterion 3 satisfied vacuously here; any Mac-side repo
+  hits the warn-shim, which carries the full migration recipe). Docs were already
+  single-system since KIT-T051 (grep: only pre-write + this ticket referenced the legacy
+  name). 2 new tests (marker no longer bypasses; warn names the yaml). 64/64 + suite green.

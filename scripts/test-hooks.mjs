@@ -200,6 +200,15 @@ try {
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.scss', content: '$gap: 24px;\n.a{padding:$gap}.b{margin:$gap}.c{gap:$gap}\n' } }, clean).code === 0);
 
   // orient / flush emit in adopted repos, stay silent otherwise
+  // KIT-T057 — legacy .claudekit-ignore is retired: warns with the migration, no longer bypasses.
+  {
+    const legacy = adopted(false);
+    writeFileSync(join(legacy, '.claudekit-ignore'), '');
+    const r = hook('pre-write.mjs', { tool_input: { file_path: join(legacy, 'a.ts'), content: 'function f(x) {\n  return x * 1337;\n}\n' } }, legacy);
+    ok('pre-write: legacy .claudekit-ignore no longer bypasses (still blocks)', r.code === 2);
+    ok('pre-write: legacy marker warns with the yaml migration', r.out.includes('RETIRED') && r.out.includes('.claude-kit-ignore.yaml'));
+  }
+
   // KIT-T058 — coverage for the formerly zero-test hooks ----------------------------
 
   // housekeeping: thresholds against a throwaway HOME (USERPROFILE drives os.homedir()).
