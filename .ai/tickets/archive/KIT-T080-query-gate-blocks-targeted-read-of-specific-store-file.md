@@ -2,7 +2,7 @@
 id: KIT-T080
 title: "query-gate RULE 1 blocks a targeted read of a SPECIFIC store file (e.g. .ai/config.yml), contradicting its own allowed-case"
 type: bug
-status: todo
+status: done
 priority: medium
 milestone:
 labels: [hooks, query-gate, false-positive, retrieval]
@@ -13,7 +13,7 @@ links: [KIT-T079]
 supersedes:
 superseded_by:
 created: 2026-06-10T00:00:00Z
-updated: 2026-06-10T00:00:00Z
+updated: 2026-06-11T04:33:41Z
 ---
 
 ## Description
@@ -43,14 +43,14 @@ queries that cannot retrieve it. Workaround was the Read tool — which is the r
 should have given.
 
 ## Acceptance Criteria
-- [ ] RULE 1 exempts a targeted read/grep of ONE specific named store file (mirror RULE 2's
+- [x] RULE 1 exempts a targeted read/grep of ONE specific named store file (mirror RULE 2's
       `targetsOneFile`), so `sed -n '1,80p' .ai/config.yml` / `grep <pat> .ai/config.yml` pass while a
       TREE-WIDE or pattern-discovery search of the store still blocks.
-- [ ] For a plain READ tool (`cat/head/tail/sed -n/type/gc`) of a specific store file, the message
+- [x] For a plain READ tool (`cat/head/tail/sed -n/type/gc`) of a specific store file, the message
       (if it still blocks anything) points at the **Read tool**, not only `q` graph queries.
-- [ ] `config.yml` (and the non-queryable top-level state files) never route to `q` remediation that
+- [x] `config.yml` (and the non-queryable top-level state files) never route to `q` remediation that
       cannot return them.
-- [ ] `query-gate.test.mjs` gains cases: targeted read of `.ai/config.yml` is ALLOWED; a recursive /
+- [x] `query-gate.test.mjs` gains cases: targeted read of `.ai/config.yml` is ALLOWED; a recursive /
       pattern search of the store is still BLOCKED (no regression to RULE 1's real purpose).
 
 ## Notes
@@ -60,6 +60,19 @@ should have given.
   silently loosened.
 - Surfaced 2026-06-10 by the maintainer ("IF THE GATE BLOCKS TEXT SEARCHING, THAT'S A BUG") while the
   agent read `config.yml` to author KIT-T079.
+- 2026-06-11 (fix): RULE 1 now exempts a targeted read/grep of ONE NON-ITEM store file (config.yml,
+  SESSION.md, state files) — item files (tickets/decisions/questions/notes/inbox) STILL route to `q`,
+  honoring the "don't broaden" note above (the gate's purpose is intact + every existing test stayed
+  green). Flag-values (`head -n 50`) handled (counts FILEISH store-files, not bare positionals);
+  storeMsg points single-file config reads at the Read tool. Evidence: `query-gate.test.mjs` +7 cases
+  (config.yml read ALLOWED; decision/ticket item reads + multi-file + tree-wide still BLOCKED);
+  `test-hooks.mjs` 111 passed; `npm test` 0 fail.
 
 ## History
 - [2026-06-10 00:00] (created) query-gate specific-file false-positive; status→todo.
+- [2026-06-11 04:27] (status) todo → doing
+- [2026-06-11 04:32] (comment) ticked: RULE 1 exempts a targeted read/grep of ONE specific named store file (mirror RULE 2's
+- [2026-06-11 04:32] (comment) ticked: For a plain READ tool (`cat/head/tail/sed -n/type/gc`) of a specific store file, the message
+- [2026-06-11 04:32] (comment) ticked: `config.yml` (and the non-queryable top-level state files) never route to `q` remediation that
+- [2026-06-11 04:32] (comment) ticked: `query-gate.test.mjs` gains cases: targeted read of `.ai/config.yml` is ALLOWED; a recursive /
+- [2026-06-11 04:33] (status) doing → done

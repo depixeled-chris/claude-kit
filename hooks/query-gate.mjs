@@ -132,8 +132,22 @@ function judge(c, piped = false) {
     if (!fileArgs.some((a) => /[\\/]/.test(a))) return null;
   }
 
-  // RULE 1 — never grep/read the work store; query it.
-  if ((isSearch || isRead || isFind) && STORE.test(c)) return { id: 'store-grep', msg: storeMsg(c) };
+  // RULE 1 — never grep/read the work store; query it. EXCEPT a targeted read/grep of ONE specific
+  // CONFIG/STATE file (KIT-T080 — the maintainer's allowed "specific named file" case): `config.yml`,
+  // `SESSION.md`, the generated state files — `q` does NOT index those as queryable items, so the
+  // q-only remediation is a dead end and reading them directly is correct. INDIVIDUAL item files
+  // (tickets/decisions/questions/notes/inbox) still route to q — it sees their links/history a `cat`
+  // can't. A TREE-WIDE / glob / multi-file / `find` over the store stays blocked (discovery → q).
+  if ((isSearch || isRead || isFind) && STORE.test(c)) {
+    // A search tool's first positional is its pattern, not a path; flag VALUES (`head -n 50`) aren't
+    // FILEISH — so count the concrete store FILES among the args, not bare positionals.
+    const positionals = (gitGrep ? tok.slice(2) : tok.slice(1))
+      .filter((a) => !a.startsWith('-')).map((a) => a.replace(/^["']|["']$/g, ''));
+    const storeFiles = positionals.filter((a) => STORE.test(a) && FILEISH.test(a));
+    const isItemFile = (a) => /[\\/](?:tickets|decisions|inbox|questions|notes)[\\/][^\\/]+$/i.test(a);
+    const oneConfigRead = !isFind && !RECURSIVE_FLAG.test(c) && storeFiles.length === 1 && !isItemFile(storeFiles[0]);
+    if (!oneConfigRead) return { id: 'store-grep', msg: storeMsg(c) };
+  }
 
   // RULE 2 — discovery search of the source tree belongs to the code graph.
   if (isSearch) {
@@ -163,6 +177,8 @@ function storeMsg(c) {
     `  node "${Q}" --help               # the full query surface`,
     '',
     'This gate is the enforcement, not memory. (Read the q output, not the files.)',
+    'For ONE specific config/state file (e.g. config.yml, SESSION.md) read it directly with the Read',
+    'tool — q does not index those; it is for tickets/decisions/questions.',
     '',
   ].join('\n');
 }

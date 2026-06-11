@@ -66,6 +66,16 @@ expect('allows piped grep with pattern containing no path', run(d, 'git log --on
 expect('allows piped filter whose quoted PATTERN has regex slashes', run(d, "npm test | select-string -pattern '^(all pass|\\d+ FAIL)'").code, 0);
 expect('allows piped grep with unquoted slashed PATTERN (no file arg)', run(d, 'git log | grep src/notes').code, 0);
 
+// KIT-T080 — a targeted read/grep of ONE CONFIG/STATE store file is allowed (q can't return it);
+// individual ITEM files (tickets/decisions/...) still route to q; tree-wide/multi still blocks.
+expect('allows cat of .ai/config.yml', run(d, 'cat .ai/config.yml').code, 0);
+expect('allows sed paginate of config.yml', run(d, "sed -n '1,80p' .ai/config.yml").code, 0);
+expect('allows head -n of SESSION.md (flag value not a path)', run(d, 'head -n 40 .ai/SESSION.md').code, 0);
+expect('allows targeted grep of config.yml', run(d, 'grep uat .ai/config.yml').code, 0);
+expect('STILL blocks reading a decision ITEM file', run(d, 'cat .ai/decisions/HOD-D004.md').code, 2);
+expect('STILL blocks reading a ticket ITEM file', run(d, 'sed -n 1,5p .ai/tickets/KIT-T001.md').code, 2);
+expect('blocks multi-file store read (not "one specific")', run(d, 'cat .ai/config.yml .ai/SESSION.md').code, 2);
+
 // ALLOW — the query tools themselves, ordinary commands, and unadopted repos.
 expect('allows q governing', run(d, 'node scripts/q.mjs governing src/main.ts').code, 0);
 expect('allows code-graph query', run(d, 'node scripts/code-graph.mjs --query defines PhysicsSim').code, 0);
