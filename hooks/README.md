@@ -18,6 +18,7 @@ the tool payload from stdin, decides, and exits (`exit 2` = block, `0` = allow).
 | `PreToolUse` (Edit\|Write) | pre-write | Code-quality gates on source; **doc files** get a broken-link check instead of magic-number/etc; license/meta + data files skip. |
 | `PostToolUse` (Edit\|Write) | lint + jscpd + ingest-data | Language-aware linters (ruff/clippy/eslint/…) + copy-paste detection (advisory — never block). **ingest-data** incrementally syncs the SQLite cache for the edited `.ai` store immediately, so a same-turn query sees the change (KIT-T026; fail-open). |
 | `PostToolUse` (Task) + `SubagentStop` | agent-roster | Append each delegated subagent (task, scope, handle, status) to the durable roster `.ai/agents.jsonl`, and mark its completion — so a `/clear` mid-delegation never orphans the work; orient replays it on resume (KIT-T014; fail-open, never blocks a delegation). |
+| `PreToolUse` (Bash\|PowerShell) | license-guard | Block `npm install` / `cargo add` of a GPL/LGPL/AGPL/unlicensed dependency (KIT-T022). Looks up the package license via the registry; fails open if offline. Escape: `[allow-license: reason]` or `CLAUDE_KIT_ALLOW_LICENSE=1`. Nudges to update `THIRD_PARTY_LICENSES` on permissive adds. |
 | `PreToolUse` (Bash) | commit-gate | Block a `git commit` of code not tied to a ticket / plan-of-record (override `[no-log: reason]`). |
 | `PreToolUse` (AskUserQuestion) | question-gate | Block a non-compliant questionnaire (KIT-T086): every question must mark its recommended option on the LABEL (prefix `(Recommended)`), and — single-select — list it FIRST. Catches the lived bug of putting the marker in the option DESCRIPTION (where it never renders). Agent-discipline rule — fires regardless of `.ai/` adoption; fail-open. |
 | `PreCompact` | flush | Force a `.ai/SESSION.md` flush before context is lost. |
@@ -81,6 +82,7 @@ file-length:
 | `jscpd` | `duplication` | path glob |
 | `lint` | `lint` | path glob |
 | `commit-gate` | `commit-log` | path glob (an excluded code path doesn't require a citation) |
+| `license-guard` | `license-guard` | path glob (an excluded path skips the dep-name check for local/vendored deps) |
 | `request-gate` | `request-capture` | repo-wide glob over `.ai/` disables the gate (like `capture.enabled: false`) |
 
 **lib helpers** (`hooks/lib.mjs`): `loadIgnoreConfig(root)` → `{ checkId: globs[] }`;

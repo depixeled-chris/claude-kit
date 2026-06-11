@@ -28,6 +28,10 @@
         "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/branch-guard.mjs\"" }]
       },
       {
+        "matcher": "Bash|PowerShell",
+        "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/license-guard.mjs\"" }]
+      },
+      {
         "matcher": "AskUserQuestion",
         "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/question-gate.mjs\"" }]
       }
