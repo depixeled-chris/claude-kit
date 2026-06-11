@@ -19,8 +19,8 @@ process.on('unhandledRejection', failOpen);
 
 const MAX_SHOWN = 5;
 const MAX_SQL = 3;
-const FILE_HARD = 800;
-const FILE_SOFT = 400;
+const FILE_HARD = 600; // hard block: split the genuinely-huge (KIT-T087, was 800)
+const FILE_SOFT = 300; // warn: nudge to small files — better token use + code-graph navigation (KIT-T087, was 400)
 const ALLOWED = new Set(['-1', '0', '1', '2']);
 const NATIVE_LINTED = new Set(['rs', 'py', 'go', 'sh', 'bash', 'zsh']);
 const DOC = new Set(['md', 'markdown', 'mdx', 'txt', 'rst', 'adoc']);

@@ -51,7 +51,7 @@
 | KIT-T044 | superseded | Sessions must be cache-backed, searchable, and history-tracked across sessions (not one overwritten SESSION.md). Today: orient.mjs:100 raw file-reads SESSION.md; the DB cache+FTS ingests only .ai stores (db-parse), so the session summary is never a row, never searchable via q.mjs — a KIT-D024 violation (index is the SOLE read surface). Wanted: (1) session open/close are first-class boundary events; (2) each session = an append/versioned record (clean breaks, queryable history), not a clobbered file; (3) summaries ingested into items+FTS like any store; (4) orient loads the latest session summary FROM the cache, not a raw head() of the file. Touches: new SESSION store + db-parse, hydrate/sync, orient.mjs, flush.mjs. | — |
 | KIT-T060 | superseded | /done command — the human flip's mechanical tail (History line, archive move, index regen) | KIT-T075 |
 
-## Archived (44)
+## Archived (45)
 | id | type | status | priority | title |
 | --- | --- | --- | --- | --- |
 | KIT-T001 | feature | done | high | Scope-aware /prime — lazy default, "what needs me?" briefing, named deep-dive |
@@ -98,3 +98,4 @@
 | KIT-T080 | bug | done | medium | query-gate RULE 1 blocks a targeted read of a SPECIFIC store file (e.g. .ai/config.yml), contradicting its own allowed-case |
 | KIT-T081 | bug | done | high | GIT WORKFLOW 'branch first' default is wrong for multi-agent shared-FS repos — must mandate worktrees/trunk, not feature branches |
 | KIT-T086 | bug | done | high | Questionnaire-validator hook — enforce the AskUserQuestion recommendation contract (memory isn't enough) |
+| KIT-T087 | tech-debt | done | medium | File gate → warn-300 / block-600 + code-graph as the navigation layer (token efficiency) |

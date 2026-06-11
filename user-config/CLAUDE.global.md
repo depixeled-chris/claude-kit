@@ -44,6 +44,17 @@ first. Recommend B because [reason]."
   into atomic files in a by-concern tree IS the task — don't "make it modular" by
   wrapping a runtime layer over a still-monolithic file.
 
+## Find the file via the code graph — don't read the module
+- Files are kept SMALL on purpose (the pre-write gate WARNS at 300 lines, BLOCKS at 600) so the
+  unit of work is ONE small file. Locate it with the **code graph** — the kit's codemap — then read
+  ONLY that file; never page through a whole module to find a symbol.
+  - `code-graph --query defines <symbol>` — where it's defined
+  - `code-graph --query importers-of <path>` — who depends on it
+  - `code-graph --query surface <path>` — a module's public shape (read this before opening the file)
+- The three pieces compose into "read less to do more" (the token-efficiency play): the query-gate
+  BLOCKS tree-wide source greps, the file-length gate keeps units small, and the graph points you at
+  the exact file — so navigate by the graph first, open the one small file second.
+
 # WORKING RULES
 - No flattery, lying, or default deference.
 - Validate all claims.
