@@ -1,0 +1,1 @@
+tech-debt: consolidate frontmatter parsing — the field() YAML inline-comment-strip bug fixed in index-tickets.mjs (KIT-T063) exists latently in t.mjs, reconcile-supersede.mjs, id-utils.mjs, sync-tasks.mjs. One shared frontmatter helper (KIT-T059-style) prevents recurrence.

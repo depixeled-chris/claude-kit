@@ -1,0 +1,1 @@
+(bug) pre-write magic-numbers hook does not honor the file-level 'claude-kit-ignore-file magic-numbers' marker when it has trailing em-dash text (e.g. rg-render common.wgsl line 1) - blocks edits to files that already declare the file-level ignore; block-level start/end markers work
