@@ -2,13 +2,13 @@
 id: KIT-T028
 title: Mandatory ticket status updates for agents + a stale-status detector
 type: feature
-status: todo
+status: done
 priority: high
 labels: [tickets, status, agents, enforcement, handoff]
 links: [KIT-T018, KIT-T017, KIT-D018]
 files: [commands/work.md, commands/drain.md, agents/, hooks/]
 created: 2026-06-04T16:05:00Z
-updated: 2026-06-04T16:05:00Z
+updated: 2026-06-11T06:22:07Z
 ---
 
 ## Description
@@ -33,11 +33,19 @@ Make status currency structural:
   A `## Worklog` (or history) section on the ticket is the markdown serialization; the cache indexes it.
 
 ## Acceptance Criteria
-- [ ] Agent-handoff template + /work + /drain mandate the status transitions (start→doing, done→review, bail→todo).
-- [ ] A stale-status detector surfaces contradictions (and could gate Stop, like the request ratchet).
-- [ ] No existing hook weakened.
+- [x] Agent-handoff template + /work + /drain mandate the status transitions (start→doing, done→review, bail→todo).
+- [x] A stale-status detector surfaces contradictions (and could gate Stop, like the request ratchet).
+- [x] No existing hook weakened.
 
 ## Notes
 - [2026-06-05 20:16] (comment) folded from triage: Agent-assignment attribution on ticket history (who/which-agent did what) — DEFERRED per maintainer 2026-06-02; not needed yet. Prior art: workflow repo `agent_assignments`. If multi-agent accountability becomes real, add an actor field to History events (not a table).
 - 2026-06-04: Maintainer flagged old tickets with un-updated status as a process failure + made
   status updates mandatory for agents.
+- [2026-06-11] test evidence: 8 new KIT-T028 tests in scripts/test-hooks.mjs; npm test + node scripts/test-hooks.mjs → 119 passed, 0 failed.
+
+## History
+- [2026-06-11 06:14] (status) todo → doing
+- [2026-06-11 06:21] (comment) ticked: Agent-handoff template + /work + /drain mandate the status transitions (start→doing, done→review, bail→todo).
+- [2026-06-11 06:21] (comment) ticked: No existing hook weakened.
+- [2026-06-11 06:22] (comment) ticked: A stale-status detector surfaces contradictions (and could gate Stop, like the request ratchet).
+- [2026-06-11 06:22] (status) doing → done

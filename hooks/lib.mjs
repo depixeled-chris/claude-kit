@@ -119,6 +119,30 @@ export function wipSummary(repoRoot) {
   };
 }
 
+// origin's HTTPS web base (no trailing slash), normalizing the common remote forms:
+//   git@host:owner/repo.git · ssh://git@host/owner/repo · https://host/owner/repo(.git)
+// Returns null when there's no origin / it doesn't parse — the "link" in a landing alert
+// (KIT-T021) is then simply omitted, never a guess. Host-agnostic (GitHub/GitLab/Gitea all
+// share the /commit/<sha> permalink shape), so no forge is special-cased.
+export function remoteWebUrl(root) {
+  const raw = git(['-C', root, 'remote', 'get-url', 'origin']).trim();
+  if (!raw) return null;
+  let m = raw.match(/^git@([^:]+):(.+?)(?:\.git)?$/); // scp-like ssh
+  if (m) return `https://${m[1]}/${m[2]}`;
+  m = raw.match(/^ssh:\/\/(?:[^@]+@)?([^/]+)\/(.+?)(?:\.git)?$/); // ssh:// url
+  if (m) return `https://${m[1]}/${m[2]}`;
+  m = raw.match(/^https?:\/\/(?:[^@]+@)?([^/]+)\/(.+?)(?:\.git)?$/); // http(s) url
+  if (m) return `https://${m[1]}/${m[2]}`;
+  return null;
+}
+
+// A web permalink to one commit on origin, or null when there's no usable remote/sha. The
+// /commit/<sha> path is the shared convention across the major forges.
+export function remoteCommitUrl(root, sha) {
+  const base = remoteWebUrl(root);
+  return base && sha ? `${base}/commit/${sha}` : null;
+}
+
 // Ahead/behind vs upstream for a repo's current branch, with an optional bounded fetch
 // so cross-machine divergence is visible at session start (KIT-T054 — wipSummary alone
 // is ahead-only, which made a diverged main invisible until `git pull` failed mid-task).
@@ -649,28 +673,79 @@ export function scanReviewQueue(root) {
   return out;
 }
 
+// Stale `doing` tickets — tickets parked in `status: doing` with no `updated` timestamp
+// newer than thresholdMs. A zombie `doing` happens when an agent dies or bails without
+// flipping the status back to `todo` (or forward to `review`). Surfaces in orient +
+// housekeeping so a stale `doing` can't hide indefinitely.
+//
+// Age source: the ticket's `updated:` ISO frontmatter field (written by `t status`);
+// falls back to file mtime when the field is absent or unparseable. FAIL-OPEN:
+// any read/parse error returns the clean result — a nag must never wedge a session.
+// Returns { count, ids, oldestMs } where `oldestMs` is the age of the oldest stale
+// doing ticket in milliseconds (for callers that want to format as hours/days).
+export function scanStaleDoingTickets(root, thresholdMs) {
+  const out = { count: 0, ids: [], oldestMs: 0 };
+  try {
+    const dir = join(root, '.ai', 'tickets');
+    const now = Date.now();
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith('.md') || f.startsWith('_') || f === 'INDEX.md') continue;
+      const path = join(dir, f);
+      let text;
+      try { text = readFileSync(path, 'utf8'); } catch { continue; }
+      const fm = (text.match(/^---\n([\s\S]*?)\n---/) || [, ''])[1];
+      const pick = (k) => { const m = fm.match(new RegExp(`^${k}:[ \\t]*(.*)$`, 'm')); return m ? m[1].trim().replace(/^["']|["']$/g, '') : ''; };
+      if (pick('status') !== 'doing') continue;
+      const id = pick('id') || f.replace(/\.md$/, '');
+      // Parse `updated:` ISO field; fall back to file mtime.
+      let ageMs = 0;
+      const updatedStr = pick('updated');
+      if (updatedStr) {
+        const ts = Date.parse(updatedStr);
+        if (Number.isFinite(ts)) ageMs = now - ts;
+      }
+      if (!ageMs) {
+        try { ageMs = now - statSync(path).mtimeMs; } catch { continue; }
+      }
+      if (ageMs < thresholdMs) continue; // recently active — not stale
+      out.count++;
+      out.ids.push(id);
+      if (ageMs > out.oldestMs) out.oldestMs = ageMs;
+    }
+  } catch {
+    /* no tickets dir / unreadable — nothing to nag about */
+  }
+  return out;
+}
+
 // Per-repo turn snapshot for the Stop "review queue GREW this turn" nag. SessionStart writes
 // the current review count; Stop compares + rewrites it. Machine-local + disposable (the temp
 // dir), keyed by a sanitized repo path so parallel projects don't collide. FAIL-OPEN: a read
 // returns null (Stop then can't claim growth, so it stays silent — the safe direction); a write
 // is best-effort. CLAUDE_KIT_TURN_STATE overrides the dir so the test harness can isolate it.
-function turnStatePath(root) {
+//
+// `slot` partitions UNRELATED concerns into SEPARATE files (KIT-T021): housekeeping does a full
+// overwrite (`writeTurnState(root, {review})`) at Stop, which would clobber any sibling key a
+// later-running Stop hook stashed in the same object. A slot gives land-alert its own file so the
+// two never race. The default slot keeps the original `<repo>.json` filename (back-compat for the
+// existing review-count snapshot).
+function turnStatePath(root, slot = '') {
   const base = process.env.CLAUDE_KIT_TURN_STATE || join(tmpdir(), 'claude-kit-turnstate');
   const key = String(root).replace(/[:\\/ ]/g, '-').replace(/^-+/, '') || 'root';
-  return join(base, `${key}.json`);
+  return join(base, slot ? `${key}.${slot}.json` : `${key}.json`);
 }
 
-export function readTurnState(root) {
+export function readTurnState(root, slot = '') {
   try {
-    return JSON.parse(readFileSync(turnStatePath(root), 'utf8'));
+    return JSON.parse(readFileSync(turnStatePath(root, slot), 'utf8'));
   } catch {
     return null;
   }
 }
 
-export function writeTurnState(root, state) {
+export function writeTurnState(root, state, slot = '') {
   try {
-    const p = turnStatePath(root);
+    const p = turnStatePath(root, slot);
     mkdirSync(dirname(p), { recursive: true });
     writeFileSync(p, JSON.stringify(state) + '\n');
   } catch {

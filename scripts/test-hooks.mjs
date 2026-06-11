@@ -374,6 +374,69 @@ try {
       ok('orient: a SESSION older than the last commit is flagged stale, one line (KIT-T062)',
         ro.out.includes('SESSION.md is STALE') && /STALE \(\d+d/.test(ro.out));
     }
+
+    // KIT-T028 — stale `doing` detector -----------------------------------------
+    // Threshold: 2 h (DOING_STALE_MS). We backdate using utimesSync on the ticket
+    // file AND fake the `updated:` field in the frontmatter to a past ISO timestamp
+    // (the real signal the scanner uses; mtime is only a fallback).
+    {
+      const STALE_DOING_H = 4; // hours in the past — > the 2 h threshold
+      const STALE_DOING_S = STALE_DOING_H * 3600;
+      const staleFm = (id, updatedIso) =>
+        `---\nid: ${id}\ntitle: a doing ticket\nstatus: doing\nupdated: ${updatedIso}\n---\n`;
+      const doingProj = mkProj('required');
+
+      // fresh `doing` (updated 10 min ago) → silent
+      const freshTs = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      writeFileSync(join(doingProj, '.ai', 'tickets', 'KIT-T701-x.md'), staleFm('KIT-T701', freshTs));
+      let r = hook('housekeeping.mjs', {}, doingProj, env);
+      ok('housekeeping: fresh `doing` ticket stays silent (KIT-T028)',
+        r.code === 0 && !r.out.includes('ZOMBIE DOING'));
+
+      // stale `doing` (updated 4 h ago) → nag with id
+      const staleTs = new Date(Date.now() - STALE_DOING_S * 1000).toISOString();
+      const staleTicket = join(doingProj, '.ai', 'tickets', 'KIT-T702-y.md');
+      writeFileSync(staleTicket, staleFm('KIT-T702', staleTs));
+      r = hook('housekeeping.mjs', {}, doingProj, env);
+      ok('housekeeping: stale `doing` nags with ZOMBIE DOING + id (KIT-T028)',
+        r.code === 0 && r.out.includes('ZOMBIE DOING') && r.out.includes('KIT-T702'));
+
+      // non-doing ticket is not counted
+      const todoTicket = join(doingProj, '.ai', 'tickets', 'KIT-T703-z.md');
+      writeFileSync(todoTicket, `---\nid: KIT-T703\ntitle: todo\nstatus: todo\nupdated: ${staleTs}\n---\n`);
+      r = hook('housekeeping.mjs', {}, doingProj, env);
+      ok('housekeeping: non-doing ticket not counted as zombie (KIT-T028)', !r.out.includes('KIT-T703'));
+
+      // Stop also nags on stale doing
+      const stopR = hook('housekeeping.mjs', { hook_event_name: 'Stop' }, doingProj, env);
+      ok('housekeeping Stop: stale `doing` nags at Stop too (KIT-T028)',
+        stopR.code === 0 && stopR.out.includes('ZOMBIE DOING') && stopR.out.includes('KIT-T702'));
+
+      // orient shows !! ZOMBIE DOING banner
+      execFileSync('git', ['config', 'user.email', 't@t'], { cwd: doingProj, stdio: 'ignore' });
+      execFileSync('git', ['config', 'user.name', 't'], { cwd: doingProj, stdio: 'ignore' });
+      const ro2 = hook('orient.mjs', {}, doingProj);
+      ok('orient: stale `doing` emits !! ZOMBIE DOING banner (KIT-T028)',
+        ro2.code === 0 && ro2.out.includes('!! ZOMBIE DOING') && ro2.out.includes('KIT-T702'));
+
+      // orient stays silent when `doing` ticket is fresh
+      const freshProj = mkProj('required');
+      writeFileSync(join(freshProj, '.ai', 'tickets', 'KIT-T704-w.md'), staleFm('KIT-T704', freshTs));
+      execFileSync('git', ['config', 'user.email', 't@t'], { cwd: freshProj, stdio: 'ignore' });
+      execFileSync('git', ['config', 'user.name', 't'], { cwd: freshProj, stdio: 'ignore' });
+      const ro3 = hook('orient.mjs', {}, freshProj);
+      ok('orient: fresh `doing` ticket does NOT emit zombie banner (KIT-T028)',
+        ro3.code === 0 && !ro3.out.includes('ZOMBIE DOING'));
+
+      // lib.scanStaleDoingTickets: unit-level round-trip
+      const { scanStaleDoingTickets } = await import('../hooks/lib.mjs');
+      const scan1 = scanStaleDoingTickets(doingProj, 2 * 60 * 60 * 1000); // 2 h threshold
+      ok('lib.scanStaleDoingTickets: returns count+ids for stale doing (KIT-T028)',
+        scan1.count === 1 && scan1.ids.includes('KIT-T702') && scan1.oldestMs > 0);
+      const scan2 = scanStaleDoingTickets(freshProj, 2 * 60 * 60 * 1000);
+      ok('lib.scanStaleDoingTickets: returns count=0 for fresh doing (KIT-T028)',
+        scan2.count === 0 && scan2.ids.length === 0);
+    }
   }
 
   // hydrate-cache: contract = NEVER wedges; DB isolated via CLAUDE_PLUGIN_ROOT.

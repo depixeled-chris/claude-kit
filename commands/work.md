@@ -26,3 +26,10 @@ Work ticket $ARGUMENTS per the contract:
 5. When all criteria pass, `node <kit>/scripts/t.mjs status $ARGUMENTS review`, stop, and
    summarize the diff. Close (`status … done`) is gated by `config.uat`: agent-callable when it
    resolves `none` for the ticket (KIT-D034), else the maintainer's call via `/done`.
+
+**STATUS TRANSITIONS ARE MANDATORY (KIT-T028):** leaving a ticket in the wrong status is a
+process failure — a zombie `doing` surfaces as a nag on every subsequent session start.
+- Start work → set `doing` immediately (step 3 above).
+- Finish work → set `review` (or `done` when uat=none).
+- Bail / stop early / get reverted → set `todo` before exiting.
+Never leave a ticket `doing` when you stop touching it.

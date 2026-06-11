@@ -43,5 +43,11 @@ Keep going item-to-item until the queue needs them or they stop.
 6. STOP and report when: the queue is empty, every remaining item needs the maintainer
    (decision / scope / design-gated), or the maintainer says stop. List what's left and why.
 
+**STATUS TRANSITIONS ARE MANDATORY (KIT-T028):** a `doing` ticket that gets dropped without a
+status flip becomes a zombie that nags every session start. For every ticket you touch:
+- Picking it up → `t status <id> doing`.
+- Work complete → `t status <id> review` (or `done` when uat=none).
+- Bail / blocked / interrupted → `t status <id> todo` before you stop. Never leave doing.
+
 Honor the standing rules throughout: log work to its ticket in the same change (the commit gate
 enforces), record decisions the turn they happen, and don't start deferred/gated work.

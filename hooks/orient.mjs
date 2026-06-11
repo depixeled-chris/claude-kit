@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
-import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, centralDataRoot, globToRegExp, sessionStale, readAgents, partitionAgents, AGENT_STALE_MS, WIP_FILES, WIP_COMMITS } from './lib.mjs';
+import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, centralDataRoot, globToRegExp, sessionStale, readAgents, partitionAgents, AGENT_STALE_MS, scanStaleDoingTickets, WIP_FILES, WIP_COMMITS } from './lib.mjs';
 import { unifyMemory, memoryLinkCommand } from './memory-link.mjs';
 // q.mjs / id-utils.mjs are imported DYNAMICALLY at their (try-wrapped) use sites so a
 // broken scripts/ tree degrades that one section instead of crashing orientation (KIT-T055).
@@ -14,6 +14,8 @@ const SESSION_LINES = 40;
 const ROADMAP_LINES = 50;
 const DECISIONS_LINES = 25;
 const AGENT_RECENT_DONE = 6; // recently-finished agents listed (newest), so collection isn't missed
+// KIT-T028: a `doing` ticket with no update for this long is a zombie — flag it prominently.
+const ORIENT_DOING_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 const root = gitRoot();
 if (!adopted(root)) process.exit(0);
@@ -278,6 +280,22 @@ try {
   }
 } catch {
   /* cache + fallback both unavailable — orientation proceeds without the open-work view */
+}
+
+// KIT-T028: stale `doing` detector — surface zombie tickets so they can't hide at resume.
+// Runs after the open-work query so the !! banner is visually distinct from the normal list.
+// Fail-open: any error is swallowed (a nag must never block orientation).
+try {
+  const sd = scanStaleDoingTickets(root, ORIENT_DOING_STALE_MS);
+  if (sd.count) {
+    const oldestH = Math.round(sd.oldestMs / 3600000);
+    const ids = sd.ids.slice(0, 4).join(', ') + (sd.ids.length > 4 ? ` +${sd.ids.length - 4} more` : '');
+    out.push('');
+    out.push(`!! ZOMBIE DOING (${sd.count}): ${ids} — stuck \`doing\` >${oldestH}h with no update.`);
+    out.push(`   Likely an agent bailed without flipping status. Reconcile: t status <id> todo (if bailed) or review (if done).`);
+  }
+} catch {
+  /* stale-doing scan is fail-open — never block orientation */
 }
 
 // GOVERNS what you're touching (KIT-T049) — the inverse of `q trail`. For the working tree's

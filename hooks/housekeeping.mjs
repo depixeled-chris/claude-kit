@@ -10,7 +10,7 @@
 import { statSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { payload, MAINT_LOG, git, gitRoot, adopted, wipSummary, scanInbox, scanReviewQueue, readTurnState, writeTurnState } from './lib.mjs';
+import { payload, MAINT_LOG, git, gitRoot, adopted, wipSummary, scanInbox, scanReviewQueue, scanStaleDoingTickets, readTurnState, writeTurnState } from './lib.mjs';
 
 const REVIEW_DAYS = 7;
 const MISSING_AGE = 999;
@@ -22,6 +22,11 @@ const UNPUSHED_NAG = 3;
 // KIT-T062 — closure nags. The intake side is loud; make the CLOSURE side just as loud.
 const INBOX_STALE_DAYS = 2; // an inbox capture older than this is un-triaged debt
 const REVIEW_LIST_MAX = 6; // list review tickets individually below this; else count + oldest
+// KIT-T028 — stale `doing` detector. A ticket stuck in `doing` with no update for longer
+// than this threshold is a zombie: the agent that picked it up likely died or bailed
+// without flipping status back to `todo`. Nag at both SessionStart and Stop.
+const DOING_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
+const DOING_LIST_MAX = 4; // list individual ids up to this count
 
 const claudeDir = join(homedir(), '.claude');
 const encodedHome = homedir().replace(/[:\\/ ]/g, '-');
@@ -43,6 +48,15 @@ function reviewQueueLine(rq) {
     return `${rq.count} in review (${rq.ids.join(', ')})`;
   }
   return `${rq.count} in review, oldest ${rq.oldestDays}d`;
+}
+
+// Render the stale-doing list: ids when the count is small enough; else count + oldest age.
+function staleDoingLine(sd) {
+  const oldestH = Math.round(sd.oldestMs / 3600000);
+  if (sd.count <= DOING_LIST_MAX && sd.ids.length) {
+    return `${sd.count} zombie \`doing\` (${sd.ids.join(', ')}), oldest ~${oldestH}h`;
+  }
+  return `${sd.count} zombie \`doing\` tickets, oldest ~${oldestH}h`;
 }
 
 const memAge = daysSince(memTs);
@@ -73,6 +87,13 @@ if (isStop) {
         msgs.push(`Review queue GREW this turn (${prev.review} → ${rq.count}) — these wait on YOUR \`/done\`, not on me.`);
       }
       writeTurnState(root, { review: rq.count });
+      // KIT-T028: surface stale `doing` tickets at Stop — if one was left zombie this turn,
+      // catch it now. Always show when present (not just on growth), because a zombie `doing`
+      // can hide for many sessions if it only surfaces once.
+      const sd = scanStaleDoingTickets(root, DOING_STALE_MS);
+      if (sd.count) {
+        msgs.push(`ZOMBIE DOING: ${staleDoingLine(sd)} — flip to \`todo\` (if bailed) or \`review\` (if done): node <kit>/scripts/t.mjs status <id> todo`);
+      }
     }
   } catch {
     /* fail-open — a git hiccup never blocks a stop */
@@ -136,6 +157,16 @@ try {
       reminders.push(`REVIEW QUEUE: ${reviewQueueLine(rq)} — waiting on YOUR \`/done\`, not on me.`);
     }
     writeTurnState(root, { review: rq.count });
+    // KIT-T028: stale `doing` — a ticket stuck doing with no recent update is a zombie
+    // (agent died / bailed without resetting status). Surface every SessionStart: these
+    // accumulate silently and need manual reconciliation.
+    const sd = scanStaleDoingTickets(root, DOING_STALE_MS);
+    if (sd.count) {
+      reminders.push(
+        `ZOMBIE DOING: ${staleDoingLine(sd)} — an agent likely bailed without flipping status. ` +
+          `Reconcile: flip to \`todo\` (bailed) or \`review\` (done): node <kit>/scripts/t.mjs status <id> todo`,
+      );
+    }
   }
 } catch {
   /* closure nags are best-effort — never break orientation */

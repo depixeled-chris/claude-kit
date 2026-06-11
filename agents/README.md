@@ -27,6 +27,20 @@ installs them (→ `~/.claude/agents/`); a project may also pin its own under
   `docs/research/agent-token-strategy.md` for the measured breakdown and the
   flagged harness follow-up.
 
+## Mandatory status transitions (KIT-T028)
+When an orchestrator delegates a **ticket** to a subagent, the subagent MUST keep the
+ticket status current — a stale `doing` nags every session start and obscures what's
+actually in flight. The three mandatory transitions:
+- **Start**: `node <kit>/scripts/t.mjs status <id> doing` as the FIRST act.
+- **Done** (all criteria pass): `node <kit>/scripts/t.mjs status <id> review` (or
+  `done` when `config.uat` resolves `none`).
+- **Bail / interrupted / reverted**: `node <kit>/scripts/t.mjs status <id> todo`
+  before stopping — never leave the ticket `doing`.
+
+The orchestrator briefs this rule in the agent's task prompt and the `/work` + `/drain`
+commands enforce it in the main thread. Leaving a ticket `doing` on exit is a
+process failure; the stale-doing detector (housekeeping + orient) will flag it loudly.
+
 ## Index
 | Agent | Role | Tools |
 | --- | --- | --- |
