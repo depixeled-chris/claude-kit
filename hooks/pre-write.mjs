@@ -5,7 +5,7 @@
 
 import { existsSync } from 'node:fs';
 import { basename, dirname, isAbsolute, resolve } from 'node:path';
-import { payload, projectRoot, pathExcluded, markerExcludedLines, excludeFooter, VENDORED, LOCKFILES, fileExt } from './lib.mjs';
+import { payload, projectRoot, gitRoot, pathExcluded, markerExcludedLines, excludeFooter, VENDORED, LOCKFILES, fileExt } from './lib.mjs';
 
 // Fail-open guard (KIT-T055): an unexpected throw anywhere below must never wedge a
 // write. The HOOK CONTRACT requires EXPLICIT fail-open; before this, an uncaught throw
@@ -147,7 +147,13 @@ const ext = fileExt(norm);
 // glob under that check-id (or '*') in .claude-kit-ignore.yaml, OR the whole file is
 // excluded by an in-source marker. Line-keyed checks (magic-numbers, file-length) ALSO
 // honor block/line markers via excludedAt below. Fail-open throughout.
-const ROOT = projectRoot(dirname(file));
+//
+// ROOT uses the nearest git repo root of the edited file so a submodule's own
+// .claude-kit-ignore.yaml is found, not the superproject's (KIT-T084).  Falls back to
+// projectRoot (package.json / Cargo.toml walk) when git isn't available or the file
+// isn't inside a git repo — same fail-open contract.
+const _gitRoot = gitRoot(dirname(file));
+const ROOT = _gitRoot || projectRoot(dirname(file));
 const excludedFile = (id) =>
   pathExcluded(ROOT, id, file) || markerExcludedLines(content, id).wholeFile;
 const markedLines = (id) => markerExcludedLines(content, id).lines;

@@ -517,11 +517,15 @@ export function markerExcludedLines(source, checkId) {
   try {
     const lines = String(source).split('\n');
     const C = '(?://|#|--)';
-    const reFile = new RegExp(`${C}\\s*claude-kit-ignore-file\\s+(\\S+)`);
-    const reStart = new RegExp(`${C}\\s*claude-kit-ignore-start\\s+(\\S+)`);
+    // Capture only the id token (word chars + hyphen + glob `*`).  A `\S+` would greedily
+    // swallow an em-dash or parenthesis glued to the id (e.g. `magic-numbers—reason`) and
+    // produce a token that never matches any check, silently suppressing the exclusion (KIT-T084).
+    const ID = '([\\w*-]+)';
+    const reFile = new RegExp(`${C}\\s*claude-kit-ignore-file\\s+${ID}`);
+    const reStart = new RegExp(`${C}\\s*claude-kit-ignore-start\\s+${ID}`);
     const reEnd = new RegExp(`${C}\\s*claude-kit-ignore-end\\b`);
-    const reLine = new RegExp(`${C}\\s*claude-kit-ignore-line\\s+(\\S+)`);
-    const reTrail = new RegExp(`${C}\\s*claude-kit-ignore\\s+(\\S+)\\s*$`);
+    const reLine = new RegExp(`${C}\\s*claude-kit-ignore-line\\s+${ID}`);
+    const reTrail = new RegExp(`${C}\\s*claude-kit-ignore\\s+${ID}\\s*$`);
     const applies = (id) => id === checkId || id === 'all' || id === '*';
     let openFrom = -1; // 1-based line where an active start marker (matching this check) sits
     for (let i = 0; i < lines.length; i++) {

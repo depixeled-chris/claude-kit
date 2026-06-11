@@ -226,6 +226,62 @@ try {
   ok('pre-write: scss literal declared as variable passes',
     hook('pre-write.mjs', { tool_input: { file_path: '/x/a.scss', content: '$gap: 24px;\n.a{padding:$gap}.b{margin:$gap}.c{gap:$gap}\n' } }, clean).code === 0);
 
+  // KIT-T084 — file-level marker with trailing prose + .claude-kit-ignore.yaml submodule root.
+  {
+    // (1) marker-with-prose: a file-level marker where trailing text follows the id must suppress
+    // the check for the whole file.  The em-dash form (space-separated) is the canonical example;
+    // the glued form (no space) is the case that was silently failing before the \S+ → [\w*-]+ fix.
+    const mnContent = 'function f(x) {\n  return x * 1337;\n}\n'; // would block without the marker
+    ok('pre-write KIT-T084: file marker `magic-numbers — prose` (space before em-dash) suppresses',
+      hook('pre-write.mjs', { tool_input: {
+        file_path: '/x/shader.wgsl',
+        content: '// claude-kit-ignore-file magic-numbers — WGSL literals are idiomatic\n' + mnContent,
+      } }, clean).code === 0);
+    ok('pre-write KIT-T084: file marker `magic-numbers—prose` (glued em-dash) suppresses',
+      hook('pre-write.mjs', { tool_input: {
+        file_path: '/x/shader.wgsl',
+        content: '// claude-kit-ignore-file magic-numbers—WGSL literals are idiomatic\n' + mnContent,
+      } }, clean).code === 0);
+    ok('pre-write KIT-T084: file marker `magic-numbers (reason)` (parenthesised reason) suppresses',
+      hook('pre-write.mjs', { tool_input: {
+        file_path: '/x/shader.wgsl',
+        content: '// claude-kit-ignore-file magic-numbers (shader constants are idiomatic)\n' + mnContent,
+      } }, clean).code === 0);
+
+    // (2) .claude-kit-ignore.yaml glob honored from the nearest git repo root.
+    // Build a fake submodule structure: superproject at `super/`, submodule at `super/sub/`.
+    // Only the SUBMODULE root carries the yaml glob.  A file inside the submodule should be
+    // excluded; a file in the superproject (no yaml there) should still block.
+    {
+      const g = (args, cwd) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+      const superDir = mkdtempSync(join(tmpdir(), 'kit-super-'));
+      fixtures.push(superDir);
+      g(['init', '-q'], superDir);
+      g(['config', 'user.email', 't@t'], superDir);
+      g(['config', 'user.name', 't'], superDir);
+
+      const subDir = join(superDir, 'sub');
+      mkdirSync(subDir);
+      g(['init', '-q'], subDir);
+      g(['config', 'user.email', 't@t'], subDir);
+      g(['config', 'user.name', 't'], subDir);
+
+      // Yaml glob at the SUBMODULE root: exclude all .wgsl files from magic-numbers.
+      writeFileSync(join(subDir, '.claude-kit-ignore.yaml'), 'magic-numbers:\n  - "**/*.wgsl"\n');
+
+      const subFile = join(subDir, 'lighting.wgsl');
+      const superFile = join(superDir, 'toplevel.ts');
+
+      // File in submodule → yaml at submodule root matches → allowed.
+      ok('pre-write KIT-T084: .claude-kit-ignore.yaml glob honored from submodule git root',
+        hook('pre-write.mjs', { tool_input: { file_path: subFile, content: mnContent } }, subDir).code === 0);
+
+      // File in superproject → no yaml at superproject root → still blocked.
+      ok('pre-write KIT-T084: no yaml at superproject root does not leak into submodule glob check',
+        hook('pre-write.mjs', { tool_input: { file_path: superFile, content: mnContent } }, superDir).code === 2);
+    }
+  }
+
   // orient / flush emit in adopted repos, stay silent otherwise
   // KIT-T057 — legacy .claudekit-ignore is retired: warns with the migration, no longer bypasses.
   {

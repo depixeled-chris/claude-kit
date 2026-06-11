@@ -34,7 +34,7 @@
 | KIT-T078 | tech-debt | review | low | Command-level model tiering — static `model:` on fixed-cost read-only commands |
 | KIT-T082 | feature | review | critical | Branch-switch guard — block git switch / checkout -b in a shared checkout; force worktrees for parallel agents |
 | KIT-T083 | feature | todo | low | q: add --help / -h usage output (currently exits 2 'unknown query') |
-| KIT-T084 | bug | todo | medium | pre-write magic-numbers hook ignores file-level ignore markers and .claude-kit-ignore.yaml globs |
+| KIT-T084 | bug | doing | medium | pre-write magic-numbers hook ignores file-level ignore markers and .claude-kit-ignore.yaml globs |
 | KIT-T085 | bug | todo | medium | query-gate grep blocker over-blocks: redirects to code-graph/q.mjs that cannot answer the blocked query (Rust/WGSL symbols unindexed, no content-search mode, config.yml debugging) |
 
 ## Superseded (8)
