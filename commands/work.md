@@ -15,7 +15,12 @@ Work ticket $ARGUMENTS per the contract:
 2. Confirm scope before editing files. Wait for OK if the plan changes scope or
    touches files not listed in the ticket.
 3. `node <kit>/scripts/t.mjs status $ARGUMENTS doing`. Mirror each acceptance criterion
-   into the native task list (TaskCreate) for live progress.
+   into the native task list (TaskCreate) for live progress. If you DELEGATE this ticket to a
+   subagent, set its firepower from `config.dispatch` (KIT-T034): pass the Agent `model`/`effort`
+   resolved as — explicit ticket `model:`/`effort:` (per-axis override), else ticket `tier:`
+   expanded via `dispatch.tiers`, else `dispatch.default_tier` for the ticket's `type` (then the
+   `*` catch-all). One `tier` sets BOTH model and effort; never inherit the parent model by
+   default (Opus-inheritance is the token bleed — KIT-D022).
 4. Execute. Tick each criterion as satisfied with `node <kit>/scripts/t.mjs tick $ARGUMENTS
    <ordinal|match>`; append narrative progress to the ticket's Notes by hand (prose).
 5. When all criteria pass, `node <kit>/scripts/t.mjs status $ARGUMENTS review`, stop, and

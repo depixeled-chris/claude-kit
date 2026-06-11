@@ -83,6 +83,48 @@ drain:
   groomer: off
 
 # ---------------------------------------------------------------------------
+# DISPATCH — the FIREPOWER a ticket gets when it is delegated to a subagent
+# (KIT-D022 complexity principle; KIT-T034). Model and reasoning-effort are ONE
+# decision, not two knobs: pick a `tier`, get both. The orchestrator reads THIS
+# block at delegation time and passes the resolved model + effort as the Agent
+# `model`/`effort` params — no code honors it, the orchestrator does (so the
+# field needs no parser; see commands/drain.md + commands/work.md).
+#
+# RESOLUTION ORDER (first hit wins), per ticket:
+#   1. explicit `model:` / `effort:` on the ticket  → use verbatim (per-axis override)
+#   2. explicit `tier:` on the ticket               → expand via `tiers` below
+#   3. no field                                     → `default_tier` for the ticket's
+#                                                      type (then the catch-all `*`)
+# `model:`/`effort:` override INDIVIDUALLY: a ticket may set `tier: deep` but pin
+# `model: sonnet` to get deep effort on the cheaper model.
+#
+# DISTINCT from KIT-T078 (static `model:` on fixed-cost read-only COMMANDS): that
+# lever tiers a command whose cost is intrinsic; THIS tiers the per-ticket work a
+# command dispatches. Same principle, different granularity — they don't overlap.
+# ---------------------------------------------------------------------------
+dispatch:
+  # tier -> the (model, effort) firepower it expands to. Three tiers span the
+  # KIT-D022 ladder: light = mechanical, standard = everyday atomic change,
+  # deep = reasoning-heavy planning/architecture/research.
+  #   effort values (verified to exist as Agent/command/skill frontmatter):
+  #   low | medium | high | xhigh | max
+  tiers:
+    light:    { model: haiku,  effort: low }     # data formatting, mechanical edits, search, triage
+    standard: { model: sonnet, effort: medium }  # normal atomic code change / bug fix (the everyday default)
+    deep:     { model: opus,   effort: high }     # planning, architecture, research, epics, anything reasoning-heavy
+  # Default tier by ticket `type` when the ticket names no tier/model. Keys are
+  # classification types (config.classifications); `*` is the catch-all. Projects
+  # that add their own types (epic, research, architecture, chore, format, cleanup,
+  # spike, security) map them here — e.g. research/architecture/epic -> deep,
+  # chore/format/cleanup -> light.
+  default_tier:
+    regression: standard
+    bug:        standard
+    feature:    standard
+    tech-debt:  light
+    "*":        standard
+
+# ---------------------------------------------------------------------------
 # RECEIPTS — how routing is acknowledged so you can catch a misroute fast.
 #   one-line = "→ BUG-024 logged, still on T-001"   | silent = no ack, check the board
 # ---------------------------------------------------------------------------

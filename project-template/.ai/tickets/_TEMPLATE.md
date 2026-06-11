@@ -8,6 +8,10 @@ priority: medium       # critical | high | medium | low
 milestone:             # blank = backlog; set to schedule onto ROADMAP.md
 labels: []
 files: []              # repo-root-relative paths this ticket touches
+tier:                  # OPTIONAL dispatch firepower: light | standard | deep — expands to (model, effort)
+                       # via config.dispatch.tiers (KIT-T034). Blank = config.dispatch.default_tier[type].
+model:                 # OPTIONAL override: opus | sonnet | haiku — pins the subagent model, beating tier.
+effort:                # OPTIONAL override: low | medium | high | xhigh | max — pins reasoning effort, beating tier.
 links: []              # related tickets / URLs
 supersedes:            # ticket id this one RETIRES (set on the NEWER ticket)
 superseded_by:         # ticket id that retired THIS one (drops it from the active board + drain)

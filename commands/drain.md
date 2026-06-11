@@ -23,6 +23,12 @@ Keep going item-to-item until the queue needs them or they stop.
    outside the ticket), then drive STRUCTURED mutations through the `t` CLI (KIT-T075) — never
    hand-edited frontmatter: `t status <id> doing`, mirror criteria into native tasks, execute,
    `t tick <id> <ordinal|match>` each criterion as it passes. Narrative Notes stay direct-edit.
+   - **DISPATCH FIREPOWER (KIT-T034):** when you delegate the ticket to a subagent, resolve its
+     model + effort from `config.dispatch` and pass them as the Agent `model`/`effort` — don't
+     inherit the parent (Opus-inheritance was the token bleed, KIT-D022). Resolution (first hit
+     wins): explicit ticket `model:`/`effort:` (per-axis override) → ticket `tier:` expanded via
+     `dispatch.tiers` → `dispatch.default_tier` for the ticket's `type` (else the `*` catch-all).
+     A `tier` expands to BOTH model and effort — they are one firepower decision, not two knobs.
 3. BOLDNESS per `drain.auto_execute`:
    - `within-patterns-low-risk`: start the item if it follows established patterns and is
      low-risk; otherwise surface ONE line — `next up: <id> — your call: <why>` — and wait.
