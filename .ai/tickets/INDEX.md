@@ -25,7 +25,7 @@
 | KIT-T068 | tech-debt | todo | high | Contract reconciliation — one truth for Notes/History, triage semantics, ID templates, command surface |
 | KIT-T069 | tech-debt | todo | high | Config truth — reconcile template vs repo config, hooks.json vs settings.recommended, remove vapor knobs |
 | KIT-T070 | tech-debt | todo | medium | Doc rot pass — README, claude-kit SKILL.md, DAILY-LOOP, repo CLAUDE.md; wire doc-audit into release ritual |
-| KIT-T071 | tech-debt | todo | medium | orient on a token budget — gist + q-pointers instead of full dumps |
+| KIT-T071 | tech-debt | done | medium | orient on a token budget — gist + q-pointers instead of full dumps |
 | KIT-T072 | tech-debt | todo | low | Quiet the per-turn hook chatter — dedupe advisories, conditional receipts |
 | KIT-T073 | tech-debt | todo | low | Progressive disclosure for the global contract — specialist sections become on-demand skills |
 | KIT-T074 | tech-debt | todo | medium | maintenance-gaps gets a drain path — nags without resolution train you to ignore them |
@@ -34,7 +34,7 @@
 | KIT-T078 | tech-debt | review | low | Command-level model tiering — static `model:` on fixed-cost read-only commands |
 | KIT-T082 | feature | review | critical | Branch-switch guard — block git switch / checkout -b in a shared checkout; force worktrees for parallel agents |
 | KIT-T083 | feature | todo | low | q: add --help / -h usage output (currently exits 2 'unknown query') |
-| KIT-T085 | bug | todo | medium | query-gate grep blocker over-blocks: redirects to code-graph/q.mjs that cannot answer the blocked query (Rust/WGSL symbols unindexed, no content-search mode, config.yml debugging) |
+| KIT-T088 | bug | todo | medium | request-gate flags harness compaction summaries as un-captured requests |
 
 ## Superseded (8)
 | id | status | title | superseded by |
@@ -48,7 +48,7 @@
 | KIT-T044 | superseded | Sessions must be cache-backed, searchable, and history-tracked across sessions (not one overwritten SESSION.md). Today: orient.mjs:100 raw file-reads SESSION.md; the DB cache+FTS ingests only .ai stores (db-parse), so the session summary is never a row, never searchable via q.mjs — a KIT-D024 violation (index is the SOLE read surface). Wanted: (1) session open/close are first-class boundary events; (2) each session = an append/versioned record (clean breaks, queryable history), not a clobbered file; (3) summaries ingested into items+FTS like any store; (4) orient loads the latest session summary FROM the cache, not a raw head() of the file. Touches: new SESSION store + db-parse, hydrate/sync, orient.mjs, flush.mjs. | — |
 | KIT-T060 | superseded | /done command — the human flip's mechanical tail (History line, archive move, index regen) | KIT-T075 |
 
-## Archived (48)
+## Archived (49)
 | id | type | status | priority | title |
 | --- | --- | --- | --- | --- |
 | KIT-T001 | feature | done | high | Scope-aware /prime — lazy default, "what needs me?" briefing, named deep-dive |
@@ -97,5 +97,6 @@
 | KIT-T080 | bug | done | medium | query-gate RULE 1 blocks a targeted read of a SPECIFIC store file (e.g. .ai/config.yml), contradicting its own allowed-case |
 | KIT-T081 | bug | done | high | GIT WORKFLOW 'branch first' default is wrong for multi-agent shared-FS repos — must mandate worktrees/trunk, not feature branches |
 | KIT-T084 | bug | done | medium | pre-write magic-numbers hook ignores file-level ignore markers and .claude-kit-ignore.yaml globs |
+| KIT-T085 | bug | done | medium | query-gate grep blocker over-blocks: redirects to code-graph/q.mjs that cannot answer the blocked query (Rust/WGSL symbols unindexed, no content-search mode, config.yml debugging) |
 | KIT-T086 | bug | done | high | Questionnaire-validator hook — enforce the AskUserQuestion recommendation contract (memory isn't enough) |
 | KIT-T087 | tech-debt | done | medium | File gate → warn-300 / block-600 + code-graph as the navigation layer (token efficiency) |

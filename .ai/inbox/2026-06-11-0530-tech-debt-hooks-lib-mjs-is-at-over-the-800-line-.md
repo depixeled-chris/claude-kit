@@ -1,0 +1,1 @@
+tech-debt: hooks/lib.mjs is at/over the 800-line file-length hard gate (801 on HEAD) — split by concern (registry / store-paths / git-wip / turn-state / memory) per the atomic-files principle. Surfaced during KIT-T016.

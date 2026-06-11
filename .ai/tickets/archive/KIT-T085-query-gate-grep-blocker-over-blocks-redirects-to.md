@@ -2,7 +2,7 @@
 id: KIT-T085
 title: query-gate grep blocker over-blocks: redirects to code-graph/q.mjs that cannot answer the blocked query (Rust/WGSL symbols unindexed, no content-search mode, config.yml debugging)
 type: bug
-status: review
+status: done
 priority: medium
 milestone:
 labels: []
@@ -11,7 +11,8 @@ files: []
 supersedes:
 superseded_by:
 created: 2026-06-11T04:01:40Z
-updated: 2026-06-11T21:38:50Z
+updated: 2026-06-11T21:39:38Z
+fixed_commit: e5226aa
 ---
 
 ## Description
@@ -52,3 +53,4 @@ dead end, not a redirect:
 - [2026-06-11 21:38] (comment) ticked: t.mjs works against projects whose config lacks ids.key (fix config or fail with the fix instruction)
 - [2026-06-11 21:38] (status) doing → review
 - [2026-06-11 21:38] (comment) AC1-3: RULE 2 now exempts non-indexed extensions (Rust .rs, WGSL .wgsl, +others) from source-discovery block — code-graph can't answer those, so blocking was a dead end. JS/TS tree-wide greps still blocked. AC3: grep ids .ai/config.yml already passed via KIT-T080 carve-out — added tests to assert it. AC4: nextId error now names the fix (add ids: key:/pad: to config.yml). 44 gate tests + 124 hook-suite + npm test all green.
+- [2026-06-11 21:39] (status) review → done

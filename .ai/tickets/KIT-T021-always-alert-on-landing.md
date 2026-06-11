@@ -8,7 +8,7 @@ labels: [hooks, loop, notifications, enforcement]
 links: [KIT-D017, KIT-T019]
 files: [hooks/, commands/drain.md]
 created: 2026-06-04T12:40:00Z
-updated: 2026-06-04T12:40:00Z
+updated: 2026-06-11T05:37:06Z
 ---
 
 ## Description
@@ -26,3 +26,7 @@ structural, like the commit-gate.
 ## Notes
 - 2026-06-04: Maintainer: "a rigid part of the KIT process re-enforcement needs to be to ALWAYS
   alert me when something lands." Pairs with KIT-T019 (bubble-up) and KIT-D017 (the loop).
+
+## History
+- [2026-06-11 05:30] (status) todo → doing
+- [2026-06-11 05:37] (status) doing → todo
