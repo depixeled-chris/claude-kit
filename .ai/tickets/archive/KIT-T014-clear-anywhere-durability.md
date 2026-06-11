@@ -2,7 +2,7 @@
 id: KIT-T014
 title: Harden /clear-anywhere durability — surface in-flight agents + keep the resume anchor live
 type: feature
-status: doing
+status: done
 priority: critical
 milestone:
 labels: [hooks, capture, orchestration, durability]
@@ -12,7 +12,7 @@ files:
   - hooks/flush.mjs
   - hooks/request-gate.mjs
 created: 2026-06-04T11:25:00Z
-updated: 2026-06-11T04:38:22Z
+updated: 2026-06-11T04:51:21Z
 supersedes: KIT-T037
 ---
 
@@ -116,3 +116,4 @@ Likely 1 + 2 together: 1 makes live work *visible* on resume, 2 makes finished w
 - [2026-06-11 04:50] (comment) ticked: Automated test(s) for the new hook behavior (throwaway adopted repo, like request-gate.test.mjs).
 - [2026-06-11 04:50] (comment) ticked: A durable on-disk roster of delegated agents exists (where the orchestrator records each
 - [2026-06-11 04:50] (comment) ticked: The capture→delegate→stay-free CADENCE is documented as a resume-restated mode, not
+- [2026-06-11 04:51] (status) doing → done
