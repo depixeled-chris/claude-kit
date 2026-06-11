@@ -637,6 +637,67 @@ try {
   const bare = repo();
   ok('orient: non-adopted repo is silent', hook('orient.mjs', {}, bare).out.trim() === '');
 
+  // KIT-T071: token budget — gist + pointer design.
+  // A fixture with large SESSION + ROADMAP + DECISIONS + lineage + decisions-dir asserts
+  // the output is materially shorter than a full dump AND contains the required pointer commands.
+  {
+    const TOKEN_BUDGET = 1200; // 1.2k tokens ≈ chars / 4 (rough; we bound chars / 3 to be safe)
+    const CHARS_PER_TOKEN = 3; // conservative: 3 chars per token → budget = 3600 chars
+    const BUDGET_CHARS = TOKEN_BUDGET * CHARS_PER_TOKEN;
+
+    const tb = adopted(false);
+    execFileSync('git', ['config', 'user.email', 't@t'], { cwd: tb, stdio: 'ignore' });
+    execFileSync('git', ['config', 'user.name', 't'], { cwd: tb, stdio: 'ignore' });
+    writeFileSync(join(tb, '.ai', 'config.yml'), 'uat:\n  default: none\nids:\n  key: "KIT"\n');
+    mkdirSync(join(tb, '.ai', 'tickets'), { recursive: true });
+
+    // Large SESSION.md (80 lines — well beyond the 6-line gist cap)
+    const sessionLines = Array.from({ length: 80 }, (_, i) => `## Step ${i + 1}: do something with the thing`).join('\n');
+    writeFileSync(join(tb, '.ai', 'SESSION.md'), sessionLines);
+
+    // Large ROADMAP (60 lines)
+    const roadmapLines = ['# Roadmap', '', '## Milestone 1', ...Array.from({ length: 56 }, (_, i) => `- item ${i + 1}: work to do here`)].join('\n');
+    writeFileSync(join(tb, '.ai', 'ROADMAP.md'), roadmapLines);
+
+    // Decisions directory with 15 entries
+    mkdirSync(join(tb, '.ai', 'decisions'), { recursive: true });
+    for (let i = 1; i <= 15; i++) {
+      writeFileSync(join(tb, '.ai', 'decisions', `D-0${String(i).padStart(2, '0')}.md`),
+        `---\nid: D-0${String(i).padStart(2, '0')}\ntitle: decision number ${i} about some architectural thing\n---\n`);
+    }
+
+    // Lineage file with 5 relations
+    writeFileSync(join(tb, '.ai', 'lineage.yml'),
+      'relations:\n  - name: rapid-game\n    role: engine\n    note: shared Rust core\n' +
+      '  - name: gta7\n    role: ancestor\n    note: public MIT fork\n' +
+      '  - name: mmo-rts\n    role: sibling\n    note: another consumer\n' +
+      '  - name: rapid-rust\n    role: dead\n    note: retired\n' +
+      '  - name: wordslide-codex\n    role: parent\n    note: org root\n');
+
+    const r = hook('orient.mjs', {}, tb);
+
+    // Budget assertion
+    ok('orient KIT-T071: output is within the token budget (≤1200 tokens)', r.out.length <= BUDGET_CHARS, );
+
+    // Essential signals still present
+    ok('orient KIT-T071: ORIENTATION header is present', /ORIENTATION/.test(r.out));
+    ok('orient KIT-T071: SESSION resume gist is present (first lines)', r.out.includes('## Step 1:'));
+    ok('orient KIT-T071: SESSION full pointer is present', r.out.includes('read .ai/SESSION.md'));
+    ok('orient KIT-T071: ROADMAP gist is present (milestone header)', r.out.includes('## Milestone 1'));
+    ok('orient KIT-T071: ROADMAP full pointer is present', r.out.includes('head .ai/ROADMAP.md'));
+    ok('orient KIT-T071: decisions gist lists recent ids', r.out.includes('D-015') || r.out.includes('D-010'));
+    ok('orient KIT-T071: decisions overflow pointer is present', r.out.includes('q decisions'));
+    ok('orient KIT-T071: lineage collapsed to pointer (no full dump)', r.out.includes('lineage.yml'));
+    // The full raw lineage list should NOT be present — just the count/pointer line
+    ok('orient KIT-T071: lineage does not dump all relation details inline', !r.out.includes('[engine] rapid-game'));
+
+    // SESSION raw content beyond gist cap is not dumped inline
+    ok('orient KIT-T071: SESSION does not dump all 80 lines', !r.out.includes('## Step 80:'));
+
+    // ROADMAP raw content beyond gist cap is not dumped inline
+    ok('orient KIT-T071: ROADMAP does not dump all 60 items', !r.out.includes('item 56:'));
+  }
+
   // code-graph (KIT-T012): Stop hook refreshes a machine-local graph cache for an adopted
   // repo; isolated from the real ~/.claude via CLAUDE_CODE_GRAPH_CACHE. (Assert on cache-dir
   // contents, not a guessed filename — the cache key comes from git's normalized path.)

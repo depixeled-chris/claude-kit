@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // SessionStart — inject the on-disk record into a fresh/compacted context so work
 // never starts blind. No-ops unless the repo has adopted .ai/.
+// KIT-T071: gist + q-pointer design — essentials inline, big content behind commands.
+// Target: ≤1.2k tokens per session (vs ~3.2k before). FAIL-OPEN throughout.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
@@ -9,11 +11,12 @@ import { unifyMemory, memoryLinkCommand } from './memory-link.mjs';
 // q.mjs / id-utils.mjs are imported DYNAMICALLY at their (try-wrapped) use sites so a
 // broken scripts/ tree degrades that one section instead of crashing orientation (KIT-T055).
 
-const COMMITS = 12;
-const SESSION_LINES = 40;
-const ROADMAP_LINES = 50;
-const DECISIONS_LINES = 25;
-const AGENT_RECENT_DONE = 6; // recently-finished agents listed (newest), so collection isn't missed
+const COMMITS = 6;
+// KIT-T071 per-section budgets (lines):
+const SESSION_GIST_LINES = 6;   // first lines of SESSION.md shown inline
+const DECISIONS_GIST_LINES = 5; // last N lines of legacy DECISIONS.md shown inline
+const DECISIONS_DIR_RECENT = 6; // ids shown from decisions/ directory
+const ROADMAP_GIST_LINES = 8;   // first lines of ROADMAP.md shown inline
 // KIT-T028: a `doing` ticket with no update for this long is a zombie — flag it prominently.
 const ORIENT_DOING_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
@@ -40,6 +43,10 @@ const tail = (f, n) => {
     return '';
   }
 };
+const lineCount = (f) => {
+  try { return readFileSync(f, 'utf8').split('\n').length; } catch { return 0; }
+};
+
 // Recent decisions when the project uses a decisions/ DIRECTORY (one file per decision)
 // rather than a legacy DECISIONS.md. Returns id — title lines for the latest n by id.
 const decisionFiles = () => {
@@ -66,27 +73,21 @@ const decisionMeta = (f) => {
     return { id: '', title: f.replace(/\.md$/, ''), standing: false, scope: '', paths: [] };
   }
 };
-// Recent decisions when the project uses a decisions/ DIRECTORY (one file per decision)
-// rather than a legacy DECISIONS.md. Returns id — title lines for the latest n by id.
+const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+// Recent decisions from a decisions/ DIRECTORY: ids+titles for the latest n, then a pointer.
 const recentDecisions = (n) => {
   const files = decisionFiles();
   if (!files) return '';
-  return files.slice(-n).map((f) => {
+  const total = files.length;
+  const shown = files.slice(-n).map((f) => {
     const { id, title } = decisionMeta(f);
     return `  ${id ? id + ' — ' : ''}${clip(title, 120)}`;
   }).join('\n');
+  const more = total > n ? `  +${total - n} more — full: q decisions` : '';
+  return shown + (more ? '\n' + more : '');
 };
-const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 // `paths:` globs use lib's ONE dialect (KIT-T059): `**` any depth, `*` within a segment.
-// (Previously a private dialect where bare `*` matched across `/` — decisions relying on
-// that must say `**`.)
-// STANDING decisions are the anti-relitigation backbone — settled calls that must never be
-// re-asked. But surfacing ALL of them every session is unsustainable + wasteful, so they are
-// SCOPE-FILTERED: a standing decision shows only when it pertains to what this session is
-// actually touching. Relevance = its `scope` token appears in the active signals (changed
-// files + recent commit subjects) OR a `paths:` glob matches a changed file OR it declares no
-// scope (a truly global invariant — keep those rare). Out-of-scope standing decisions collapse
-// to a one-line pointer so they're discoverable without dumping the pile.
+// STANDING decisions are the anti-relitigation backbone — surfaced only when in scope.
 const standingDecisions = (signals, changed) => {
   const files = decisionFiles();
   if (!files) return null;
@@ -117,21 +118,11 @@ out.push('--- Recent commits ---');
 out.push(git(['-C', root, 'log', '--oneline', `-${COMMITS}`]).trim());
 
 // Working-tree temperature — uncommitted + unpushed across the project, its data repo
-// (the .ai junction target), and any config'd watch_repos. git status/history/push-state
-// ARE part of the record: context can clear mid-work, so a resume must see what's not yet
-// committed or pushed, anywhere — and reconcile it against the plan, not assume "pushed = all".
-//
-// Resolve the central data repo (centralized projects: .ai is a junction into it; local
-// projects: .ai is in-repo, so this stays null), then self-heal the machine-local registry
-// so the cross-project /prime briefing can later find this project's repo on this machine.
+// (the .ai junction target), and any config'd watch_repos.
 const dataRoot = centralDataRoot(root);
 recordProject(projectName(root), root, dataRoot);
 
-// KIT-T016 / KIT-D016+D002: ENFORCE the harness-memory⇄committed-memory unification rather than
-// trust the one-time manual link. unifyMemory self-heals the common case (link missing → create
-// it) so a fresh machine never silently writes memory locally; a genuine split (both sides real,
-// differing) is NOT auto-clobbered but surfaced loudly with the exact fix. Banners go to the very
-// top (with the DIVERGED-from-origin one) so neither a silent loss nor an unlinked split hides.
+// KIT-T016 / KIT-D016+D002: ENFORCE the harness-memory⇄committed-memory unification.
 const memBanners = [];
 try {
   const mem = unifyMemory(root);
@@ -153,10 +144,8 @@ for (const rel of watchRepos(root)) {
   if (existsSync(abs)) repos.push([abs, `watched: ${basename(abs)}`]);
 }
 out.push('');
-out.push('--- Working tree (uncommitted + unpushed — reconcile vs the plan; the record may lag reality) ---');
-// KIT-T054: per-repo ahead/behind vs origin (bounded fetch, fail-open offline). DIVERGED
-// means two machines hold history the other lacks — the case that produced a mid-task
-// merge conflict; it gets a banner at the very top, not a buried line.
+out.push('--- Working tree (uncommitted + unpushed) ---');
+// KIT-T054: per-repo ahead/behind vs origin. DIVERGED gets a top banner.
 const divergedLabels = [];
 for (const [r, label] of repos) {
   out.push(formatWip(label, r, WIP_FILES, WIP_COMMITS));
@@ -171,21 +160,18 @@ if (divergedLabels.length) {
 }
 if (memBanners.length) out.splice(1, 0, ...memBanners);
 
+// KIT-T071: SESSION.md — first SESSION_GIST_LINES inline (resume-point); pointer for the rest.
 if (existsSync(session)) {
   out.push('');
-  out.push('--- .ai/SESSION.md (working memory — resume here) ---');
-  // KIT-T062: a plan-of-record staler than the last commit is "itself a failure" (the contract).
-  // One line, only when SESSION pre-dates HEAD — silent when current. Fail-open inside the helper.
+  out.push('--- .ai/SESSION.md (resume here — first lines) ---');
   const ss = sessionStale(root);
   if (ss.stale) out.push(`!! SESSION.md is STALE (${ss.sessionDays}d, older than the last commit) — reconcile it to the work below before trusting it.`);
-  out.push(head(session, SESSION_LINES));
+  out.push(head(session, SESSION_GIST_LINES));
+  const total = lineCount(session);
+  if (total > SESSION_GIST_LINES) out.push(`  … (${total} lines total) — full: read .ai/SESSION.md`);
 }
 
-// In-flight + recently-finished DELEGATED AGENTS (KIT-T014). The roster (.ai/agents.jsonl) is
-// the on-disk record a /clear leans on so background subagents aren't orphaned: a cold resume
-// reads THIS, not SESSION.md prose, to know what delegated work is live. STALE in-flight rows
-// (older than the window, no terminal row) are flagged loudly — they're the "is it lost?" case,
-// so the resume reattaches (TaskList / the output handle) or reconciles them, never assumes done.
+// In-flight + recently-finished DELEGATED AGENTS (KIT-T014).
 try {
   const roster = readAgents(root);
   if (roster.length) {
@@ -193,14 +179,14 @@ try {
     const staleIds = new Set(stale.map((r) => r.id));
     if (inFlight.length || finished.length) {
       out.push('');
-      out.push('--- In-flight agents (DELEGATED work — reattach or reconcile; a /clear must not orphan these) ---');
+      out.push('--- In-flight agents (DELEGATED work — reattach or reconcile) ---');
       const staleMin = Math.round(AGENT_STALE_MS / 60000);
       for (const r of inFlight) {
         const flag = staleIds.has(r.id) ? ` !! UNCOLLECTED (>${staleMin}m, no completion recorded — reattach via TaskList/output or reconcile)` : '';
         out.push(`  [in-flight] ${r.id} (${r.scope || '?'})${r.background ? ' bg' : ''} — ${r.task || '?'}${flag}`);
       }
-      for (const r of finished.slice(-AGENT_RECENT_DONE)) {
-        out.push(`  [${r.status}] ${r.id} (${r.scope || '?'}) — ${r.task || r.summary || 'finished'} (collect its output if not yet merged)`);
+      for (const r of finished.slice(-3)) {
+        out.push(`  [${r.status}] ${r.id} (${r.scope || '?'}) — ${r.task || r.summary || 'finished'} (collect output if not merged)`);
       }
     }
   }
@@ -208,18 +194,16 @@ try {
   /* roster unavailable — orientation proceeds without the in-flight-agent view */
 }
 
+// KIT-T071: ROADMAP — first ROADMAP_GIST_LINES inline; pointer for the rest.
 if (roadmap) {
   out.push('');
-  out.push('--- Plan-of-record (ROADMAP) ---');
-  out.push(head(roadmap, ROADMAP_LINES));
+  out.push('--- Plan-of-record (ROADMAP — current milestone) ---');
+  out.push(head(roadmap, ROADMAP_GIST_LINES));
+  const total = lineCount(roadmap);
+  if (total > ROADMAP_GIST_LINES) out.push(`  … (${total} lines total) — full: head .ai/ROADMAP.md`);
 }
-// Active signals = what this session is touching: changed file paths (project + data repo)
-// plus recent commit subjects. Standing decisions are filtered against this so only the
-// relevant ones surface (scope-based, not the whole pile).
-// Parse a `git status --porcelain` line to its path. The XY status is 1-2 chars then
-// whitespace; a fixed slice(3) corrupts the path when the block-level trim ate a leading
-// space (` M f` vs `M  f`), so strip the status+space run by regex. A rename (`R old -> new`)
-// reports the NEW path. This exactness matters now that `q governing` matches paths literally.
+
+// Active signals for standing-decision scope filtering.
 const porcelainPath = (l) => {
   const m = String(l).match(/^\s*\S{1,2}\s+(.*)$/);
   const p = (m ? m[1] : l).trim();
@@ -242,49 +226,45 @@ if (standing && (standing.shown || standing.deferredCount)) {
     out.push(`  +${standing.deferredCount} more standing decision(s) out of scope${scopes} — check before deciding in those areas (q decisions).`);
   }
 }
-const decisionsDir = recentDecisions(8);
+// KIT-T071: Decisions — id+title gist inline; pointer to full history.
+const decisionsDir = recentDecisions(DECISIONS_DIR_RECENT);
 if (decisionsDir) {
   out.push('');
-  out.push('--- Decisions (recent — one file per decision) ---');
+  out.push('--- Decisions (recent) ---');
   out.push(decisionsDir);
 } else if (decisions) {
   out.push('');
   out.push('--- DECISIONS (recent) ---');
-  out.push(tail(decisions, DECISIONS_LINES));
+  out.push(tail(decisions, DECISIONS_GIST_LINES));
+  const total = lineCount(decisions);
+  if (total > DECISIONS_GIST_LINES) out.push(`  … (${total} lines total) — full: tail -n 40 .ai/DECISIONS.md`);
 }
 
-// Open work, QUERIED from the cross-scope cache instead of opening every ticket file
-// (KIT-T026 — the KIT-T020 retrieval win). `query` auto-falls-back to a markdown scan when
-// no SQLite engine/DB exists, so this section appears either way; any failure is swallowed
-// so a cache hiccup never blocks orientation (fail-open). Items are grouped by scope and
-// THIS project's in-flight (doing/review) is called out so a resume sees what's mid-work.
+// Open work — queried from cache; in-flight (doing/review) for THIS project shown inline.
 try {
   const { readIdConfig } = await import('../scripts/id-utils.mjs');
   const { query } = await import('../scripts/q.mjs');
   const { key } = readIdConfig(root);
   const { rows: openRows } = await query('open', [], { cwdRoot: root });
-  // scope = the id prefix (KIT from KIT-T049) — same grouping the cache uses, so no extra
-  // column is needed and the CLI `open` output shape is untouched.
   const scopeOf = (id) => (String(id).match(/^([A-Za-z]+)-/) || [])[1] || '';
   if (openRows && openRows.length) {
     const inFlight = openRows.filter((r) => scopeOf(r.id) === key && (r.status === 'doing' || r.status === 'review'));
     const byScope = new Map();
     for (const r of openRows) { const s = scopeOf(r.id); byScope.set(s, (byScope.get(s) || 0) + 1); }
     out.push('');
-    out.push('--- Open work (QUERIED from the cache; falls back to a scan — see q.mjs) ---');
+    out.push('--- Open work ---');
     out.push('  by scope: ' + [...byScope.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([s, n]) => `${s}:${n}`).join('  '));
     if (inFlight.length) {
       out.push(`  in-flight (${key}):`);
       for (const r of inFlight) out.push(`    [${r.status}] ${r.id} — ${r.title}`);
     }
+    out.push(`  drill-in: q open | q trail <id> | q fts <terms>`);
   }
 } catch {
   /* cache + fallback both unavailable — orientation proceeds without the open-work view */
 }
 
-// KIT-T028: stale `doing` detector — surface zombie tickets so they can't hide at resume.
-// Runs after the open-work query so the !! banner is visually distinct from the normal list.
-// Fail-open: any error is swallowed (a nag must never block orientation).
+// KIT-T028: stale `doing` detector — zombie banner. Fail-open.
 try {
   const sd = scanStaleDoingTickets(root, ORIENT_DOING_STALE_MS);
   if (sd.count) {
@@ -292,21 +272,24 @@ try {
     const ids = sd.ids.slice(0, 4).join(', ') + (sd.ids.length > 4 ? ` +${sd.ids.length - 4} more` : '');
     out.push('');
     out.push(`!! ZOMBIE DOING (${sd.count}): ${ids} — stuck \`doing\` >${oldestH}h with no update.`);
-    out.push(`   Likely an agent bailed without flipping status. Reconcile: t status <id> todo (if bailed) or review (if done).`);
+    out.push(`   Reconcile: t status <id> todo (if bailed) or review (if done).`);
   }
 } catch {
   /* stale-doing scan is fail-open — never block orientation */
 }
 
-// GOVERNS what you're touching (KIT-T049) — the inverse of `q trail`. For the working tree's
-// currently-changed files, surface the OPEN tickets + in-force decisions that GOVERN them
-// (ticket `files:` / decision `scope`/`paths`), so a captured item that owns these exact files
-// can't stay invisible while they're worked (the HOD-T048 failure: it sat `todo` while its
-// governed files were edited and nothing surfaced it). Single-scope (root) — only THIS
-// project's items govern its own tree. Deduped against the standing decisions already shown
-// above (no point listing HOD-D015 twice). Fail-open: any error is swallowed.
+// KIT-T071: Lineage — one-line gist (count + roles) + pointer; no full dump.
+const lineage = readLineage(root);
+if (lineage.length) {
+  const roles = [...new Set(lineage.map((l) => l.role).filter(Boolean))].sort().join(', ');
+  out.push('');
+  out.push(`--- Lineage (${lineage.length} relation(s)${roles ? ': ' + roles : ''}) — full: read .ai/lineage.yml ---`);
+}
+
+// KIT-T071: GOVERNS — pointer only (count); full list on demand.
+// Keeping the governing query (for zombie-ticket surfacing) but collapsing to a pointer.
 try {
-  const filePaths = changedPaths.filter((p) => /\.[a-z0-9]+$/i.test(p)); // files, not bare dirs
+  const filePaths = changedPaths.filter((p) => /\.[a-z0-9]+$/i.test(p));
   if (filePaths.length) {
     const { query } = await import('../scripts/q.mjs');
     const { rows: govRows } = await query('governing', filePaths, { root, cwdRoot: root });
@@ -314,60 +297,24 @@ try {
     const fresh = (govRows || []).filter((r) => !already.has(r.id));
     if (fresh.length) {
       out.push('');
-      out.push('--- GOVERNS what you\'re touching (open — address or cite; q governing <path>) ---');
-      for (const r of fresh) {
-        out.push(`  [${r.store === 'decisions' ? 'decision' : r.status}] ${r.id} — ${r.summary}${r.more ? ' ' + r.more : ''}  (matched: ${r.matched})`);
-      }
+      out.push(`--- GOVERNS what you're touching: ${fresh.length} item(s) — q governing <path> to inspect ---`);
     }
   }
 } catch {
   /* governing query unavailable — orientation proceeds without the file-governance view */
 }
 
-const lineage = readLineage(root);
-if (lineage.length) {
-  out.push('');
-  out.push('--- Lineage (how this project relates to other repos — trust over memory) ---');
-  for (const l of lineage) out.push(`  [${l.role || '?'}] ${l.name}${l.note ? ' — ' + l.note : ''}`);
-}
 out.push(`
---- IDENTITY & OPERATING MODE (main thread) ---
-1. You are the ORCHESTRATOR. Delegate SUBSTANTIAL work — investigation, multi-file
-   changes, query sweeps, heavy reads, "is X working?" diagnosis — to subagents with a
-   lean, pointer-based brief (ticket id + file:line, never pasted files/tickets); their
-   context dies with them. BUT each subagent pays a large fixed baseline regardless of
-   task size, so do GENUINELY TINY, well-scoped single-file mechanical edits INLINE, and
-   BATCH related small tasks into ONE subagent — never a whole subagent per trivial edit.
-   Rule of thumb: if the task's own footprint is smaller than the subagent baseline,
-   inline or batch it. "No IC work in the main thread" means no big investigation sweeps
-   inline — NOT "never touch a file." The main thread still owns coordination:
-   capture/route, dispatch, collect terse summaries, review the diff, build, commit
-   citing the ticket, drive the drain.
-2. Work order is the drain's job (.ai/config.yml + roadmap + the active \`doing\` ticket),
-   not the human's to sequence — pull and dispatch, don't ask "which first?".
-3. EVERY question to the human goes through AskUserQuestion — never prose — and ALWAYS
-   leads with your recommended option (first in the list, suffixed "(Recommended)").
-4. Keep replies SHORT and skimmable. Lead with the outcome; cut preamble/recap. List more
-   than ~2 items as bullets, never a prose paragraph. No walls of text — a few tight lines
-   beat a dense block. The human is tracking many threads; respect their attention.`);
-out.push(`
---- PROCESS RULES (enforced by hooks) ---
-1. QUERY, don't grep. For work/issues/history use \`q\` (q open | governing <path> | trail <id>
-   | fts <terms> | doc-trail <id>); for code use \`code-graph --query\` (importers-of | defines
-   | surface | duplicate-defines <symbol> | entry-points). They see links/graph a raw grep can't.
-   The query-gate BLOCKS grepping the .ai store and tree-wide source greps. Grep is fine only for
-   a SPECIFIC known file (use Grep/Glob/Read).
-   PROVENANCE FIRST (KIT-T079): on a module-identity or "X isn't showing / which file?" question,
-   run \`git log -- <path>\` + code-graph entry-points/duplicate-defines BEFORE any runtime theory
-   (cache, zombie server) — a repo can hold TWO of a module (one canonical, one superseded), and
-   git/the graph say which outright. Edit the canonical twin, not whichever you opened first.
-2. Read the plan-of-record + DECISIONS before non-trivial work. The on-disk record and
-   git are AUTHORITATIVE over this summary and over memory; on conflict, reconcile to disk
-   and say so.
-3. Never assert history/authorship/decisions from memory — read git/.ai or say "I don't know."
-4. Log work to a ticket / the plan-of-record, committed in the same change (the gate enforces).
-   Record decisions in DECISIONS the turn they happen.
-5. Do not start deferred/gated work without the maintainer flipping it.
+--- IDENTITY & PROCESS (main thread) ---
+ORCHESTRATOR: delegate substantial work to subagents (lean brief: ticket+file:line, not pasted files).
+Inline: genuinely tiny single-file edits. Batch related small tasks into one subagent.
+Work order: drain's job (.ai/config.yml + roadmap + active doing ticket) — pull and dispatch.
+Questions → AskUserQuestion (never prose), with recommended option first.
+QUERY don't grep: q open|governing|trail|fts; code-graph importers-of|defines|surface|duplicate-defines.
+PROVENANCE FIRST (KIT-T079): git log -- <path> + code-graph BEFORE any runtime theory.
+Read plan-of-record + DECISIONS before non-trivial work. On-disk record and git are AUTHORITATIVE.
+Log work to a ticket (gate enforces). Record decisions in DECISIONS the turn they happen.
+Full rules: read CLAUDE.md | q governing <hook-file> | code-graph --query surface
 ================================================================================`);
 console.log(out.join('\n'));
 process.exit(0);
