@@ -1,6 +1,14 @@
 # SESSION HANDOFF — claude-kit
 
-Updated: 2026-06-10  |  Branch: main  |  Active: M1 SHIPPED+ARCHIVED (KIT-D034 UAT sweep); M2 current — T075 first
+Updated: 2026-06-12 00:50  |  Branch: main  |  Active: M2 current — T075 first
+
+## Drive-by (2026-06-12, from marblerace2 session)
+- KIT-T088 logged (bug, medium): request-gate.mjs flags the harness-injected
+  compaction summary ("This session is being continued from a previous
+  conversation…") as an un-captured request; fired twice in one resumed
+  session. Fix: skip synthetic continuation text (structural marker over
+  preamble match), keep flagging real requests, add fixture test.
+  Committed b4c5d93, PUSHED to origin/main. Index regenerated (31 active).
 
 ## Goal (this session)
 Full-plugin process review (three researcher sweeps: hooks pipeline, command/skill
