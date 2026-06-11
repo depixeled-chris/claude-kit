@@ -34,6 +34,12 @@ function survey(args, cwd, regPath) {
   });
   return `${r.stdout || ''}${r.stderr || ''}`;
 }
+function cap(args, cwd, regPath) {
+  const r = spawnSync(process.execPath, [join(SCRIPTS, 'cap.mjs'), ...args], {
+    cwd, encoding: 'utf8', env: { ...ENV, CLAUDE_KIT_REGISTRY: regPath },
+  });
+  return { code: r.status, out: r.stdout || '', err: r.stderr || '' };
+}
 function ok(name, cond) {
   if (cond) { pass++; console.log('  ok    ' + name); }
   else { fail++; console.log('  FAIL  ' + name); }
@@ -543,6 +549,67 @@ try {
   ok('survey: named arg gives a deep resume', deep.includes('deep resume: proj'));
   ok('survey: deep view lists open tickets', deep.includes('A doing item'));
   ok('survey: unknown project is flagged, not crashed', survey(['nope'], proj, sreg).includes('unknown project'));
+
+  // cap (KIT-T067): explicit targeting WINS over cwd-walk, the receipt always names the resolved
+  // project, and a misroute is PROPOSED when the text obviously names another project. Fixture:
+  // a local repo (`claude-kit`, the cwd) + a CENTRAL-ONLY project (`hustle-or-die` under dataRoot,
+  // exactly like the real HOD store) so the cross-project route is genuine, not a sibling repo.
+  {
+    const creg = join(mkdtempSync(join(tmpdir(), 'kit-creg-')), 'r.json');
+    fixtures.push(dirname(creg));
+    const cwdRepo = repo(); // the shell sits here (the misroute origin)
+    mkdirSync(join(cwdRepo, '.ai'), { recursive: true });
+    const cfg = 'ids:\n  key: "KIT"\nclassifications:\n  bug:\n    routes_to: tickets\n  feature:\n    routes_to: tickets\n  decision:\n    routes_to: decisions\n';
+    writeFileSync(join(cwdRepo, '.ai', 'config.yml'), cfg);
+    const dataRoot = mkdtempSync(join(tmpdir(), 'kit-cdata-'));
+    fixtures.push(dataRoot);
+    const hodAi = join(dataRoot, 'projects', 'hustle-or-die');
+    mkdirSync(join(hodAi, 'inbox'), { recursive: true });
+    writeFileSync(join(hodAi, 'config.yml'), cfg.replace('"KIT"', '"HOD"'));
+    writeFileSync(creg, JSON.stringify({ dataRoot, projects: { 'claude-kit': cwdRepo } }));
+    const hodFiles = () => readdirSync(join(hodAi, 'inbox')).filter((f) => f.endsWith('.md'));
+    const kitDir = join(cwdRepo, '.ai', 'inbox');
+    const kitFiles = () => (existsSync(kitDir) ? readdirSync(kitDir).filter((f) => f.endsWith('.md')) : []);
+    // The captured file's text, read from the path the receipt names — robust to same-minute
+    // timestamp collisions (a "newest by sort" proxy picks the wrong sibling when slugs differ).
+    const capturedText = (dir, out) => {
+      const m = out.match(/-> [^/]+\/inbox\/(\S+\.md)/);
+      return m ? readFileSync(join(dir, m[1]), 'utf8') : '';
+    };
+
+    // 1) explicit --project flag (by id key) routes to HOD though cwd is the KIT repo
+    let r = cap(['--project', 'hod', 'feature', 'graded roads meet terrain'], cwdRepo, creg);
+    ok('cap: --project flag wins over cwd-walk (routes to the named project)', r.code === 0 && hodFiles().length === 1);
+    ok('cap: receipt names the destination project (cross-project, caught in 3 words)', /captured \(feature\) -> hustle-or-die\/inbox\//.test(r.out));
+
+    // 2) leading `name:` prefix (own arg) — same effect, prefix stripped from the captured text
+    r = cap(['hod:', 'roads are graded not raw terrain'], cwdRepo, creg);
+    ok('cap: `name:` prefix routes to the named project', r.code === 0 && hodFiles().length === 2 && /-> hustle-or-die\/inbox\//.test(r.out));
+    ok('cap: the resolved `name:` prefix is stripped from the stored text', capturedText(join(hodAi, 'inbox'), r.out).trim() === 'roads are graded not raw terrain');
+
+    // 3) fused single-arg prefix `"hod: text"` (the quoted form) routes + strips too
+    r = cap(['hod: terrain heightfield is the foundation'], cwdRepo, creg);
+    ok('cap: fused "name: text" single-arg prefix routes + strips', r.code === 0 && capturedText(join(hodAi, 'inbox'), r.out).trim() === 'terrain heightfield is the foundation');
+
+    // 4) cwd fallback — no explicit target, receipt still names the cwd project
+    r = cap(['bug', 'commit gate misfires on rebase'], cwdRepo, creg);
+    ok('cap: cwd fallback writes the cwd project, receipt names it', r.code === 0 && kitFiles().length === 1 && /captured \(bug\) -> claude-kit\/inbox\//.test(r.out));
+    ok('cap: a clean cwd capture proposes nothing', !r.err.includes('names'));
+
+    // 5) cwd fallback BUT the text obviously names another project -> PROPOSE on stderr, write cwd
+    r = cap(['decision', 'the terrain model for Project: HOD must stay smooth'], cwdRepo, creg);
+    ok('cap: text naming another project is PROPOSED, not routed (cwd still owns the write)',
+      r.code === 0 && kitFiles().length === 2 && /names hustle-or-die/.test(r.err) && /--project hod/.test(r.err));
+
+    // 6) an explicit --project that names nothing real is a HARD ERROR (no silent cwd misroute)
+    r = cap(['--project', 'nope', 'feature', 'x'], cwdRepo, creg);
+    ok('cap: unknown --project errors instead of silently falling back to cwd', r.code === 1 && /matches no registered project/.test(r.err));
+
+    // 7) a prose `word:` lead that is NOT a project stays content (not mistaken for targeting)
+    r = cap(['bug: login redirect loops after sso'], cwdRepo, creg);
+    ok('cap: a non-project `word:` lead is captured as content, not targeting',
+      r.code === 0 && kitFiles().length === 3 && capturedText(kitDir, r.out).includes('bug: login redirect loops'));
+  }
 
   // registry self-heal round-trips through readRegistry (isolated path via env)
   process.env.CLAUDE_KIT_REGISTRY = join(mkdtempSync(join(tmpdir(), 'kit-rt-')), 'r.json');

@@ -1,1 +1,0 @@
-(project/directive) GROUND-UP build order (2026-06-06): hide buildings + everything else; get the CAR DRIVING ON THE TERRAIN first. Bare terrain heightfield + player car riding it, nothing else, as the foundation we build up from. Then layer the city back on (graded onto terrain, P2+). Links R052, HOD-T107. Project: HOD.
