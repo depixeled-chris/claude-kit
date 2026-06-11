@@ -12,7 +12,7 @@
 | KIT-T018 | feature | todo | high | Enforce provenance-grounded delegation (D018) — triage-to-ticket before delegate; handoff embeds ticket+links |
 | KIT-T019 | feature | todo | high | Subagent bubble-up — agents surface communication to orchestrator AND maintainer (not only at completion) |
 | KIT-T021 | feature | todo | high | RIGID — always alert the maintainer when something lands (commit / push / deploy) |
-| KIT-T022 | feature | todo | high | Hard license guard — block GPL/LGPL/AGPL/unlicensed code from entering a repo; THIRD_PARTY_LICENSES ledger |
+| KIT-T022 | feature | done | high | Hard license guard — block GPL/LGPL/AGPL/unlicensed code from entering a repo; THIRD_PARTY_LICENSES ledger |
 | KIT-T023 | feature | todo | critical | SYSTEM PROBLEM — the durable record is passive; it must actively surface + connect relevant context at decision points |
 | KIT-T025 | feature | todo | high | General deduplication strategy across the whole workflow (capture → inbox → tickets → decisions → memory) |
 | KIT-T027 | feature | todo | high | Redesign the .ai store structure as first-class KIT-owned machinery (item model; reassess `notes`; triage/backlog as plugin code) |
@@ -21,7 +21,7 @@
 | KIT-T047 | tech-debt | todo | medium | researcher/design-doc agent preflight — search prior art (docs/research + cited docs) before commissioning, EXTEND the canonical doc, never spawn a parallel one |
 | KIT-T048 | feature | todo | high | Provenance enforcement — q trail (walk-up summary), ticket-start gate, missing-antecedent lint, item summaries |
 | KIT-T061 | feature | review | high | Entering review requires test evidence (or an explicit [no-test: reason]) — UAT gets a floor |
-| KIT-T066 | feature | todo | medium | Regression-class tickets missing their links fail the id-integrity check |
+| KIT-T066 | feature | done | medium | Regression-class tickets missing their links fail the id-integrity check |
 | KIT-T068 | tech-debt | todo | high | Contract reconciliation — one truth for Notes/History, triage semantics, ID templates, command surface |
 | KIT-T069 | tech-debt | todo | high | Config truth — reconcile template vs repo config, hooks.json vs settings.recommended, remove vapor knobs |
 | KIT-T070 | tech-debt | todo | medium | Doc rot pass — README, claude-kit SKILL.md, DAILY-LOOP, repo CLAUDE.md; wire doc-audit into release ritual |

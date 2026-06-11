@@ -24,12 +24,13 @@ if (!git(['-C', dataRoot, 'status', '--porcelain']).trim()) process.exit(0);
 try {
   // dynamic so a broken scripts/ tree degrades to fail-open instead of an import-time crash (KIT-T055)
   const { checkIds } = await import('../scripts/id-utils.mjs');
-  const { duplicates, mismatches } = checkIds(proj);
-  if (duplicates.length || mismatches.length) {
+  const { duplicates, mismatches, regressionGaps } = checkIds(proj);
+  if (duplicates.length || mismatches.length || regressionGaps.length) {
     const lines = ['', '[sync-data] BLOCKED: .ai id integrity check failed — NOT committing.', ''];
     for (const d of duplicates) lines.push(`  DUPLICATE ${d.id}: ${d.files.join('  ·  ')}`);
     for (const m of mismatches) lines.push(`  MISMATCH ${m.file}: id '${m.fmId}' != filename '${m.fileId}'`);
-    lines.push('', 'Re-key the offending file (scripts/next-id.mjs <store>) so every id is unique.', '');
+    for (const g of regressionGaps) lines.push(`  REGRESSION INCOMPLETE ${g.id} (${g.file}): ${g.reason}`);
+    lines.push('', 'Fix the flagged regressions (t link <id> regressed_from|causing_commit <ref>) then retry.', '');
     process.stderr.write(lines.join('\n'));
     process.exit(2);
   }

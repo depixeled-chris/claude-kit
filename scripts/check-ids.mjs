@@ -12,9 +12,9 @@
 import { checkIds } from './id-utils.mjs';
 
 const root = process.argv[2] || process.cwd();
-const { duplicates, mismatches } = checkIds(root);
+const { duplicates, mismatches, regressionGaps } = checkIds(root);
 
-if (!duplicates.length && !mismatches.length) {
+if (!duplicates.length && !mismatches.length && !regressionGaps.length) {
   process.stdout.write(`check-ids: clean (${root})\n`);
   process.exit(0);
 }
@@ -24,4 +24,9 @@ for (const d of duplicates) {
 for (const m of mismatches) {
   process.stderr.write(`MISMATCH ${m.file}: frontmatter id '${m.fmId}' != filename id '${m.fileId}'\n`);
 }
+for (const g of regressionGaps) {
+  process.stderr.write(`REGRESSION INCOMPLETE ${g.id} (${g.file}): ${g.reason}\n`);
+}
+// duplicates and mismatches are hard errors; regression gaps are integrity warnings that
+// also exit 1 so they surface at Stop (sync-data blocks on any non-zero result).
 process.exit(1);

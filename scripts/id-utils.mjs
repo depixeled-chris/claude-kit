@@ -178,10 +178,68 @@ export function compareIds(a, b) {
   return pa[1].localeCompare(pb[1]) || parseInt(pa[2], 10) - parseInt(pb[2], 10);
 }
 
+// The provenance markers KIT-T065 writes on accepted inference. A regression ticket
+// that carries either of these on ANY of its link fields is considered provenanced —
+// the maintainer accepted the inferred links, so the integrity check is satisfied.
+const PROVENANCE_OK = new Set(['inferred', 'given']);
+
+// Regression tickets missing their backward-provenance links — the enforcement
+// KIT-T066 adds. A `type: regression` ticket must name at least one of:
+//   • `regressed_from`  (the ticket/decision it broke)
+//   • `causing_commit`  (the offending commit sha)
+//   • `provenance: inferred|given`  (resolver already ran + was accepted)
+// Additionally, a `done` regression without a `fixed_commit` is also flagged
+// (paired with /done's own prompt — KIT-T060). A non-regression ticket is
+// never touched by this check.
+//
+// `aiDir` is the resolved .ai directory (not the project root) so central-data
+// stores pass the right path without double-derivation.
+export function findRegressionGaps(aiDir) {
+  const gaps = [];
+  // sub is POSIX-style (matches relPath convention in the rest of this file)
+  const subdirs = [{ sub: 'tickets', dir: join(aiDir, 'tickets') }, { sub: 'tickets/archive', dir: join(aiDir, 'tickets', 'archive') }];
+  for (const { sub, dir } of subdirs) {
+    let entries;
+    try { entries = readdirSync(dir); } catch { continue; }
+    for (const f of entries) {
+      if (extname(f) !== '.md' || SKIP.has(f)) continue;
+      let text;
+      try { text = readFileSync(join(dir, f), 'utf8'); } catch { continue; }
+      const fm = frontmatter(text);
+      if (!fm) continue;
+      const type = field(fm, 'type');
+      if (type !== 'regression') continue;
+
+      const id = field(fm, 'id') || idFromFilename(f);
+      const status = field(fm, 'status');
+      const regressedFrom = field(fm, 'regressed_from');
+      const causingCommit = field(fm, 'causing_commit');
+      const provenance = field(fm, 'provenance');
+      const fixedCommit = field(fm, 'fixed_commit');
+
+      // A provenance marker satisfies the link requirement on its own.
+      const hasProvenance = PROVENANCE_OK.has(provenance);
+      const hasLink = regressedFrom || causingCommit || hasProvenance;
+
+      if (!hasLink) {
+        gaps.push({ id, file: `${sub}/${f}`, reason: 'missing provenance links (regressed_from / causing_commit / provenance:)' });
+      }
+      if (status === 'done' && !fixedCommit) {
+        gaps.push({ id, file: `${sub}/${f}`, reason: 'done regression missing fixed_commit' });
+      }
+    }
+  }
+  return gaps;
+}
+
 // One call for the hooks: integrity over a whole project's stores.
-export function checkIds(root) {
-  const items = scanStores(root);
-  return { duplicates: findCollisions(items), mismatches: findMismatches(items) };
+export function checkIds(root, aiDir = join(root, '.ai')) {
+  const items = scanStores(root, aiDir);
+  return {
+    duplicates: findCollisions(items),
+    mismatches: findMismatches(items),
+    regressionGaps: findRegressionGaps(aiDir),
+  };
 }
 
 // The next free id for a store: max trailing number + 1 (KIT-T004). Gaps from

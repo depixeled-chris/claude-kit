@@ -5,7 +5,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { nextId, checkIds, scanStores, compareIds } from './id-utils.mjs';
+import { nextId, checkIds, scanStores, compareIds, findRegressionGaps } from './id-utils.mjs';
 
 let pass = 0;
 let fail = 0;
@@ -89,6 +89,59 @@ ok('a lexical sort WOULD get the boundary wrong (proves the bug it fixes)', 'HOD
 let threw = false;
 try { nextId(empty, 'bogus'); } catch { threw = true; }
 ok('nextId rejects an unknown store', threw);
+
+// ---- KIT-T066: regression provenance integrity --------------------------------
+
+// Helper: write a ticket file with the given frontmatter fields into a temp project.
+function regressionProject(ticketFm) {
+  const d = mkdtempSync(join(tmpdir(), 'kit-reg-'));
+  fixtures.push(d);
+  mkdirSync(join(d, '.ai', 'tickets', 'archive'), { recursive: true });
+  writeFileSync(join(d, '.ai', 'config.yml'), 'ids:\n  key: "HOD"\n  pad: 3\n');
+  writeFileSync(join(d, '.ai', 'tickets', 'HOD-T010-reg.md'), `---\nid: HOD-T010\n${ticketFm}\n---\n`);
+  return d;
+}
+
+// Criterion 1: regression without any provenance link surfaces a gap.
+const noLinks = regressionProject('type: regression\nstatus: doing');
+const gNoLinks = findRegressionGaps(join(noLinks, '.ai'));
+ok('regression without links produces a gap (KIT-T066 C1)', gNoLinks.length === 1 && gNoLinks[0].id === 'HOD-T010');
+ok('gap reason names the missing fields', /regressed_from/.test(gNoLinks[0].reason));
+// checkIds exposes the gap in regressionGaps
+const ciNoLinks = checkIds(noLinks);
+ok('checkIds includes regressionGaps (KIT-T066)', Array.isArray(ciNoLinks.regressionGaps) && ciNoLinks.regressionGaps.length === 1);
+
+// Criterion 1 (clean): regression WITH a regressed_from link passes.
+const withFrom = regressionProject('type: regression\nstatus: doing\nregressed_from: HOD-T009');
+ok('regression with regressed_from passes (KIT-T066 C1)', findRegressionGaps(join(withFrom, '.ai')).length === 0);
+
+// Criterion 1 (clean): regression WITH a causing_commit link passes.
+const withCommit = regressionProject('type: regression\nstatus: doing\ncausing_commit: abc1234');
+ok('regression with causing_commit passes (KIT-T066 C1)', findRegressionGaps(join(withCommit, '.ai')).length === 0);
+
+// Criterion 3: provenance: inferred satisfies the link requirement.
+const withInferred = regressionProject('type: regression\nstatus: doing\nprovenance: inferred');
+ok('regression with provenance:inferred passes (KIT-T066 C3)', findRegressionGaps(join(withInferred, '.ai')).length === 0);
+
+// Criterion 3: provenance: given also satisfies.
+const withGiven = regressionProject('type: regression\nstatus: doing\nprovenance: given');
+ok('regression with provenance:given passes (KIT-T066 C3)', findRegressionGaps(join(withGiven, '.ai')).length === 0);
+
+// Criterion 2: done regression without fixed_commit is also flagged.
+const doneNoFix = regressionProject('type: regression\nstatus: done\nregressed_from: HOD-T009');
+const gDoneNoFix = findRegressionGaps(join(doneNoFix, '.ai'));
+ok('done regression missing fixed_commit is flagged (KIT-T066 C2)', gDoneNoFix.length === 1 && /fixed_commit/.test(gDoneNoFix[0].reason));
+
+// Criterion 2 (clean): done regression WITH fixed_commit passes.
+const doneFixed = regressionProject('type: regression\nstatus: done\nregressed_from: HOD-T009\nfixed_commit: def5678');
+ok('done regression with fixed_commit passes (KIT-T066 C2)', findRegressionGaps(join(doneFixed, '.ai')).length === 0);
+
+// A non-regression ticket (feature) is never touched by this check.
+const nonReg = regressionProject('type: feature\nstatus: doing');
+ok('non-regression ticket is unaffected (KIT-T066 C4)', findRegressionGaps(join(nonReg, '.ai')).length === 0);
+
+// A clean store (no regression tickets at all) has no gaps.
+ok('clean store has no regressionGaps (KIT-T066)', checkIds(seeded).regressionGaps.length === 0);
 
 for (const d of fixtures) { try { rmSync(d, { recursive: true, force: true }); } catch {} }
 console.log(`\nid-utils: ${pass} passed, ${fail} failed`);
