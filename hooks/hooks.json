@@ -28,6 +28,10 @@
           { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/jscpd.mjs\"" },
           { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/ingest-data.mjs\"" }
         ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-roster.mjs\"" }]
       }
     ],
     "SessionStart": [
@@ -41,10 +45,14 @@
     "PreCompact": [
       { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/flush.mjs\"" }] }
     ],
+    "SubagentStop": [
+      { "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-roster.mjs\"" }] }
+    ],
     "Stop": [
       {
         "hooks": [
           { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/housekeeping.mjs\"" },
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/flush.mjs\"" },
           { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/sync-data.mjs\"" },
           { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/request-gate.mjs\"" },
           { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/code-graph.mjs\"" },

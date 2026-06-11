@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
-import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, centralDataRoot, globToRegExp, sessionStale, WIP_FILES, WIP_COMMITS } from './lib.mjs';
+import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, centralDataRoot, globToRegExp, sessionStale, readAgents, partitionAgents, AGENT_STALE_MS, WIP_FILES, WIP_COMMITS } from './lib.mjs';
 // q.mjs / id-utils.mjs are imported DYNAMICALLY at their (try-wrapped) use sites so a
 // broken scripts/ tree degrades that one section instead of crashing orientation (KIT-T055).
 
@@ -12,6 +12,7 @@ const COMMITS = 12;
 const SESSION_LINES = 40;
 const ROADMAP_LINES = 50;
 const DECISIONS_LINES = 25;
+const AGENT_RECENT_DONE = 6; // recently-finished agents listed (newest), so collection isn't missed
 
 const root = gitRoot();
 if (!adopted(root)) process.exit(0);
@@ -156,6 +157,34 @@ if (existsSync(session)) {
   if (ss.stale) out.push(`!! SESSION.md is STALE (${ss.sessionDays}d, older than the last commit) — reconcile it to the work below before trusting it.`);
   out.push(head(session, SESSION_LINES));
 }
+
+// In-flight + recently-finished DELEGATED AGENTS (KIT-T014). The roster (.ai/agents.jsonl) is
+// the on-disk record a /clear leans on so background subagents aren't orphaned: a cold resume
+// reads THIS, not SESSION.md prose, to know what delegated work is live. STALE in-flight rows
+// (older than the window, no terminal row) are flagged loudly — they're the "is it lost?" case,
+// so the resume reattaches (TaskList / the output handle) or reconciles them, never assumes done.
+try {
+  const roster = readAgents(root);
+  if (roster.length) {
+    const { inFlight, finished, stale } = partitionAgents(roster);
+    const staleIds = new Set(stale.map((r) => r.id));
+    if (inFlight.length || finished.length) {
+      out.push('');
+      out.push('--- In-flight agents (DELEGATED work — reattach or reconcile; a /clear must not orphan these) ---');
+      const staleMin = Math.round(AGENT_STALE_MS / 60000);
+      for (const r of inFlight) {
+        const flag = staleIds.has(r.id) ? ` !! UNCOLLECTED (>${staleMin}m, no completion recorded — reattach via TaskList/output or reconcile)` : '';
+        out.push(`  [in-flight] ${r.id} (${r.scope || '?'})${r.background ? ' bg' : ''} — ${r.task || '?'}${flag}`);
+      }
+      for (const r of finished.slice(-AGENT_RECENT_DONE)) {
+        out.push(`  [${r.status}] ${r.id} (${r.scope || '?'}) — ${r.task || r.summary || 'finished'} (collect its output if not yet merged)`);
+      }
+    }
+  }
+} catch {
+  /* roster unavailable — orientation proceeds without the in-flight-agent view */
+}
+
 if (roadmap) {
   out.push('');
   out.push('--- Plan-of-record (ROADMAP) ---');

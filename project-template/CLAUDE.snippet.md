@@ -94,6 +94,25 @@ On "work T-001" (or when I pull it from the drain):
 - Prefer subagents for codebase search; pass pointers (path + line range), not
   whole-file dumps, to keep the main thread lean.
 
+### The capture → delegate → stay-free cadence (KIT-D015 — a resume-RESTATED mode)
+The loop that makes `/clear` consequence-free: **capture** every observation to disk the
+moment it lands (the request ratchet enforces it), **delegate** substantial work to
+subagents, and **stay free** to clear at any point because nothing lives only in context.
+This cadence is itself **restated on every resume** (orient replays it), not a fact held
+in the conversation — so a cold session re-enters it without being told. The on-disk
+guarantees that back it:
+- **In-flight delegated agents** are recorded automatically in `.ai/agents.jsonl` (a
+  PostToolUse(Task) hook appends a row per delegation; SubagentStop marks completion). orient
+  replays them under **In-flight agents** at SessionStart, and flags any uncollected one. So a
+  `/clear` mid-delegation never orphans the work — the resume sees the roster and reattaches
+  (TaskList / the agent's output) or reconciles it. If you ever dispatch outside the hook,
+  record it yourself: `recordAgent(root, { id, status, task, scope })`.
+- **The SESSION.md anchor stays live**: the Stop-time anchor ratchet (flush.mjs) nudges once
+  if work landed this turn (a commit / a durable-store edit) without SESSION.md being touched —
+  so the anchor a resume reads is never stale between flushes.
+- **Trust the floor, not your memory**: at resume, the roster + SESSION + git ARE the state.
+  Reconcile to them and say so; never reconstruct delegated work from a chat summary.
+
 ### Native task sync (.ai/ ↔ native list)
 The native task list is a **live, bidirectional projection** of the tickets — the
 ticket file stays the durable truth (native tasks are per-session + machine-local).

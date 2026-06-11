@@ -2,7 +2,7 @@
 id: KIT-T014
 title: Harden /clear-anywhere durability — surface in-flight agents + keep the resume anchor live
 type: feature
-status: todo
+status: doing
 priority: critical
 milestone:
 labels: [hooks, capture, orchestration, durability]
@@ -12,7 +12,7 @@ files:
   - hooks/flush.mjs
   - hooks/request-gate.mjs
 created: 2026-06-04T11:25:00Z
-updated: 2026-06-04T11:25:00Z
+updated: 2026-06-11T04:38:22Z
 supersedes: KIT-T037
 ---
 
@@ -30,20 +30,38 @@ state:
    PreCompact/Stop, so a `/clear` in the middle of active work resumes from a stale anchor.
 
 ## Acceptance Criteria
-- [ ] Orient (SessionStart) surfaces in-flight + recently-finished background agents — task,
+- [x] Orient (SessionStart) surfaces in-flight + recently-finished background agents — task,
       scope, status — so a cold resume can reattach (e.g. via TaskList) or at least know the work.
-- [ ] A durable on-disk roster of delegated agents exists (where the orchestrator records each
+- [x] A durable on-disk roster of delegated agents exists (where the orchestrator records each
       delegation + its outcome), reconcilable on resume; orphaned/uncollected work is flagged.
-- [ ] SESSION.md is treated as a live anchor: a Stop-time nudge fires if meaningful work happened
+- [x] SESSION.md is treated as a live anchor: a Stop-time nudge fires if meaningful work happened
       this turn without SESSION.md being touched (mirrors the request-gate ratchet pattern).
-- [ ] The capture→delegate→stay-free CADENCE is documented as a resume-restated mode, not
+- [x] The capture→delegate→stay-free CADENCE is documented as a resume-restated mode, not
       in-context-only state.
-- [ ] Automated test(s) for the new hook behavior (throwaway adopted repo, like request-gate.test.mjs).
+- [x] Automated test(s) for the new hook behavior (throwaway adopted repo, like request-gate.test.mjs).
 
 ## Plan
 1.
 
 ## Notes
+- [2026-06-10] DONE. Roster capture is AUTOMATIC (not orchestrator-dependent): the harness fires
+  `PostToolUse` on the `Task` tool (confirmed against the hooks docs — `Task` is a valid matcher,
+  payload carries `tool_input`/`tool_response`), so `hooks/agent-roster.mjs` appends each delegation
+  to `.ai/agents.jsonl` THEN; `SubagentStop` (also wired) appends the terminal row. Roster = append-
+  only JSONL (one JSON object/line) — concurrent-writer-safe, a malformed line is skipped on read.
+  lib helpers: `recordAgent`/`updateAgent`/`readAgents`/`partitionAgents` (+ `agentsPath`,
+  `AGENT_STALE_MS`). orient gained an "In-flight agents" section (reads the roster, flags any
+  in-flight row past the 30-min stale window as UNCOLLECTED). SESSION anchor: `hooks/flush.mjs` now
+  also runs at Stop and mirrors the request-gate ratchet — nudges once (exit 2) when a commit / a
+  durable-store edit landed THIS turn but SESSION.md wasn't touched; loop-proof via `stop_hook_active`,
+  fail-open on missing transcript. Cadence documented in `project-template/CLAUDE.snippet.md` as a
+  resume-restated mode. Wired in both `hooks/hooks.json` + `user-config/settings.recommended.json`.
+  Every hook fails open (try/catch, exit 0) — never wedges a session or blocks a delegation/`/clear`.
+  Tests: new `hooks/agent-roster.test.mjs` (29 passed) incl. the RESUME DRILL (delegate → simulated
+  /clear → orient asserts ZERO loss: in-flight survives on disk + orient surfaces it; stale one
+  flagged UNCOLLECTED) and the Stop-anchor thresholds (fresh=silent, stale+work=nag, no-work=silent,
+  loop-proof). Full suite green: `npm test` — test-hooks 111, agent-roster 29, ingest-data 10,
+  id-utils 19, t 49, code-graph 33, db-cache 66, triage 10 + request/query/exclusions/sync-data all pass.
 - [2026-06-05 20:16] (comment) folded from triage: # CAP: programmatic resume omits in-flight background agents
 
 Date: 2026-06-05
@@ -90,3 +108,11 @@ Likely 1 + 2 together: 1 makes live work *visible* on resume, 2 makes finished w
   recently-finished agents (TaskList) every SessionStart; (3) a durable on-disk agent roster. Also
   add a RESUME DRILL (a test that simulates compact→resume and asserts zero loss) so trust is proven,
   not asserted. Until this lands, treat /clear as safe ONLY at a committed + SESSION-current checkpoint.
+
+## History
+- [2026-06-11 04:38] (status) todo → doing
+- [2026-06-11 04:50] (comment) ticked: Orient (SessionStart) surfaces in-flight + recently-finished background agents — task,
+- [2026-06-11 04:50] (comment) ticked: SESSION.md is treated as a live anchor: a Stop-time nudge fires if meaningful work happened
+- [2026-06-11 04:50] (comment) ticked: Automated test(s) for the new hook behavior (throwaway adopted repo, like request-gate.test.mjs).
+- [2026-06-11 04:50] (comment) ticked: A durable on-disk roster of delegated agents exists (where the orchestrator records each
+- [2026-06-11 04:50] (comment) ticked: The capture→delegate→stay-free CADENCE is documented as a resume-restated mode, not

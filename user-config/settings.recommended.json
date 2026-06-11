@@ -35,6 +35,10 @@
           { "type": "command", "command": "node \"$HOME/.claude/hooks/lint.mjs\"" },
           { "type": "command", "command": "node \"$HOME/.claude/hooks/jscpd.mjs\"" }
         ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/agent-roster.mjs\"" }]
       }
     ],
     "SessionStart": [
@@ -48,10 +52,14 @@
     "PreCompact": [
       { "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/flush.mjs\"" }] }
     ],
+    "SubagentStop": [
+      { "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/agent-roster.mjs\"" }] }
+    ],
     "Stop": [
       {
         "hooks": [
           { "type": "command", "command": "node \"$HOME/.claude/hooks/housekeeping.mjs\"" },
+          { "type": "command", "command": "node \"$HOME/.claude/hooks/flush.mjs\"" },
           { "type": "command", "command": "node \"$HOME/.claude/hooks/sync-data.mjs\"" },
           { "type": "command", "command": "node \"$HOME/.claude/hooks/request-gate.mjs\"" },
           { "type": "command", "command": "node \"$HOME/.claude/hooks/code-graph.mjs\"" },

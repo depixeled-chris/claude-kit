@@ -7,7 +7,7 @@
 | KIT-T002 | feature | todo | medium | init-project sets the project key (ids.key + prefix) for new projects |
 | KIT-T003 | feature | todo | high | Implement the workflow domain model — LAB scope, request/epic types, hierarchy + relationship graph |
 | KIT-T013 | feature | todo | medium | cap --done fast-resolve — log an already-handled item without inbox/triage debt |
-| KIT-T014 | feature | todo | critical | Harden /clear-anywhere durability — surface in-flight agents + keep the resume anchor live |
+| KIT-T014 | feature | doing | critical | Harden /clear-anywhere durability — surface in-flight agents + keep the resume anchor live |
 | KIT-T015 | feature | todo | medium | Repeatable project-knowledge-agent pattern — drain suggests + routes to project-local agents |
 | KIT-T016 | feature | todo | high | Enforce the harness-memory→.claude/memory unification (verify/create the link, don't trust setup) |
 | KIT-T017 | feature | todo | high | Operationalize the always-on loop (D017) — drain-never-idle + questionnaire-surfacing discipline |

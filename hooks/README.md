@@ -14,12 +14,13 @@ the tool payload from stdin, decides, and exits (`exit 2` = block, `0` = allow).
 ## The hooks
 | Event | Hook | Does |
 | --- | --- | --- |
-| `SessionStart` | orient + housekeeping | Inject the on-disk record (`.ai/` ROADMAP + DECISIONS + SESSION + recent commits) so a fresh/compacted session resumes cold; surface any due weekly reviews + project gaps. |
+| `SessionStart` | orient + housekeeping | Inject the on-disk record (`.ai/` ROADMAP + DECISIONS + SESSION + recent commits + **in-flight delegated agents**) so a fresh/compacted session resumes cold; surface any due weekly reviews + project gaps. |
 | `PreToolUse` (Edit\|Write) | pre-write | Code-quality gates on source; **doc files** get a broken-link check instead of magic-number/etc; license/meta + data files skip. |
 | `PostToolUse` (Edit\|Write) | lint + jscpd + ingest-data | Language-aware linters (ruff/clippy/eslint/…) + copy-paste detection (advisory — never block). **ingest-data** incrementally syncs the SQLite cache for the edited `.ai` store immediately, so a same-turn query sees the change (KIT-T026; fail-open). |
+| `PostToolUse` (Task) + `SubagentStop` | agent-roster | Append each delegated subagent (task, scope, handle, status) to the durable roster `.ai/agents.jsonl`, and mark its completion — so a `/clear` mid-delegation never orphans the work; orient replays it on resume (KIT-T014; fail-open, never blocks a delegation). |
 | `PreToolUse` (Bash) | commit-gate | Block a `git commit` of code not tied to a ticket / plan-of-record (override `[no-log: reason]`). |
 | `PreCompact` | flush | Force a `.ai/SESSION.md` flush before context is lost. |
-| `Stop` | housekeeping + sync-data | Nag if a weekly review is overdue; **auto-commit + push `claude-kit-data`** when the centralized data repo is dirty (D-008), so a turn's `.ai/` edits persist without manual ceremony. |
+| `Stop` | housekeeping + flush + sync-data | Nag if a weekly review is overdue; **flush**'s SESSION-anchor ratchet nudges once when work landed this turn but `SESSION.md` wasn't touched (KIT-T014); **auto-commit + push `claude-kit-data`** when the centralized data repo is dirty (D-008), so a turn's `.ai/` edits persist without manual ceremony. |
 
 **Tool resolution (`lib.nodeCli`)** runs node-ecosystem linters as `node <bin.js>` —
 resolving project-local first, then a global install — so a `.cmd`-shimmed global on
