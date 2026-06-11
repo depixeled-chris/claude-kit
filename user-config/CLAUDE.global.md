@@ -99,6 +99,14 @@ Delete everything else.
   risky refactor that needs isolation). A normal ticket/fix commits straight to `main`.
   When a branch IS warranted, merge it back the moment the work is mergeable — don't let
   it linger. Never silently park work on a branch; that's how status goes blind.
+- **Shared checkout ⇒ NEVER flip the branch in place.** Multiple agents may share ONE working tree
+  (one HEAD + index); a `git switch` / `checkout -b` there flips it out from under every other agent
+  and corrupts their in-flight work (the lived failure: one agent flipped the repo to a feature branch
+  and another's staged work got swept into the wrong commit). When isolation IS genuinely needed, use
+  a git **WORKTREE** — a separate dir + its own branch (cf. the Agent tool's `isolation: worktree`) —
+  NEVER an in-place flip. Detect a shared checkout before any branch op: `git worktree list` shows
+  >1, or sibling `worktree-agent-*` branches exist. The branch-guard hook (KIT-T082) hard-blocks an
+  in-place flip in an adopted repo (deliberate escape: an inline `[allow-branch: <reason>]` token).
 - **Local = draft** (messy WIP OK). **PR/main = publish** (clean, logical, buildable).
 - **Commit AND push at every task boundary** — pushing between tasks (not just
   committing) keeps the remote as a rewind point recoverable from any machine.

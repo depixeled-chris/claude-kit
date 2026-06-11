@@ -2,7 +2,7 @@
 id: KIT-T081
 title: "GIT WORKFLOW 'branch first' default is wrong for multi-agent shared-FS repos — must mandate worktrees/trunk, not feature branches"
 type: bug
-status: todo
+status: done
 priority: high
 labels: [process, git, multi-agent, worktrees, contract]
 files:
@@ -11,7 +11,7 @@ links: [KIT-T079, KIT-T080]
 supersedes:
 superseded_by:
 created: 2026-06-10T00:00:00Z
-updated: 2026-06-10T00:00:00Z
+updated: 2026-06-11T04:36:54Z
 ---
 
 ## Description
@@ -31,20 +31,32 @@ The repo already provisions the correct mechanism — `worktree-agent-*` branche
 nothing steers agents INTO worktrees and AWAY from feature-branching the shared checkout.
 
 ## Acceptance Criteria
-- [ ] Global contract states the rule: on a shared multi-agent checkout, do NOT create/switch feature
+- [x] Global contract states the rule: on a shared multi-agent checkout, do NOT create/switch feature
       branches; work on the trunk and isolate parallel work via git WORKTREES. Mark it as OVERRIDING
       the "branch first" line for this topology.
-- [ ] The "branch first" guidance is scoped to single-checkout repos (or removed), so it stops firing
+- [x] The "branch first" guidance is scoped to single-checkout repos (or removed), so it stops firing
       the wrong reflex in shared-FS repos.
-- [ ] Consider a hook: warn/block `git checkout -b` / `git switch -c` / branch-switch in a checkout
+- [x] Consider a hook: warn/block `git checkout -b` / `git switch -c` / branch-switch in a checkout
       detected as shared (e.g. sibling worktrees present), pointing at the worktree flow.
-- [ ] Detection note: how an agent recognizes a shared checkout (presence of `worktree-agent-*` /
+- [x] Detection note: how an agent recognizes a shared checkout (presence of `worktree-agent-*` /
       `git worktree list` > 1) so it self-selects the worktree path.
 
 ## Notes
 - Mirrored in the hustle-or-die project memory `no-feature-branches-shared-fs.md` (the agent-facing
   rule). This ticket is the systemic/contract fix so the reflex changes, not just one project's memo.
 - Third in a 2026-06-10 cluster of retrieval/process bugs (KIT-T079 provenance, KIT-T080 query-gate).
+- 2026-06-11 (fix): `# GIT WORKFLOW` now leads "Work on `main` by default — trunk-based; do NOT
+  create/work in feature branches unless opted in" (the "branch first" reflex is gone), PLUS a new
+  "shared checkout ⇒ NEVER flip the branch in place; isolate via a git WORKTREE" bullet with the
+  detection note (`git worktree list` >1 / sibling `worktree-agent-*`) and a pointer to the KIT-T082
+  branch-guard hook that hard-enforces it. Criterion 3 (the hook) shipped as KIT-T082. [no-test:
+  docs-only — global-contract prose; the enforcement is tested under KIT-T082 (13 cases).]
 
 ## History
 - [2026-06-10 00:00] (created) branch-first-vs-shared-FS process bug; status→todo.
+- [2026-06-11 04:35] (status) todo → doing
+- [2026-06-11 04:36] (comment) ticked: Global contract states the rule: on a shared multi-agent checkout, do NOT create/switch feature
+- [2026-06-11 04:36] (comment) ticked: The "branch first" guidance is scoped to single-checkout repos (or removed), so it stops firing
+- [2026-06-11 04:36] (comment) ticked: Consider a hook: warn/block `git checkout -b` / `git switch -c` / branch-switch in a checkout
+- [2026-06-11 04:36] (comment) ticked: Detection note: how an agent recognizes a shared checkout (presence of `worktree-agent-*` /
+- [2026-06-11 04:36] (status) doing → done
