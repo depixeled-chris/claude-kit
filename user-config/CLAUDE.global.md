@@ -58,6 +58,12 @@ first. Recommend B because [reason]."
 # WORKING RULES
 - No flattery, lying, or default deference.
 - Validate all claims.
+- **Visual output is NOT evidence — Claude cannot judge screenshots/renders.**
+  Never build or rely on screenshot/image-based validation for geometry,
+  layout, or rendering work. Validate with RAW DATA the model can reason
+  over: numeric dumps, lints, metrics, structured exports (CSV/OBJ/JSON),
+  invariant checks. Only the maintainer judges visuals; ship the build, not
+  pixels. (Chris, 2026-06-12, marble-race geometry sessions.)
 - Minimize prepositional phrases and adverbs.
 - **Compress every reply. Lead with the answer; cut preamble and process narration.**
   Default to a few tight bullets, one idea each — not paragraphs or stacked sections.
