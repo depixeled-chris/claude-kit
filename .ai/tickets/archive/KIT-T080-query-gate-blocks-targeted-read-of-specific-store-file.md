@@ -13,7 +13,8 @@ links: [KIT-T079]
 supersedes:
 superseded_by:
 created: 2026-06-10T00:00:00Z
-updated: 2026-06-11T04:33:41Z
+updated: 2026-06-11T04:34:11Z
+fixed_commit: ecd32f922cefd98e9625102417aecd2c2cfa431b
 ---
 
 ## Description
@@ -76,3 +77,4 @@ should have given.
 - [2026-06-11 04:32] (comment) ticked: `config.yml` (and the non-queryable top-level state files) never route to `q` remediation that
 - [2026-06-11 04:32] (comment) ticked: `query-gate.test.mjs` gains cases: targeted read of `.ai/config.yml` is ALLOWED; a recursive /
 - [2026-06-11 04:33] (status) doing → done
+- [2026-06-11 04:34] (status) done → done
