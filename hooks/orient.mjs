@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
 import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, centralDataRoot, globToRegExp, sessionStale, readAgents, partitionAgents, AGENT_STALE_MS, WIP_FILES, WIP_COMMITS } from './lib.mjs';
+import { unifyMemory, memoryLinkCommand } from './memory-link.mjs';
 // q.mjs / id-utils.mjs are imported DYNAMICALLY at their (try-wrapped) use sites so a
 // broken scripts/ tree degrades that one section instead of crashing orientation (KIT-T055).
 
@@ -124,6 +125,25 @@ out.push(git(['-C', root, 'log', '--oneline', `-${COMMITS}`]).trim());
 const dataRoot = centralDataRoot(root);
 recordProject(projectName(root), root, dataRoot);
 
+// KIT-T016 / KIT-D016+D002: ENFORCE the harness-memory⇄committed-memory unification rather than
+// trust the one-time manual link. unifyMemory self-heals the common case (link missing → create
+// it) so a fresh machine never silently writes memory locally; a genuine split (both sides real,
+// differing) is NOT auto-clobbered but surfaced loudly with the exact fix. Banners go to the very
+// top (with the DIVERGED-from-origin one) so neither a silent loss nor an unlinked split hides.
+const memBanners = [];
+try {
+  const mem = unifyMemory(root);
+  if (mem.action === 'linked') {
+    memBanners.push(`!! MEMORY LINK HEALED: ${mem.harnessDir} → ${mem.repoDir} (harness memory was machine-local; now writes to the committed, synced copy).`);
+  } else if (mem.action === 'diverged') {
+    memBanners.push(`!! MEMORY SPLIT: the harness wrote local memory at ${mem.harnessDir} that DIFFERS from the committed ${mem.repoDir} — reconcile the two, then link: ${memoryLinkCommand(root)}`);
+  } else if (mem.action === 'failed') {
+    memBanners.push(`!! MEMORY NOT UNIFIED: could not auto-link ${mem.harnessDir} → ${mem.repoDir}; new memory may be machine-local + lost. Link it: ${memoryLinkCommand(root)}`);
+  }
+} catch {
+  /* unification is best-effort — never break orientation */
+}
+
 const repos = [[root, `project (${basename(root)})`]];
 if (dataRoot) repos.push([dataRoot, 'data repo (.ai)']);
 for (const rel of watchRepos(root)) {
@@ -147,6 +167,7 @@ for (const [r, label] of repos) {
 if (divergedLabels.length) {
   out.splice(1, 0, `!! DIVERGED FROM ORIGIN: ${divergedLabels.join(', ')} — fetch + rebase BEFORE working; two machines hold different history.`);
 }
+if (memBanners.length) out.splice(1, 0, ...memBanners);
 
 if (existsSync(session)) {
   out.push('');

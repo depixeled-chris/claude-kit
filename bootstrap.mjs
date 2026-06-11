@@ -19,6 +19,8 @@ import {
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { readRegistry, gitRoot, adopted } from './hooks/lib.mjs';
+import { repoMemoryDir, unifyMemory, memoryLinkCommand } from './hooks/memory-link.mjs';
 
 const KIT = dirname(fileURLToPath(import.meta.url));
 const CLAUDE = process.env.CLAUDE_HOME || join(homedir(), '.claude');
@@ -133,6 +135,36 @@ if (existsSync(PRIV)) {
   console.log(`No private overlay (set CLAUDE_KIT_PRIVATE, or create ${join(CLAUDE, 'private')}) — public kit only.`);
   composeClaudeMd(PRIV);
 }
+
+// KIT-T016 / KIT-D016+D002: unify each project's harness auto-memory with its committed
+// .claude/memory as part of (re)bootstrap, so a fresh machine is enforced into the linked state
+// instead of relying on a remembered manual step. Idempotent + cross-platform (junction on
+// Windows, symlink elsewhere — unifyMemory picks). Heals every project the registry knows on this
+// machine, plus the cwd if bootstrap is run from inside an adopted repo (the first-adoption case,
+// before the registry has an entry). A genuine split (both copies real + differing) is reported,
+// never clobbered. Honors DRY_RUN. Fail-open: a per-project slip never aborts the install.
+function unifyProjectMemory() {
+  const roots = new Set();
+  try {
+    for (const repo of Object.values(readRegistry().projects)) if (repo) roots.add(repo);
+  } catch { /* no registry yet — cwd path below still covers first adoption */ }
+  try {
+    const here = gitRoot();
+    if (here && adopted(here)) roots.add(here);
+  } catch { /* not in a repo */ }
+  const targets = [...roots].filter((r) => existsSync(repoMemoryDir(r)));
+  if (!targets.length) return;
+  console.log('Project memory unification (KIT-D016 — harness memory → committed .claude/memory):');
+  for (const r of targets) {
+    if (DRY_RUN) { console.log(`  [dry-run] unify ${r}`); continue; }
+    const m = unifyMemory(r);
+    if (m.action === 'linked') console.log(`  linked ${m.harnessDir} -> ${m.repoDir}`);
+    else if (m.action === 'none') console.log(`  ok (already unified): ${r}`);
+    else if (m.action === 'diverged') console.log(`  !! SPLIT (not touched): ${m.harnessDir} differs from ${m.repoDir} — reconcile, then: ${memoryLinkCommand(r)}`);
+    else console.log(`  !! could not link ${m.harnessDir} -> ${m.repoDir}; do it manually: ${memoryLinkCommand(r)}`);
+  }
+}
+unifyProjectMemory();
 
 const capScript = join(KIT, 'scripts', 'cap.mjs');
 console.log('');
