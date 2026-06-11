@@ -53,6 +53,12 @@ On "work T-001" (or when I pull it from the drain):
 1. Read `.ai/tickets/T-001*.md`; **restate the acceptance criteria**.
 2. **Confirm scope before editing files** (Chris's standing rule). Within an
    already-approved ticket, proceed through the plan without re-asking per file.
+   **Provenance first (KIT-T079):** on any module-identity question — "which file?",
+   "why isn't X showing?", "is this the right module?" — run provenance BEFORE runtime
+   theories (cache, zombie dev-server): `git log -- <path>` plus
+   `code-graph --query entry-points` / `--query duplicate-defines <symbol>`. A repo can
+   hold two of a module (one canonical, one superseded); git + the graph say which
+   outright. Edit the canonical twin, never whichever you opened first.
 3. Set `status: doing`. Mirror each acceptance criterion into the native task
    list as a task titled `T-NNN <criterion>` (TaskCreate, with blockedBy for
    ordering) — the prefix marks it as ticket-backed. **The ticket file is truth;**

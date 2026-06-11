@@ -286,8 +286,13 @@ out.push(`
 --- PROCESS RULES (enforced by hooks) ---
 1. QUERY, don't grep. For work/issues/history use \`q\` (q open | governing <path> | trail <id>
    | fts <terms> | doc-trail <id>); for code use \`code-graph --query\` (importers-of | defines
-   | surface). They see links/graph a raw grep can't. The query-gate BLOCKS grepping the .ai
-   store and tree-wide source greps. Grep is fine only for a SPECIFIC known file (use Grep/Glob/Read).
+   | surface | duplicate-defines <symbol> | entry-points). They see links/graph a raw grep can't.
+   The query-gate BLOCKS grepping the .ai store and tree-wide source greps. Grep is fine only for
+   a SPECIFIC known file (use Grep/Glob/Read).
+   PROVENANCE FIRST (KIT-T079): on a module-identity or "X isn't showing / which file?" question,
+   run \`git log -- <path>\` + code-graph entry-points/duplicate-defines BEFORE any runtime theory
+   (cache, zombie server) — a repo can hold TWO of a module (one canonical, one superseded), and
+   git/the graph say which outright. Edit the canonical twin, not whichever you opened first.
 2. Read the plan-of-record + DECISIONS before non-trivial work. The on-disk record and
    git are AUTHORITATIVE over this summary and over memory; on conflict, reconcile to disk
    and say so.

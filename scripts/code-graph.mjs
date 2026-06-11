@@ -8,6 +8,8 @@
 //   node code-graph.mjs [root] --query importers-of <path>
 //   node code-graph.mjs [root] --query defines <symbol>
 //   node code-graph.mjs [root] --query surface <path>
+//   node code-graph.mjs [root] --query duplicate-defines <symbol>   # twins; flags the dead one
+//   node code-graph.mjs [root] --query entry-points                 # app roots (multi-root smell)
 //
 // "Any language" by design (maintainer constraint): extraction is a DATA table of
 // per-family patterns plus a generic fallback applied to every file, so an unknown
@@ -299,6 +301,107 @@ export function referencesOf(graph, symbol) {
   return graph.files.filter((f) => (f.refs || []).includes(symbol)).map((f) => f.path);
 }
 
+// The top-level directory segment of a repo-relative path ('' for a root file). Two
+// definitions "live in the same subtree" when they share this — the cheap proxy for "one
+// editor's own closure" used to tell a self-referential twin from a shipped one.
+function topDir(path) {
+  const i = path.indexOf('/');
+  return i === -1 ? '' : path.slice(0, i);
+}
+
+// duplicate-defines (KIT-T079) — the same exported symbol DEFINED in 2+ files (two
+// `createRoadEditor`, one canonical + one superseded). The lived failure: an agent edited
+// one of two twins blind because the kit offered no fast "is this duplicated / which is
+// dead?" signal. This makes it ONE query off the existing graph (no new parser): list every
+// definer of `symbol`, then mark the SUPERSEDED one(s).
+//
+// Superseded heuristic: a twin whose ONLY inbound importers live in its own top-level
+// subtree (self-referential closure, or nothing imports it at all) is the dead branch — no
+// shipped code outside it reaches in. A twin imported from OUTSIDE its subtree is canonical.
+// Conservative on purpose: when EVERY definer looks self-contained (common under the import
+// heuristic, or for genuine root-level entry files), none is flagged `superseded` — the
+// agent still sees both twins and runs `git log` / `importers-of`, never a false "this is
+// dead". Returns [] when the symbol is defined in 0–1 files (not a duplicate). Never throws.
+export function duplicateDefines(graph, symbol) {
+  try {
+    const definers = (graph.files || []).filter((f) => (f.symbols || []).some((s) => s.name === symbol));
+    if (definers.length < 2) return []; // not duplicated — nothing to disambiguate
+    const importersByPath = new Map(definers.map((f) => [f.path, importersOf(graph, f.path)]));
+    const rows = definers.map((f) => {
+      const importers = importersByPath.get(f.path) || [];
+      const mine = topDir(f.path);
+      const external = importers.filter((p) => topDir(p) !== mine);
+      return { path: f.path, importers, externalImporters: external, superseded: external.length === 0 };
+    });
+    // Don't declare a twin dead if NO twin has an outside importer — that's "can't tell",
+    // not "this one is superseded". Only flag when at least one sibling IS reached from
+    // outside, making the unreferenced one the clear dead branch.
+    const anyExternal = rows.some((r) => r.externalImporters.length > 0);
+    if (!anyExternal) for (const r of rows) r.superseded = false;
+    return rows.sort((a, b) => Number(a.superseded) - Number(b.superseded) || a.path.localeCompare(b.path));
+  } catch {
+    return []; // fail-open: a cold/odd graph yields no signal, never a throw
+  }
+}
+
+// Filenames/patterns that ARE an application entry point (the thing a bundler/runtime starts
+// from). Multiple of these is the multi-root smell behind the lived failure — two `index.html`
+// / two `main.tsx` meant two apps, and "which one am I editing?" went unanswered for turns.
+const ENTRY_BASENAMES = new Set(['index.html', 'main.ts', 'main.tsx', 'main.js', 'main.jsx', 'index.tsx', 'index.jsx']);
+const ENTRY_CONFIG_RE = /(?:^|\/)(?:vite|webpack|rollup|rspack|esbuild|next)\.config\.[mc]?[jt]s$/;
+
+// entry-points (KIT-T079) — enumerate app roots so "is there more than one X?" is one command.
+// Scans the FULL git-aware source list (not just the graph's parsed files) because `index.html`
+// isn't a parsed code file yet still marks a root. Groups by top-level subtree so two roots in
+// two trees (the duplicated-editor shape) read at a glance. `multiRoot` is the signal to chase
+// provenance. Never throws — returns an empty, well-formed result on any error.
+export function entryPoints(root, graph = null) {
+  try {
+    const absRoot = resolve(root);
+    const files = listSourceFiles(absRoot).map((p) => relative(absRoot, p).split(sep).join('/'));
+    // Pull in index.html (+ any non-TEXT_EXT roots) that the parsed graph omits, via a raw walk
+    // of the git list; listSourceFiles already filters to TEXT_EXT, so add an html sweep.
+    const htmlRoots = htmlEntryFiles(absRoot);
+    const all = [...new Set([...files, ...htmlRoots])];
+    const entries = all
+      .filter((p) => ENTRY_BASENAMES.has(p.split('/').pop()) || ENTRY_CONFIG_RE.test(p))
+      .sort();
+    const byTree = {};
+    for (const p of entries) (byTree[topDir(p) || '.'] ||= []).push(p);
+    return { entries, byTree, multiRoot: Object.keys(byTree).length > 1 };
+  } catch {
+    return { entries: [], byTree: {}, multiRoot: false };
+  }
+}
+
+// index.html (and other non-code roots) from the git file list — listSourceFiles drops them
+// because they aren't TEXT_EXT, but they're the clearest "an app starts here" marker. Git-aware
+// (respects .gitignore / submodules); falls back to an html-only walk in a non-git dir. The walk
+// here is separate from `walk()` because that one is TEXT_EXT-gated and would drop .html. Best-effort.
+function htmlEntryFiles(absRoot) {
+  try {
+    const opts = { cwd: absRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] };
+    try {
+      const tracked = execFileSync('git', ['ls-files'], opts);
+      const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], opts);
+      return (tracked + untracked).split(/\r?\n/).filter(Boolean).map((r) => r.split(sep).join('/')).filter((r) => r.endsWith('.html'));
+    } catch {
+      return walkHtml(absRoot).map((p) => relative(absRoot, p).split(sep).join('/'));
+    }
+  } catch {
+    return [];
+  }
+}
+
+function walkHtml(root, acc = []) {
+  for (const e of readdirSync(root, { withFileTypes: true })) {
+    if (SKIP_DIRS.has(e.name)) continue;
+    if (e.isDirectory()) walkHtml(join(root, e.name), acc);
+    else if (extname(e.name) === '.html') acc.push(join(root, e.name));
+  }
+  return acc;
+}
+
 async function main() {
   const args = process.argv.slice(2);
   let root = process.cwd();
@@ -331,8 +434,10 @@ async function main() {
     else if (query === 'defines') result = defines(graph, queryArg);
     else if (query === 'references-of') result = referencesOf(graph, queryArg);
     else if (query === 'surface') result = surface(graph, queryArg);
+    else if (query === 'duplicate-defines') result = duplicateDefines(graph, queryArg);
+    else if (query === 'entry-points') result = entryPoints(root, graph);
     else {
-      console.error(`unknown query '${query}' (importers-of | defines | references-of | surface)`);
+      console.error(`unknown query '${query}' (importers-of | defines | references-of | surface | duplicate-defines | entry-points)`);
       process.exit(2);
     }
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
