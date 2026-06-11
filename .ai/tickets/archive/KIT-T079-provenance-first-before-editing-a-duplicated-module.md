@@ -12,7 +12,8 @@ links: []
 supersedes:
 superseded_by:
 created: 2026-06-10T00:00:00Z
-updated: 2026-06-11T04:24:58Z
+updated: 2026-06-11T04:25:29Z
+fixed_commit: 4d694492205e14fc865ba23c73bf26f42b84356c
 ---
 
 ## Description
@@ -73,3 +74,4 @@ edit one of two twins and not notice.
 - [2026-06-11 04:24] (comment) ticked: Drain/work guidance (CLAUDE.md or the relevant skill) states the rule: on a module-identity or
 - [2026-06-11 04:24] (comment) ticked: Test for the new code-graph query against a fixture with a duplicated factory.
 - [2026-06-11 04:24] (status) doing → done
+- [2026-06-11 04:25] (status) done → done
