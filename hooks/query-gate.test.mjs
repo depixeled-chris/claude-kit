@@ -40,11 +40,12 @@ expect('blocks grep over .ai store', run(d, 'grep -rn "physics" .ai/decisions/')
 expect('blocks cat of a store file', run(d, 'cat .ai/decisions/HOD-D004.md').code, 2);
 expect('blocks find over the store', run(d, 'find .ai/tickets -name "*.md"').code, 2);
 
-// BLOCK — tree-wide source discovery.
+// BLOCK — tree-wide source discovery (JS/TS — code-graph CAN answer these).
 expect('blocks recursive grep of source', run(d, 'grep -rn "PhysicsSim" src/').code, 2);
 expect('blocks bare rg (recursive by default)', run(d, 'rg PhysicsSim').code, 2);
 expect('blocks git grep discovery', run(d, 'git grep usePhysics').code, 2);
-expect('blocks find -name file location', run(d, 'find . -name "*.rs"').code, 2);
+expect('blocks find -name *.ts (JS/TS indexed)', run(d, 'find . -name "*.ts"').code, 2);
+expect('blocks rg with --include=*.ts (indexed ext)', run(d, 'rg --include=*.ts "useState" src/').code, 2);
 
 // ALLOW — the maintainer's rule: grep is fine for a SPECIFIC known file, and a pipe
 // only filters a command's OUTPUT (not a file search).
@@ -75,6 +76,21 @@ expect('allows targeted grep of config.yml', run(d, 'grep uat .ai/config.yml').c
 expect('STILL blocks reading a decision ITEM file', run(d, 'cat .ai/decisions/HOD-D004.md').code, 2);
 expect('STILL blocks reading a ticket ITEM file', run(d, 'sed -n 1,5p .ai/tickets/KIT-T001.md').code, 2);
 expect('blocks multi-file store read (not "one specific")', run(d, 'cat .ai/config.yml .ai/SESSION.md').code, 2);
+
+// KIT-T085 — Rust/WGSL and other non-indexed-extension greps MUST be allowed.
+// code-graph only indexes JS/TS; blocking Rust/WGSL discovery is a dead end.
+expect('allows grep --include=*.rs (Rust — not indexed)', run(d, 'grep -rn "set_environment" --include=*.rs src/').code, 0);
+expect('allows grep --include=*.wgsl (WGSL — not indexed)', run(d, 'grep -rn "terrain" --include=*.wgsl src/shaders/').code, 0);
+expect('allows rg -t rust (Rust type flag)', run(d, 'rg -t rust "fn spawn"').code, 0);
+expect('allows find . -name "*.rs" (Rust — not indexed)', run(d, 'find . -name "*.rs"').code, 0);
+expect('allows find . -name "*.wgsl" (WGSL — not indexed)', run(d, 'find . -name "*.wgsl"').code, 0);
+expect('allows rg --include=*.rs (long include form)', run(d, 'rg --include=*.rs "impl Vehicle"').code, 0);
+expect('still blocks rg --include=*.ts (TS is indexed)', run(d, 'rg --include=*.ts "PhysicsSim"').code, 2);
+expect('still blocks plain rg with no ext signal (unknown scope)', run(d, 'rg PhysicsBody').code, 2);
+
+// KIT-T085 AC3 — targeted grep of .ai/config.yml is allowed (KIT-T080 carve-out).
+expect('allows grep of ids from config.yml (AC3)', run(d, 'grep ids .ai/config.yml').code, 0);
+expect('allows grep of key from config.yml', run(d, 'grep key .ai/config.yml').code, 0);
 
 // ALLOW — the query tools themselves, ordinary commands, and unadopted repos.
 expect('allows q governing', run(d, 'node scripts/q.mjs governing src/main.ts').code, 0);

@@ -35,6 +35,43 @@ const STORE = /\.ai[\\/]|(?:^|[\s"'=])\.?[\\/]?(?:tickets|decisions|inbox|questi
 // A recursive/tree-wide grep is DISCOVERY ("find me where X is"), the code-graph's job.
 const RECURSIVE_FLAG = /(?:^|\s)(?:-[A-Za-z]*[rR][A-Za-z]*|--recursive|--include\b|--include-dir\b)/;
 const FILEISH = /\.[A-Za-z0-9]{1,6}$/; // a concrete file arg (has an extension)
+// Extensions code-graph DOES index (JS/TS ecosystem). Tree-wide greps over these extensions
+// are discovery — code-graph can answer them. All other source extensions (Rust, WGSL,
+// GLSL, Python, …) are NOT indexed, so blocking them is a dead end with no sanctioned
+// alternative — those greps must be allowed (KIT-T085).
+const GRAPH_INDEXED_EXTS = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.jsx', '.tsx', '.vue', '.svelte']);
+// Detects --include=*.rs / --include=*.wgsl / -g '*.rs' style glob flags, or a path/dir
+// argument that ends in a non-indexed extension or a dir segment that implies one
+// (e.g. `src/shaders/` cannot signal ext, but `**/*.rs` can). Also matches `rg -t rust`.
+// Strategy: extract every argument token; if ALL extension hints found are non-indexed
+// (i.e. no indexed extension appears in the token set), allow the grep. When there is NO
+// extension signal at all, keep the current behaviour (block) — unknown → conservative.
+function targetsOnlyNonIndexedExtensions(c) {
+  // Collect extension hints from --include / -g / -e flags and from path-ish tokens.
+  const exts = new Set();
+  // --include=*.rs  --include *.wgsl  -g '*.rs'  globs in the command
+  for (const m of c.matchAll(/(?:--include|--glob|-g)\s*[=\s]?["']?\*(\.[A-Za-z0-9]+)["']?/gi)) {
+    exts.add(m[1].toLowerCase());
+  }
+  // rg --type / -t <langname>  (e.g. `rg -t rust foo`)
+  for (const m of c.matchAll(/(?:-t|--type)\s+([A-Za-z0-9]+)/gi)) {
+    const lang = m[1].toLowerCase();
+    // Map known rg type-names that are non-indexed source langs.
+    if (['rust', 'wgsl', 'glsl', 'hlsl', 'py', 'python', 'c', 'cpp', 'go', 'java', 'kotlin', 'swift', 'ruby', 'sh', 'bash', 'fish', 'toml', 'yaml'].includes(lang)) {
+      exts.add('.' + (lang === 'python' ? 'py' : lang === 'bash' ? 'sh' : lang));
+    }
+    if (['js', 'javascript', 'ts', 'typescript'].includes(lang)) exts.add('.js');
+  }
+  // Path tokens like `**/*.rs` or `src/*.wgsl`
+  for (const m of c.matchAll(/\*(\.[A-Za-z0-9]+)\b/gi)) {
+    exts.add(m[1].toLowerCase());
+  }
+  // A path argument ending in a source extension (e.g. `grep foo crates/` has no ext hint,
+  // but `grep -r foo crates/*.rs` does via the glob above; plain dir paths give no signal).
+  if (exts.size === 0) return false; // no signal — keep current behaviour (block)
+  const hasIndexed = [...exts].some((e) => GRAPH_INDEXED_EXTS.has(e));
+  return !hasIndexed; // ALL hints are non-indexed → allow
+}
 
 main().catch(() => process.exit(0)); // fail-open — never wedge a tool call on a parse slip
 
@@ -150,14 +187,27 @@ function judge(c, piped = false) {
   }
 
   // RULE 2 — discovery search of the source tree belongs to the code graph.
+  // EXCEPTION (KIT-T085): when the grep explicitly targets file types that code-graph does
+  // NOT index (Rust .rs, WGSL .wgsl, and all other non-JS/TS source), the redirect is a dead
+  // end — code-graph has no answer for those symbols. Allow such greps so the agent isn't
+  // stranded. If there is NO extension signal (no --include / glob / -t flag), keep blocking
+  // (conservative — unknown scope still routes to code-graph for JS/TS discovery).
   if (isSearch) {
     const args = (gitGrep ? tok.slice(2) : tok.slice(1)).filter((a) => !a.startsWith('-'));
     const targetsOneFile = args.some((a) => FILEISH.test(a)); // a concrete file = "you know where"
     const recursive = RECURSIVE_FLAG.test(c) || tool === 'rg' || tool === 'ag' || tool === 'ack' || gitGrep;
-    if (recursive && !targetsOneFile) return { id: 'source-discovery', msg: graphMsg(c) };
+    if (recursive && !targetsOneFile) {
+      if (targetsOnlyNonIndexedExtensions(c)) return null; // code-graph can't help — allow
+      return { id: 'source-discovery', msg: graphMsg(c) };
+    }
   }
   // find/gci that LOCATES files (-name/-path/-recurse) is discovery too.
-  if (isFind && /(?:^|\s)(?:-i?name\b|-i?path\b|-recurse\b)/i.test(c)) return { id: 'source-discovery', msg: graphMsg(c) };
+  // Exception: `find . -name "*.rs"` (and other non-indexed exts) is allowed — code-graph
+  // doesn't index Rust/WGSL/etc. so blocking `find . -name "*.rs"` is a dead end (KIT-T085).
+  if (isFind && /(?:^|\s)(?:-i?name\b|-i?path\b|-recurse\b)/i.test(c)) {
+    if (targetsOnlyNonIndexedExtensions(c)) return null;
+    return { id: 'source-discovery', msg: graphMsg(c) };
+  }
 
   return null;
 }
@@ -201,6 +251,9 @@ function graphMsg(c) {
     '',
     'For a TARGETED look once you know the file, use the Grep/Glob/Read tools',
     '(not Bash grep). A bare `grep <pattern> <one-specific-file>` is allowed.',
+    '',
+    'NOTE: greps restricted to non-JS/TS source (--include=*.rs, --include=*.wgsl, -t rust, etc.)',
+    'are ALLOWED — code-graph only indexes JS/TS and cannot redirect those queries (KIT-T085).',
     '',
   ].join('\n');
 }

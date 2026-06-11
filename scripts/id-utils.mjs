@@ -250,7 +250,11 @@ export function nextId(root, store) {
     throw new Error(`unknown store '${store}' (one of: ${Object.keys(STORE_TYPE).join(', ')})`);
   }
   const { key, pad } = readIdConfig(root);
-  if (!key) throw new Error(`no ids.key in ${join(root, '.ai', 'config.yml')}`);
+  if (!key) throw new Error(
+    `no ids.key in ${join(root, '.ai', 'config.yml')} — ` +
+    `add an ids block to that file, e.g.:\n` +
+    `  ids:\n    key: HOD   # your project's 2-4 letter prefix\n    pad: 3`,
+  );
   let max = 0;
   for (const it of scanStores(root)) {
     if (it.store !== store) continue;
