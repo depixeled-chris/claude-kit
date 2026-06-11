@@ -245,3 +245,133 @@ test('commit.mjs no-ops cleanly when the .ai store is not in any git repo (fail-
   assert.deepEqual(committed, [], 'no repo → nothing committed, no throw');
   rmSync(bare, { recursive: true, force: true });
 });
+
+// --- provenance.mjs (KIT-T065): triage-time BACKWARD-provenance inference -------------------
+// A bug/regression arrives with empty provenance; the resolver proposes the likely culprit from the
+// symptom — implicated files (code-graph) → governing item (q governing) → causing commit (git log) —
+// as a top-N PROPOSAL with evidence, marked `inferred` when accepted. Fail-open is the hard rule: a
+// cold cache / non-git dir / missing history yields "no candidates", never a throw.
+
+// A self-contained git repo whose tree + history + .ai store make all three inference steps
+// deterministic: a real source file, a commit that touches it, and a governing decision over it.
+function provenanceFixture() {
+  const repo = mkdtempSync(join(tmpdir(), 'prov-repo-'));
+  const g = (...a) => execFileSync('git', ['-C', repo, ...a], { stdio: 'ignore' });
+  mkdirSync(join(repo, 'src', 'render'), { recursive: true });
+  // The implicated file + a dependent that imports it (so code-graph widening has an edge to find).
+  const widget = join('src', 'render', 'widget.ts');
+  const consumer = join('src', 'render', 'consumer.ts');
+  writeFileSync(join(repo, widget), 'export function widget() { return 1; }\n');
+  writeFileSync(join(repo, consumer), "import { widget } from './widget';\nexport const x = widget();\n");
+  // A governing decision over src/render/* (candidate regressed_from) in the repo's own .ai store.
+  mkdirSync(join(repo, '.ai', 'decisions'), { recursive: true });
+  writeFileSync(join(repo, '.ai', 'config.yml'), 'ids:\n  key: "PRV"\n  prefix: "PRV-T"\n  pad: 3\n');
+  writeFileSync(join(repo, '.ai', 'decisions', 'PRV-D001-render-rule.md'),
+    '---\nid: PRV-D001\ntype: decision\nstatus: accepted\ntitle: render surface rule\npaths: src/render/*\n---\n\n## Decision\nThe render surface is owned here.\n');
+  gitInit(repo);
+  g('add', '-A');
+  g('commit', '-q', '-m', 'seed: render widget + consumer (PRV-D001)');
+  const sha = execFileSync('git', ['-C', repo, 'rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
+  return { repo, widget, consumer, sha };
+}
+
+test('provenance: pure symptom parsers extract file tokens and prose-named shas', async () => {
+  const { seedPaths, namedShas } = await import('./triage/provenance.mjs');
+  assert.deepEqual(
+    seedPaths('NO STREETS — chunkGround.ts stopped emitting; see src/render/Scene.ts too').sort(),
+    ['chunkGround.ts', 'src/render/Scene.ts'].sort(),
+    'a bare filename AND a slash-path are both recognized as implicated files',
+  );
+  assert.deepEqual(seedPaths('a prose sentence, e.g. nothing here, i.e. no paths'), [], 'prose with no code path yields none');
+  // A hex-with-letter sha is taken outright; a pure-digit run only with a commit cue beside it.
+  assert.deepEqual(namedShas('regressed after merge (6712903)'), ['6712903'], 'a parenthesized sha next to "merge" is taken');
+  assert.deepEqual(namedShas('bad after commit a1b2c3d happened'), ['a1b2c3d'], 'a hex-with-letter token is a sha outright');
+  assert.deepEqual(namedShas('the year 2026 and 1234567 budget line'), [], 'pure-digit numbers with no commit cue are NOT shas');
+});
+
+test('provenance: hasEmptyProvenance is the precondition — a filled field opts out', async () => {
+  const { hasEmptyProvenance } = await import('./triage/provenance.mjs');
+  assert.equal(hasEmptyProvenance({}), true, 'a bare cap (no provenance fields) is eligible');
+  assert.equal(hasEmptyProvenance(null), true, 'null is treated as empty (a cap row may be absent)');
+  assert.equal(hasEmptyProvenance({ regressed_from: 'KIT-T001' }), false, 'a user-given regressed_from opts the item out');
+  assert.equal(hasEmptyProvenance({ causingCommit: 'abc1234' }), false, 'the camelCase row field (causingCommit) also opts out');
+});
+
+test('provenance: inference proposes top-N candidates WITH evidence (file + governing item + commit)', async () => {
+  const { inferProvenance } = await import('./triage/provenance.mjs');
+  const { repo, widget, sha } = provenanceFixture();
+  try {
+    // "commit (<sha>)" — the cue word makes a pure-digit short sha (git mints them randomly) parse
+    // deterministically; without a cue, an all-numeric sha would read as a number, not a commit.
+    const symptom = `widget rendering broke after the recent commit (${sha}); src/render/widget.ts stopped emitting`;
+    const { candidates, evidence } = await inferProvenance(symptom, repo);
+
+    assert.ok(candidates.length > 0 && candidates.length <= 3, 'proposes a bounded top-N candidate set');
+    // Evidence: the implicated file was resolved AND widened to its importer.
+    assert.ok(evidence.files.includes(widget.replace(/\\/g, '/')), 'the symptom file resolved to the real repo path');
+    assert.ok(evidence.files.includes('src/render/consumer.ts'), 'code-graph widened to the importing file');
+    // Evidence: the governing decision over src/render/* surfaced as candidate regressed_from.
+    assert.ok(evidence.governing.some((g) => g.id === 'PRV-D001'), 'q governing surfaced the file-scoped decision');
+    // The strongest candidate carries all three facets: file, governing item, AND the prose-named commit.
+    const best = candidates[0];
+    assert.equal(best.regressed_from, 'PRV-D001', 'candidate names the governing item as regressed_from');
+    assert.equal(best.causing_commit, sha, 'candidate names the prose-named commit as causing_commit (verified against git)');
+    assert.ok(best.commit && /seed: render widget/.test(best.commit.subject), 'the commit evidence carries its subject');
+    assert.equal(best.source, 'named-sha', 'a verified prose-named sha is the top-ranked source');
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('provenance: inference degrades to NO candidates on a non-git / cold dir, never throws (fail-open)', async () => {
+  const { inferProvenance } = await import('./triage/provenance.mjs');
+  const cold = mkdtempSync(join(tmpdir(), 'prov-cold-'));
+  try {
+    // A real symptom naming a real-looking file, but the dir is not a git repo and has no code-graph
+    // cache — every step must fail-open to empty, and the call must resolve (not reject).
+    const out = await inferProvenance('streets gone — chunkGround.ts broke after deadbeef1', cold);
+    assert.deepEqual(out.candidates, [], 'cold/non-git → no candidates');
+    assert.deepEqual(out.evidence.files, [], 'no tracked-file set → nothing resolved');
+  } finally {
+    rmSync(cold, { recursive: true, force: true });
+  }
+  // A bogus path must not throw either.
+  const out2 = await inferProvenance('x', join(cold, 'does-not-exist'));
+  assert.deepEqual(out2.candidates, [], 'a missing repo root still resolves to no candidates');
+});
+
+test('provenance: an accepted link lands in frontmatter with the provenance marker (inferred vs given)', async () => {
+  const { writeFromTemplate } = await import('./triage/write-item.mjs');
+  const home = mkdtempSync(join(tmpdir(), 'prov-write-'));
+  const ai = join(home, '.ai');
+  mkdirSync(join(ai, 'tickets'), { recursive: true });
+  try {
+    // No template → the minimal-frontmatter path; the marker + links must still be written.
+    const rel = writeFromTemplate({
+      aiDir: ai, store: 'tickets', id: 'PRV-T001', type: 'bug', status: 'todo', priority: 'high',
+      title: 'streets gone', links: [], text: 'roads stopped rendering',
+      provenance: { regressed_from: 'PRV-D001', causing_commit: '6712903', mark: 'inferred' },
+    });
+    const inferred = readFileSync(join(ai, rel), 'utf8');
+    assert.match(inferred, /^regressed_from: PRV-D001$/m, 'the accepted regressed_from link is written');
+    assert.match(inferred, /^causing_commit: 6712903$/m, 'the accepted causing_commit link is written');
+    assert.match(inferred, /^provenance: inferred$/m, 'an inferred link is marked inferred (auditable)');
+
+    // A user-given link gets the `given` marker — never conflated with a machine guess.
+    const rel2 = writeFromTemplate({
+      aiDir: ai, store: 'tickets', id: 'PRV-T002', type: 'bug', status: 'todo', priority: 'high',
+      title: 'given culprit', links: [], text: 'user knows the cause',
+      provenance: { regressed_from: 'PRV-D001', mark: 'given' },
+    });
+    assert.match(readFileSync(join(ai, rel2), 'utf8'), /^provenance: given$/m, 'a user-supplied link is marked given');
+
+    // No provenance accepted → no marker noise.
+    const rel3 = writeFromTemplate({
+      aiDir: ai, store: 'tickets', id: 'PRV-T003', type: 'bug', status: 'todo', priority: 'high',
+      title: 'no provenance', links: [], text: 'unknown cause',
+    });
+    assert.doesNotMatch(readFileSync(join(ai, rel3), 'utf8'), /^provenance:/m, 'a bug with no accepted link carries no marker');
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});

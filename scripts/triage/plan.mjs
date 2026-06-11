@@ -7,10 +7,12 @@
 import { openHandle } from './handle.mjs';
 import { loadScope, scopeIndex, ROUTE_STORE } from './config.mjs';
 import { leadingType, capText, ftsOrQuery, truncate } from './cap-text.mjs';
+import { inferProvenance, PROVENANCE_TYPES } from './provenance.mjs';
 
 const DEDUP_LIMIT = 8;          // candidate dedup hits per cap — a hint list, not a dump
 const PROBE_STORE = 'tickets';  // store an ambiguous cap dedup-probes before its route is known
 const TEXT_COL = 70;            // chars of cap text shown in the human plan line
+const PROV_SUBJECT_COL = 50;    // chars of a candidate commit subject in the human provenance line
 
 // The cap's prose lives in items_fts.body (the items table has no body column); join it in so the
 // (type)/text/dedup parse sees the real cap text, not just the title.
@@ -36,7 +38,19 @@ function dedupCandidates(db, store, needle) {
   );
 }
 
-function planForCap(db, cap, configs) {
+// Backward-provenance inference (KIT-T065): a bug/regression cap arrives with EMPTY provenance (an
+// inbox cap carries none by construction), so triage proposes its likely culprit at intake — files
+// from the symptom (code-graph) → governing item (`q governing`) → causing commit (`git log`). Runs
+// ONLY for a bug/regression cap (a feature/decision has no causing change), and ONLY when the scope's
+// repo root is known. Fail-open: inferProvenance never throws, so a cold cache yields no candidates
+// and the plan is otherwise unaffected. `null` for a non-bug cap keeps the plan shape lean.
+async function provenanceFor(type, text, sc) {
+  if (!type || !PROVENANCE_TYPES.has(type) || !sc || !sc.root) return null;
+  const { candidates, evidence } = await inferProvenance(text, sc.root);
+  return { candidates, evidence };
+}
+
+async function planForCap(db, cap, configs) {
   const sc = configs.get(cap.scope);
   const classifications = sc ? sc.classifications : {};
   const type = leadingType(cap.body);
@@ -58,6 +72,8 @@ function planForCap(db, cap, configs) {
     // target yet, so it probes the broadest store (tickets) to surface candidates for the LLM.
     dedupCandidates: dedupCandidates(db, store || PROBE_STORE, text),
     allowedClassifications: Object.keys(classifications),
+    // Proposed backward-provenance for a bug/regression cap (KIT-T065) — null otherwise.
+    provenance: await provenanceFor(type, text, sc),
   };
 }
 
@@ -71,7 +87,11 @@ export async function plan({ scopeFilter, json, dbPath }) {
     const configs = new Map();
     for (const [scope, { aiDir, root }] of scopeIndex()) configs.set(scope, loadScope(aiDir, root));
     const caps = inboxCaps(handle, scopeFilter);
-    const items = caps.map((c) => planForCap(handle, c, configs));
+    // Sequential await: provenance inference shells code-graph/git/q per bug cap; the cap set is
+    // small and the work is I/O-bound + bounded, so a plain loop keeps the single-handle contract
+    // (the db queries inside still run on the one open handle) without a concurrency layer.
+    const items = [];
+    for (const c of caps) items.push(await planForCap(handle, c, configs));
     const out = {
       generatedAt: new Date().toISOString(),
       // single-handle proof: every query above ran on the ONE handle openHandle() returned (KIT-D025).
@@ -81,6 +101,7 @@ export async function plan({ scopeFilter, json, dbPath }) {
         total: items.length,
         deterministic: items.filter((i) => !i.needsClassification).length,
         needsClassification: items.filter((i) => i.needsClassification).length,
+        provenanceProposed: items.filter((i) => i.provenance && i.provenance.candidates.length).length,
       },
       items,
     };
@@ -92,10 +113,24 @@ export async function plan({ scopeFilter, json, dbPath }) {
   }
 }
 
+// One proposed-culprit line per candidate: file → governing item → commit (the three evidence
+// facets), marked `inferred?` so it reads as a PROPOSAL the maintainer accepts, never a fact.
+function printProvenance(prov) {
+  if (!prov || !prov.candidates.length) return;
+  process.stdout.write('    provenance? (inferred, accept to record):\n');
+  for (const c of prov.candidates) {
+    const where = c.file ? c.file.split('/').pop() : '?';
+    const gov = c.regressed_from ? `regressed_from=${c.regressed_from}` : 'no governing item';
+    const commit = c.commit ? `causing_commit=${c.commit.sha} (${truncate(c.commit.subject, PROV_SUBJECT_COL)})` : 'no commit';
+    process.stdout.write(`      • ${where}: ${gov}, ${commit}\n`);
+  }
+}
+
 function printPlan(out) {
+  const prov = out.counts.provenanceProposed ? `, ${out.counts.provenanceProposed} with provenance candidates` : '';
   process.stdout.write(
     `triage plan — ${out.counts.total} caps `
-    + `(${out.counts.deterministic} deterministic, ${out.counts.needsClassification} need classification) `
+    + `(${out.counts.deterministic} deterministic, ${out.counts.needsClassification} need classification${prov}) `
     + `across ${out.scopes.length} scope(s)\n\n`,
   );
   const byScope = new Map();
@@ -110,6 +145,7 @@ function printPlan(out) {
       const dup = i.dedupCandidates.length ? `  dup? ${i.dedupCandidates.map((c) => c.id).join(', ')}` : '';
       const allow = i.needsClassification ? `  pick: ${i.allowedClassifications.join('|')}` : '';
       process.stdout.write(`  ${tag}  ${truncate(i.text, TEXT_COL)}${dup}${allow}\n`);
+      printProvenance(i.provenance);
     }
     process.stdout.write('\n');
   }

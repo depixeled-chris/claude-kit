@@ -17,10 +17,30 @@ function setField(block, key, val) {
   return re.test(block) ? block.replace(re, `$1 ${val}`) : `${block}\n${key}: ${val}`;
 }
 
+// Backward-provenance fields a triaged bug may carry (KIT-T065). When an ACCEPTED inference (or a
+// user-given link) is passed in, these land in the new item's frontmatter alongside a `provenance:`
+// marker — `inferred` (a triage-time guess, auditable) vs `given` (user-supplied). Appending them to
+// the frontmatter (vs only when the template names them) is deliberate: the template need not
+// pre-declare provenance for a bug ticket to record its inferred culprit.
+function appendProvenance(fm, prov) {
+  if (!prov) return fm;
+  let out = fm;
+  if (prov.regressed_from) out = setField(out, 'regressed_from', prov.regressed_from);
+  if (prov.causing_commit) out = setField(out, 'causing_commit', prov.causing_commit);
+  if (prov.introduced_by) out = setField(out, 'introduced_by', prov.introduced_by);
+  // Only mark provenance when at least one link was actually recorded — a bare marker on an empty
+  // bug would be noise.
+  if (prov.mark && (prov.regressed_from || prov.causing_commit || prov.introduced_by)) {
+    out = setField(out, 'provenance', prov.mark);
+  }
+  return out;
+}
+
 // Fill the frontmatter scalars triage owns from a store's _TEMPLATE.md, inject the cap text as the
 // body's Description/observation/question slot, and write `<id>-<slug>.md`. No template → a minimal
-// frontmatter. Returns the store-relative path written (e.g. tickets/KIT-T050-foo.md).
-export function writeFromTemplate({ aiDir, store, id, type, status, priority, title, links, text }) {
+// frontmatter. `provenance` (optional) records an accepted backward-provenance link + its marker.
+// Returns the store-relative path written (e.g. tickets/KIT-T050-foo.md).
+export function writeFromTemplate({ aiDir, store, id, type, status, priority, title, links, text, provenance }) {
   const storeDir = join(aiDir, store);
   mkdirSync(storeDir, { recursive: true });
   const tplPath = join(storeDir, '_TEMPLATE.md');
@@ -41,12 +61,14 @@ export function writeFromTemplate({ aiDir, store, id, type, status, priority, ti
     if (/^created:/m.test(fm)) fm = setField(fm, 'created', now);
     if (/^updated:/m.test(fm)) fm = setField(fm, 'updated', now);
     if (/^links:/m.test(fm)) fm = setField(fm, 'links', linkList);
+    fm = appendProvenance(fm, provenance);
     const body = rest.replace(/<what and why>|<the observation[^>]*>|<the question>/i, text);
     content = `${fm}${body}`;
   } else {
-    const fm = ['---', `id: ${id}`, type ? `type: ${type}` : null, status ? `status: ${status}` : null,
+    let fm = ['---', `id: ${id}`, type ? `type: ${type}` : null, status ? `status: ${status}` : null,
       priority ? `priority: ${priority}` : null, `title: ${title}`, `links: ${linkList}`,
       `created: ${now}`, '---'].filter(Boolean).join('\n');
+    fm = appendProvenance(fm.replace(/\n---$/, ''), provenance) + '\n---';
     content = `${fm}\n\n## Description\n${text}\n`;
   }
   const rel = `${store}/${id}-${slugify(title)}.md`;

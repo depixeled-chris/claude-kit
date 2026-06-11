@@ -39,6 +39,21 @@ function priorityOf(decision, sc) {
   return decision.priority || (sc.classifications[decision.classification] || {}).priority || null;
 }
 
+// An accepted backward-provenance link on a decision (KIT-T065): the maintainer/LLM accepted one of
+// the inferred candidates (or supplied their own). Default the marker to `inferred` (the triage-time
+// guess) unless the decision says `given` — a wrong inference is then auditable, never silently
+// authoritative. Returns null when the decision carries no provenance, so createItem writes nothing.
+function provenanceOf(d) {
+  const p = d.provenance;
+  if (!p || (!p.regressed_from && !p.causing_commit && !p.introduced_by)) return null;
+  return {
+    regressed_from: p.regressed_from || null,
+    causing_commit: p.causing_commit || null,
+    introduced_by: p.introduced_by || null,
+    mark: p.mark === 'given' ? 'given' : 'inferred',
+  };
+}
+
 function createItem(db, cap, sc, d, alloc, extraLinks = []) {
   const store = resolveRouteStore(d, sc);
   const id = nextId(db, cap.scope, store, sc.root, alloc);
@@ -46,6 +61,7 @@ function createItem(db, cap, sc, d, alloc, extraLinks = []) {
   const rel = writeFromTemplate({
     aiDir: sc.aiDir, store, id, type: d.classification, status: sc.flowHead,
     priority: priorityOf(d, sc), title: text, links: [...(d.links || []), ...extraLinks].filter(Boolean), text,
+    provenance: provenanceOf(d),
   });
   return { id, rel };
 }

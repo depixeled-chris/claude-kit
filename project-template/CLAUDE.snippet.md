@@ -111,7 +111,10 @@ tasks, keeping both in lockstep IS the sync:
   Cross-cutting decisions also go in `.ai/DECISIONS.md`.
 - **A recurring bug is a `regression` ticket, not a reopen:** set `regressed_from:
   <original id>` and `causing_commit:`; add a `(regressed) → T-NNN` line to the
-  original's History. Repeat offenders surface in the generated regression index.
+  original's History. Repeat offenders surface in the generated regression index. Triage
+  PROPOSES these for a provenance-less bug (KIT-T065 — symptom → code-graph → `q governing`
+  → `git log`); an accepted link is marked `provenance: inferred` (a triage guess,
+  auditable) vs `given` (a culprit you named), so a wrong guess is never silently authoritative.
 - **Reference files are generated, never the truth:** after a status/regression change
   run `node <kit>/scripts/index-tickets.mjs` to rebuild `.ai/tickets/INDEX.md` (the
   board), `.ai/REGRESSIONS.md` (chains), and `.ai/ROADMAP.md` (thin sequence, when

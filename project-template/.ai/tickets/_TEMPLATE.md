@@ -17,6 +17,7 @@ updated: <YYYY-MM-DDThh:mm:ssZ>
 regressed_from:        # T-### this is a recurrence of (set on a regression ticket)
 causing_commit:        # sha that introduced the bug
 fixed_commit:          # sha that fixed it (set when status -> review/done)
+provenance:            # how regressed_from/causing_commit got here: `given` (user-named) | `inferred` (triage guess — KIT-T065). Absent = unknown.
 ---
 
 ## Description
