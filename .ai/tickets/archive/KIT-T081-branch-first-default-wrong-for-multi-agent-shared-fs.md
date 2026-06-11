@@ -11,7 +11,8 @@ links: [KIT-T079, KIT-T080]
 supersedes:
 superseded_by:
 created: 2026-06-10T00:00:00Z
-updated: 2026-06-11T04:36:54Z
+updated: 2026-06-11T04:36:55Z
+fixed_commit: 2cfa9ba4d711e6b2a39bc0e7ab739e9d534c78ea
 ---
 
 ## Description
@@ -60,3 +61,4 @@ nothing steers agents INTO worktrees and AWAY from feature-branching the shared 
 - [2026-06-11 04:36] (comment) ticked: Consider a hook: warn/block `git checkout -b` / `git switch -c` / branch-switch in a checkout
 - [2026-06-11 04:36] (comment) ticked: Detection note: how an agent recognizes a shared checkout (presence of `worktree-agent-*` /
 - [2026-06-11 04:36] (status) doing → done
+- [2026-06-11 04:36] (status) done → done
