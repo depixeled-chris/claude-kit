@@ -2,7 +2,7 @@
 id: KIT-T086
 title: "Questionnaire-validator hook — enforce the AskUserQuestion recommendation contract (memory isn't enough)"
 type: bug
-status: doing
+status: done
 priority: high
 labels: [hooks, gates, decisions, questionnaire, agent-discipline]
 links: [KIT-T005]
@@ -10,7 +10,8 @@ files:
   - hooks/question-gate.mjs
   - hooks/hooks.json
 created: 2026-06-11T00:00:00Z
-updated: 2026-06-11T05:48:11Z
+updated: 2026-06-11T05:55:43Z
+fixed_commit: 750c0c4
 ---
 
 ## Description
@@ -70,3 +71,4 @@ Fix: a PreToolUse hook on the `AskUserQuestion` tool that parses `tool_input.que
 - [2026-06-11 05:54] (comment) ticked: `hooks/question-gate.mjs` BLOCKS (exit 2) when, for any question: there is no recommended option,
 - [2026-06-11 05:54] (comment) ticked: Adopted-repo-agnostic (this is an agent-discipline rule, not a store rule — should fire
 - [2026-06-11 05:54] (comment) ticked: Tests: a compliant questionnaire PASSES; each violation (marker-in-description, no-rec,
+- [2026-06-11 05:55] (status) doing → done
