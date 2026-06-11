@@ -2,7 +2,7 @@
 id: KIT-T064
 title: Question drain — answer_self_questions gets a verb; questions/ stops being a dead store
 type: feature
-status: review
+status: done
 priority: low
 milestone: M2-close-the-loop
 labels: [commands, lifecycle]
@@ -13,7 +13,7 @@ links: []
 supersedes:
 superseded_by:
 created: 2026-06-10T03:10:00Z
-updated: 2026-06-10T21:27:06Z
+updated: 2026-06-11T00:22:35Z
 ---
 
 ## Description
@@ -46,3 +46,4 @@ ones into the next `/decide`) rather than adding another command.
 - [2026-06-10 21:25] (comment) ticked: CLAUDE.snippet.md documents the question lifecycle.
 - [2026-06-10 21:26] (comment) ticked: Answered questions get a recorded answer + date, not deletion.
 - [2026-06-10 21:27] (status) doing → review
+- [2026-06-11 00:22] (status) review → done

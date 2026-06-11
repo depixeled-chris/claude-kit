@@ -2,7 +2,7 @@
 id: KIT-T062
 title: Make the system as loud about unfinished work as it is about uncaptured work (closure nags)
 type: feature
-status: review
+status: done
 priority: high
 milestone: M2-close-the-loop
 labels: [hooks, lifecycle]
@@ -13,7 +13,7 @@ links: [KIT-T054, KIT-T060]
 supersedes:
 superseded_by:
 created: 2026-06-10T03:10:00Z
-updated: 2026-06-10T21:08:55Z
+updated: 2026-06-11T00:22:35Z
 ---
 
 ## Description
@@ -69,3 +69,4 @@ Add to SessionStart nagging:
 - [2026-06-10 21:07] (comment) ticked: Nags are one line each, capped, and silent when clean (no noise tax).
 - [2026-06-10 21:07] (comment) ticked: Tests for each threshold (fresh = silent, stale = nag).
 - [2026-06-10 21:08] (status) doing → review
+- [2026-06-11 00:22] (status) review → done
