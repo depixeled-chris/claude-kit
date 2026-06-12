@@ -2,13 +2,13 @@
 id: KIT-T025
 title: General deduplication strategy across the whole workflow (capture → inbox → tickets → decisions → memory)
 type: feature
-status: todo
+status: doing
 priority: high
 labels: [dedup, capture, tickets, decisions, memory, strategy]
 links: [KIT-T024, KIT-D017, KIT-D018]
 files: [scripts/, hooks/, commands/]
 created: 2026-06-04T15:05:00Z
-updated: 2026-06-04T15:05:00Z
+updated: 2026-06-12T17:56:09Z
 ---
 
 ## Description
@@ -97,3 +97,7 @@ system-wide approach so duplicates don't accumulate in ANY store. Needs design (
     (db-cache 47 / 23 / id-utils 19 / code-graph 18). Hot path untouched.
   - STATUS stays `todo`: this completes the ticket auto-dedup MECHANIC; AC-1 (written unified
     design doc + maintainer review) + AC-3 (co-design w/ KIT-T023/T024) remain human-gated.
+- 2026-06-12: Design doc written (jointly with KIT-T023, as one coherent design per AC-3): `docs/research/context-and-dedup-integrity.md` — documents the full dedup strategy (per-store semantics, detection method, three run-points, autoDedupTickets mechanic, phased plan). Ready for maintainer review.
+
+## History
+- [2026-06-12 17:56] (status) todo → doing

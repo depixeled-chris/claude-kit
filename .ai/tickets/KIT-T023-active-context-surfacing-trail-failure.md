@@ -2,13 +2,13 @@
 id: KIT-T023
 title: "SYSTEM PROBLEM — the durable record is passive; it must actively surface + connect relevant context at decision points"
 type: feature
-status: todo
+status: doing
 priority: critical
 labels: [system, context, memory, hooks, provenance, orient]
 links: [KIT-D015, KIT-D017, KIT-D018, KIT-T019]
 files: [hooks/orient.mjs, hooks/pre-write.mjs, commands/drain.md]
 created: 2026-06-04T13:30:00Z
-updated: 2026-06-04T13:30:00Z
+updated: 2026-06-12T17:56:08Z
 ---
 
 ## Description
@@ -37,3 +37,7 @@ SURFACE-AND-CONNECT. It is not operative at the moment of a decision or in an ag
 ## Notes
 - 2026-06-04: Maintainer: "If you have to repair the trail, there is a SYSTEM PROBLEM we need to
   look at." This is THE claude-kit defect — bigger than any single HOD bug.
+- 2026-06-12: Design doc written (with KIT-T025, as a single coherent design per AC-3): `docs/research/context-and-dedup-integrity.md` — covers the trail-failure root cause, all four surfacing mechanisms, phased plan, open questions. Ready for maintainer review.
+
+## History
+- [2026-06-12 17:56] (status) todo → doing
