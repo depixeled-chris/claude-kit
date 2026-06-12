@@ -12,7 +12,7 @@ links: [KIT-T062]
 supersedes:
 superseded_by:
 created: 2026-06-10T03:10:00Z
-updated: 2026-06-10T03:10:00Z
+updated: 2026-06-12T14:55:33Z
 ---
 
 ## Description
@@ -37,3 +37,8 @@ fix the flagship embarrassment: install eslint in claude-kit.
 
 ## Notes
 - 2026-06-09: opened from the full-plugin review.
+
+## History
+- [2026-06-12 14:52] (status) todo → doing
+- [2026-06-12 14:55] (status) doing → todo
+- [2026-06-12 14:55] (comment) Deferred: gap WRITER logGap()+MAINT_LOG live in hooks/lib.mjs — the paused KIT-T021 session's file on this shared checkout. Criterion 1 (write-time dedup format) and the eslint sweep both touch lib.mjs; editing now reintroduces the multi-agent collision. eslint half split to KIT-T089. Resume both once KIT-T021 lands.
