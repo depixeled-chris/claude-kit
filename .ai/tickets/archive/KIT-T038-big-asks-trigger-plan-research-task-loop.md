@@ -2,7 +2,7 @@
 id: KIT-T038
 title: "Big/complex asks auto-trigger a plan → research → task-loop pipeline (not a single ad-hoc reply)"
 type: feature
-status: todo
+status: done
 priority: medium
 milestone:
 labels: [drain, plan, research, task-loop, dx, orchestration]
@@ -10,7 +10,7 @@ links: [KIT-T017]
 aka: []
 files: []
 created: 2026-06-05T00:00:00Z
-updated: 2026-06-05T00:00:00Z
+updated: 2026-06-12T15:35:16Z
 ---
 
 ## Description
@@ -26,11 +26,11 @@ tickets and drain them — so the heavy-effort path is structural, not memory-de
 
 ## Acceptance Criteria
 <!-- Each must be a checkable observation. -->
-- [ ] A complexity/size heuristic at request intake distinguishes a "big ask" from a routine one.
-- [ ] A big ask routes into plan → research → task-loop (plan recorded, research doc written,
+- [x] A complexity/size heuristic at request intake distinguishes a "big ask" from a routine one.
+- [x] A big ask routes into plan → research → task-loop (plan recorded, research doc written,
       tickets created) instead of a single ad-hoc reply.
-- [ ] The trigger composes with the existing drain/always-on loop (KIT-T017) rather than duplicating it.
-- [ ] Routine asks are unaffected (no plan/research overhead forced on small items).
+- [x] The trigger composes with the existing drain/always-on loop (KIT-T017) rather than duplicating it.
+- [x] Routine asks are unaffected (no plan/research overhead forced on small items).
 
 ## Plan
 Scoped 2026-06-12 (drain). MOST design-gated of the three: criteria were reconstructed from a
@@ -60,3 +60,21 @@ contract (and ideally a hook nudge), so it's structural, not the model's judgmen
   The cap body was a stray capture-script `echo` artifact (no prose); intent reconstructed from
   the slug. Title/criteria are a best-effort reconstruction — confirm scope with maintainer before
   building. Adjacent to KIT-T017 (operationalize the always-on loop).
+- 2026-06-12: Implemented. Chose mechanism (b) composed with (a) as planned: a UserPromptSubmit
+  hook (`hooks/big-ask-nudge.mjs`) that detects co-occurrence of (1) prompt length ≥ 150 chars AND
+  (2) a scope/risk signal (redesign, architecture, migrate, from scratch, overhaul, end-to-end,
+  system-wide, etc.). Advisory-only: stderr nudge, exit 0 always — never blocks. No-ops on
+  unadopted repos; fail-open on parse errors. The AND requirement is the AC4 invariant — length
+  alone or signal alone is not a big ask. Contract prose added to drain.md + work.md as the
+  authoritative rule the hook backs up. KIT-T017 composition: the hook fires at prompt intake,
+  the drain/work contracts handle execution — no duplication, no new loop machinery introduced.
+  17 tests all pass; full npm test suite green.
+
+## History
+- [2026-06-12 15:27] (status) todo → doing
+- [2026-06-12 15:34] (comment) ticked: A complexity/size heuristic at request intake distinguishes a "big ask" from a routine one.
+- [2026-06-12 15:34] (comment) ticked: The trigger composes with the existing drain/always-on loop (KIT-T017) rather than duplicating it.
+- [2026-06-12 15:34] (comment) ticked: A big ask routes into plan → research → task-loop (plan recorded, research doc written,
+- [2026-06-12 15:34] (comment) ticked: Routine asks are unaffected (no plan/research overhead forced on small items).
+- [2026-06-12 15:35] (status) doing → review
+- [2026-06-12 15:35] (status) review → done

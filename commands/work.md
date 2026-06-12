@@ -37,6 +37,8 @@ Work ticket $ARGUMENTS per the contract:
    summarize the diff. Close (`status … done`) is gated by `config.uat`: agent-callable when it
    resolves `none` for the ticket (KIT-D034), else the maintainer's call via `/done`.
 
+**BIG-ASK TRIGGER (KIT-T038):** when a request exceeds a size/risk threshold — long prompt AND a scope/risk signal (redesign, architecture, migrate, from scratch, overhaul, end-to-end, system-wide, etc.) — do NOT one-shot it. Route it into the structured pipeline: plan → research doc (`docs/research/`) → decompose into tickets → drain. Routine asks are unaffected. The `UserPromptSubmit` hook nudges this automatically; this prose is the authoritative rule for the contract.
+
 **STATUS TRANSITIONS ARE MANDATORY (KIT-T028):** leaving a ticket in the wrong status is a
 process failure — a zombie `doing` surfaces as a nag on every subsequent session start.
 - Start work → set `doing` immediately (step 3 above).
