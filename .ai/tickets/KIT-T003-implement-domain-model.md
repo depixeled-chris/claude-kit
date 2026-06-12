@@ -54,3 +54,12 @@ hierarchy, the bug↔prior-effort provenance links, document artifact provenance
 - 2026-06-03: Captured from the design conversation. The R-series reclassification (tickets→
   requests) supersedes the first-pass `R→T` collapse — see [[KIT-D012]]. Awaiting maintainer
   "build" before executing (it includes another HOD re-key).
+- 2026-06-12: PARENT EPIC. Maintainer greenlit the HOD re-key and chose "decompose + build aka:,
+  re-key next." Decomposed into child tickets (the `epic` type doesn't exist yet — that's crit 3 —
+  so children link up via `links:`):
+  - [[KIT-T091]] — `aka:` annotation + board rendering (crit 1). **Building now** (unblocks the re-key).
+  - [[KIT-T092]] — Request/Epic types + requests/epics stores + taxonomy + templates (crit 3).
+  - [[KIT-T093]] — cross-repo HOD re-key (crit 4); gated on T091+T092; the "focused next unit."
+  Remaining criteria still tracked here for future children: LAB scope (2), hierarchy `parent:`/rollups
+  (5), bug provenance (6), document provenance + backport-strip (7), commit-gate/config/tests (8).
+  T003 stays the umbrella; close it when all children land.
