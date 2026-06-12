@@ -30,11 +30,11 @@
 | KIT-T073 | tech-debt | todo | low | Progressive disclosure for the global contract — specialist sections become on-demand skills |
 | KIT-T074 | tech-debt | todo | medium | maintenance-gaps gets a drain path — nags without resolution train you to ignore them |
 | KIT-T075 | feature | review | high | Store mutation CLI — t status / t tick / t link; hand-edits remain for prose only |
-| KIT-T076 | tech-debt | todo | medium | Cache hardening — q verify (staleness self-check) + DB/fallback parity tests |
+| KIT-T076 | tech-debt | done | medium | Cache hardening — q verify (staleness self-check) + DB/fallback parity tests |
 | KIT-T078 | tech-debt | review | low | Command-level model tiering — static `model:` on fixed-cost read-only commands |
 | KIT-T082 | feature | review | critical | Branch-switch guard — block git switch / checkout -b in a shared checkout; force worktrees for parallel agents |
 | KIT-T083 | feature | todo | low | q: add --help / -h usage output (currently exits 2 'unknown query') |
-| KIT-T088 | bug | todo | medium | request-gate flags harness compaction summaries as un-captured requests |
+| KIT-T088 | bug | review | medium | request-gate flags harness compaction summaries as un-captured requests |
 
 ## Superseded (8)
 | id | status | title | superseded by |

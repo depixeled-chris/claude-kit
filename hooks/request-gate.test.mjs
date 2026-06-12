@@ -160,5 +160,60 @@ function expect(name, actual, wanted) {
   expect('still blocks the real request behind a later skill prompt', run(d, { transcript_path: file }).code, 2);
 }
 
+// 17. a harness COMPACTION summary (isCompactSummary, request-shaped) is NOT a request -> ALLOW
+{
+  const d = makeRepo();
+  const file = join(d, 'transcript.jsonl');
+  const summary = 'This session is being continued from a previous conversation that ran out of '
+    + 'context. The summary below covers the earlier portion. We should add a wider street and '
+    + 'fix the moon. There needs to be a command for that.';
+  writeFileSync(file, [
+    JSON.stringify({ type: 'user', isCompactSummary: true, isVisibleInTranscriptOnly: true,
+      message: { role: 'user', content: summary }, timestamp: new Date().toISOString() }),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Resuming the work.' }] } }),
+  ].join('\n') + '\n');
+  expect('ignores a compaction summary as a request', run(d, { transcript_path: file }).code, 0);
+}
+// 18. the SAME, but the structural flag is absent — the preamble fail-safe still catches it -> ALLOW
+{
+  const d = makeRepo();
+  const file = join(d, 'transcript.jsonl');
+  const summary = 'This session is being continued from a previous conversation that ran out of '
+    + 'context. We should add a wider street.';
+  writeFileSync(file, [
+    JSON.stringify({ type: 'user', message: { role: 'user', content: summary }, timestamp: new Date().toISOString() }),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }] } }),
+  ].join('\n') + '\n');
+  expect('preamble fail-safe catches an unflagged summary', run(d, { transcript_path: file }).code, 0);
+}
+// 19. a genuine request typed AFTER the resume is STILL flagged (filter is scoped to the summary,
+//     not the resumed turn — criterion 2) -> BLOCK
+{
+  const d = makeRepo();
+  const file = join(d, 'transcript.jsonl');
+  const summary = 'This session is being continued from a previous conversation that ran out of context.';
+  writeFileSync(file, [
+    JSON.stringify({ type: 'user', isCompactSummary: true, message: { role: 'user', content: summary }, timestamp: new Date().toISOString() }),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Resumed.' }] } }),
+    JSON.stringify({ type: 'user', message: { role: 'user', content: 'There needs to be a wider street' }, timestamp: new Date().toISOString() }),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }] } }),
+  ].join('\n') + '\n');
+  expect('still blocks a real request typed after the resume', run(d, { transcript_path: file }).code, 2);
+}
+// 20. a pre-compaction request BEFORE the summary is NOT resurrected (the summary is the turn
+//     boundary; that request was already handled in its own turn) -> ALLOW
+{
+  const d = makeRepo();
+  const file = join(d, 'transcript.jsonl');
+  const summary = 'This session is being continued from a previous conversation that ran out of context.';
+  writeFileSync(file, [
+    JSON.stringify({ type: 'user', message: { role: 'user', content: 'There needs to be a wider street' }, timestamp: '2026-01-01T00:00:00.000Z' }),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Done, → KIT-T999 filed.' }] } }),
+    JSON.stringify({ type: 'user', isCompactSummary: true, message: { role: 'user', content: summary }, timestamp: new Date().toISOString() }),
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Resumed.' }] } }),
+  ].join('\n') + '\n');
+  expect('does not resurrect a pre-compaction request', run(d, { transcript_path: file }).code, 0);
+}
+
 console.log(failures ? `\n${failures} FAILED` : '\nALL PASS');
 process.exit(failures ? 1 : 0);

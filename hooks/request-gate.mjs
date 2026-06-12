@@ -96,7 +96,7 @@ function parseTranscript(file) {
   } catch {
     return {};
   }
-  let lastUser = null, lastAssistant = null, turnStartMs = 0;
+  let lastUser = null, lastAssistant = null, turnStartMs = 0, userResolved = false;
   for (let i = lines.length - 1; i >= 0; i--) {
     let e;
     try { e = JSON.parse(lines[i]); } catch { continue; }
@@ -106,14 +106,21 @@ function parseTranscript(file) {
       lastAssistant = extractText(content);
       continue;
     }
-    if (!lastUser && role === 'user' && !isToolResult(content) && e?.isMeta !== true) {
+    if (!userResolved && role === 'user' && !isToolResult(content) && e?.isMeta !== true) {
       const text = extractText(content);
       if (text && text.trim() && !isSystemNotice(text)) {
-        lastUser = text;
-        turnStartMs = Date.parse(e?.timestamp || '') || 0;
+        // The first real user-role message walking back IS this turn's input. If that's the
+        // harness compaction summary (KIT-T088), there is NO genuine request this turn — resolve
+        // the slot to nothing and STOP, rather than walking back to a pre-compaction request that
+        // was already handled in its own turn (resurrecting it is the false positive being killed).
+        userResolved = true;
+        if (!isCompactionSummary(e, text)) {
+          lastUser = text;
+          turnStartMs = Date.parse(e?.timestamp || '') || 0;
+        }
       }
     }
-    if (lastUser && lastAssistant) break;
+    if (userResolved && lastAssistant) break;
   }
   return { lastUser, lastAssistant, turnStartMs };
 }
@@ -140,6 +147,17 @@ function isToolResult(content) {
 // was treated as the last user message it tripped the gate on the skill's OWN instructions.
 function isSystemNotice(text) {
   return /^\s*(?:<task-notification\b|<system-reminder\b|\[SYSTEM NOTIFICATION\b|Stop hook feedback:)/i.test(text);
+}
+
+// A context-COMPACTION summary is injected as a user-role entry ("This session is being continued
+// from a previous conversation…"), but it is harness-generated, not a maintainer request — and
+// anything actionable in it is already on disk (tickets/SESSION.md) per the flush discipline, so
+// flagging it as un-captured is a pure false positive (KIT-T088). The transcript's own
+// `isCompactSummary` flag marks it precisely; the preamble match is a fail-safe for a synthetic
+// entry that ever lacks the flag.
+const COMPACT_PREAMBLE = /^\s*This session is being continued from a previous conversation that ran out of context\b/;
+function isCompactionSummary(entry, text) {
+  return entry?.isCompactSummary === true || COMPACT_PREAMBLE.test(text);
 }
 
 // --- "did this turn capture anything?" ----------------------------------------
