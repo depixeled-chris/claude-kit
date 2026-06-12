@@ -17,7 +17,6 @@
 - KIT-T021 — RIGID — always alert the maintainer when something lands (commit / push / deploy) (high)
 - KIT-T025 — General deduplication strategy across the whole workflow (capture → inbox → tickets → decisions → memory) (high)
 - KIT-T027 — Redesign the .ai store structure as first-class KIT-owned machinery (item model; reassess `notes`; triage/backlog as plugin code) (high)
-- KIT-T029 — Formal script-based handoff — borrow workflow's begin/end-task scripts so collation is programmatic, not orchestrator-ingested (high)
 - KIT-T074 — maintenance-gaps gets a drain path — nags without resolution train you to ignore them (medium)
 - KIT-T089 — Install + configure eslint in claude-kit and clear its ~40 hits (split from KIT-T074) (medium)
 - KIT-T090 — Reminders store — user-defined recurring nags surfaced by housekeeping (medium)

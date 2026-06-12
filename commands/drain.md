@@ -18,9 +18,13 @@ Keep going item-to-item until the queue needs them or they stop.
      by the replacement) — `q.mjs open` already excludes these, so trust that list (KIT-T024).
    - Arg: none = current milestone then backlog · `all` = ignore milestone gating (pure
      priority) · a milestone name = drain only that milestone.
-2. WORK the selected ticket via the full `/work` contract — dispatch, scope confirm, `t`
+2. BEFORE delegating to an agent, run `node <kit>/scripts/begin-task.mjs <id> --root <repo>`
+   and pass the resulting JSON (or `--md` brief) as the handoff context — so the agent gets
+   ticket + governing trail + open criteria programmatically, not as pasted prose (KIT-T029).
+   WORK the selected ticket via the full `/work` contract — dispatch, scope confirm, `t`
    CLI mutations, Notes/History updates, evidence floor. See `/work` for the complete
-   working contract; do not repeat it here.
+   working contract; do not repeat it here. When the agent finishes, it calls
+   `node <kit>/scripts/end-task.mjs <id> <status> [--note "..."] --root <repo>` to close.
 3. BOLDNESS per `drain.auto_execute`:
    - `within-patterns-low-risk`: start the item if it follows established patterns and is
      low-risk; otherwise surface ONE line — `next up: <id> — your call: <why>` — and wait.

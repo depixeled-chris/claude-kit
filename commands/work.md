@@ -14,7 +14,9 @@ Work ticket $ARGUMENTS per the contract:
 1. Read `.ai/tickets/$ARGUMENTS*.md` and restate its acceptance criteria.
 2. Confirm scope before editing files. Wait for OK if the plan changes scope or
    touches files not listed in the ticket.
-3. `node <kit>/scripts/t.mjs status $ARGUMENTS doing`. Mirror each acceptance criterion
+3. Run `node <kit>/scripts/begin-task.mjs $ARGUMENTS --root <repo>` to get the structured
+   handoff packet (ticket + governing trail + open criteria) before delegating (KIT-T029).
+   `node <kit>/scripts/t.mjs status $ARGUMENTS doing`. Mirror each acceptance criterion
    into the native task list (TaskCreate) for live progress. If you DELEGATE this ticket to a
    subagent, set its firepower from `config.dispatch` (KIT-T034): pass the Agent `model`/`effort`
    resolved as — explicit ticket `model:`/`effort:` (per-axis override), else ticket `tier:`
@@ -38,9 +40,10 @@ Work ticket $ARGUMENTS per the contract:
      > verification.
 4. Execute. Tick each criterion as satisfied with `node <kit>/scripts/t.mjs tick $ARGUMENTS
    <ordinal|match>`; append narrative progress to the ticket's Notes by hand (prose).
-5. When all criteria pass, `node <kit>/scripts/t.mjs status $ARGUMENTS review`, stop, and
-   summarize the diff. Close (`status … done`) is gated by `config.uat`: agent-callable when it
-   resolves `none` for the ticket (KIT-D034), else the maintainer's call via `/done`.
+5. When all criteria pass, use `node <kit>/scripts/end-task.mjs $ARGUMENTS review --root <repo>`
+   (or `done` when uat=none) to close programmatically — this delegates to `t status` and stamps
+   History in one call (KIT-T029). Then stop and summarize the diff. Close (`status … done`) is
+   gated by `config.uat`: agent-callable when it resolves `none` (KIT-D034), else maintainer via `/done`.
 
 **BIG-ASK TRIGGER (KIT-T038):** when a request exceeds a size/risk threshold — long prompt AND a scope/risk signal (redesign, architecture, migrate, from scratch, overhaul, end-to-end, system-wide, etc.) — do NOT one-shot it. Route it into the structured pipeline: plan → research doc (`docs/research/`) → decompose into tickets → drain. Routine asks are unaffected. The `UserPromptSubmit` hook nudges this automatically; this prose is the authoritative rule for the contract.
 
