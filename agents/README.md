@@ -1,8 +1,8 @@
 # Agent library
 
 **Non-proprietary** subagent definitions, versioned here so they improve by
-iteration in one place instead of being re-invented per project. `bootstrap.sh`
-installs them (→ `~/.claude/agents/`); a project may also pin its own under
+iteration in one place instead of being re-invented per project. The **plugin**
+ships them to `~/.claude/agents/`; a project may also pin its own under
 `.claude/agents/`.
 
 ## Rules

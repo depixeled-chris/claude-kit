@@ -1,8 +1,8 @@
 # Skills library
 
 **Non-proprietary**, broadly-useful Claude Code skills, versioned here so they
-improve by iteration in one place. `bootstrap.sh` installs them (→
-`~/.claude/skills/`); a project may also pin its own under `.claude/skills/`.
+improve by iteration in one place. The **plugin** ships them to `~/.claude/skills/`
+automatically; a project may also pin its own under `.claude/skills/`.
 
 ## Rules
 - **Non-proprietary only** (public + MIT). A generic capability — managing the

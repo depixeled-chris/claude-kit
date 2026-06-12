@@ -28,7 +28,12 @@ vibe-based "looks good."
    noise before pushing (`git rebase -i origin/<base>`). Respect the project's hook
    gate — never `--no-verify`.
 7. **Docs** — public-facing behavior changed? The README/docs/CLAUDE.md reflect it.
-   (Hand off to `doc-audit` for a deeper pass.)
+8. **Doc audit** — run `/doc-audit` over the named docs (README, CLAUDE.md,
+   `skills/claude-kit/SKILL.md`, `docs/DAILY-LOOP.md`, `skills/README.md`,
+   `agents/README.md`). Check: (a) broken relative links (target exists?), (b) stale
+   code refs — grep each mentioned path/command/flag; flag zero-hit ones, (c) command
+   and script counts match `ls commands/` and `ls scripts/*.mjs`. The audit must come
+   back CLEAN before GO.
 
 ## Output
 A checklist with ✓/✗/skip per item, the command + result for each ✗, and a one-line

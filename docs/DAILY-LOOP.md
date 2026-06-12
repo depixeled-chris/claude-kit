@@ -19,23 +19,39 @@ cap just a thought about the cache layer        # untyped → classified at tria
 Or mid-session, just say it — Claude routes it and gives a one-line receipt:
 `→ BUG-024 logged (high), still on KIT-T001`.
 
-## Triage (start of day, or when INBOX piles up)
+## Triage (start of day, or when inbox piles up)
 ```
 /triage
 ```
-Drains INBOX → tickets/questions/decisions, dedupes, links regressions, reports a
-prioritized worklist.
+Drains `inbox/` → `tickets/`/`questions/`/`decisions/`, dedupes, links regressions,
+reports a prioritized worklist.
 
 ## Work
 ```
 /work KIT-T001
 ```
 Claude restates acceptance criteria, **confirms scope**, sets `doing`, mirrors
-criteria to the native task list, executes ticking boxes, then sets `review` and
-summarizes. You set `done` after merge.
+criteria to the native task list, executes ticking boxes, then sets `review` (or
+`done` when `config.uat: none`) and summarizes. You set `done` after merge
+(human-only on projects with `uat: required`).
 
-Between tickets Claude pulls the next item itself per the drain rules — you don't
-have to ask.
+Between tickets Claude pulls the next item itself via the drain rules — you don't
+have to ask. Or call `/drain` explicitly to pull the next item.
+
+## Decisions
+```
+/decide
+```
+Batch any pending `questions/` into a questionnaire. Claude answers the
+`answerable_by: claude` ones automatically; only the `answerable_by: chris` ones
+surface to you. Answers are written back to the question file (never deleted).
+
+## Standup / status
+```
+/standup     # mid-flight glance — no changes, no resume
+/status      # same but from cache; faster
+/prime       # full resume: reads SESSION.md + active ticket, continues
+```
 
 ## Direct attention
 - "stop, this matters now" → forces a block, discuss.
@@ -58,7 +74,8 @@ file:line refs, the current in-flight TODO, and rejected approaches.
 
 ## End
 ```
-/flush                 # next-3-steps = tomorrow's start
-git commit -am "wip: <state>"
+/flush                 # write current state + next-3-steps to SESSION.md
+git add <files>        # explicit pathspecs — never -a/-A (the commit gate enforces this)
+git commit -m "wip: <state> (implements T-NNN)"   # cite the ticket; gate blocks uncited commits
 git push
 ```

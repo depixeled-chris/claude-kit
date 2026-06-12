@@ -42,11 +42,14 @@ one-file edit; no code changes.
 ```
 claude-kit/                     # public plugin + marketplace (MIT)
 ├── .claude-plugin/             # plugin.json + marketplace.json — makes it installable
-├── commands/                   # /prime /cap /triage /work /flush
+├── commands/                   # /cap /decide /done /drain /flush /prime /standup /status /triage /work
 ├── agents/                     # researcher, code-reviewer, refactorer, test-author
 ├── skills/                     # claude-kit, release-checklist, doc-audit
 ├── hooks/                      # Node enforcement hooks + hooks.json (plugin wiring) + lib.mjs
-├── scripts/                    # cap, init-project, index-tickets, sync-tasks, test-hooks
+├── scripts/                    # 27 .mjs scripts: cap, check-ids, code-graph, db-cache, db-engine,
+│                               #   db-parse, dev-link, hydrate-db, id-utils, index-tickets,
+│                               #   init-project, next-id, q, reconcile-supersede, rekey-ids,
+│                               #   survey, sync-tasks, t, test-hooks, treesitter, triage, …
 ├── user-config/                # statusline, settings.recommended.json, CLAUDE.global.md (base)
 ├── project-template/           # scaffolded into a repo by init-project
 │   ├── .ai/                    # config.yml + atomic stores: tickets/ decisions/ questions/

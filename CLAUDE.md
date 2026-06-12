@@ -21,7 +21,7 @@ For each interjection I:
 2. **Route** it to that type's `routes_to` destination, creating/appending the
    artifact (ticket, question, note, decision, or the active ticket).
 3. **Receipt**: per `config.receipts`, emit one line so a misroute is caught in
-   three words — e.g. `→ BUG-024 logged (high), still on KIT-T001`.
+   three words — e.g. `→ BUG-024 logged (high), still on T-001`.
 4. **Continue** the current task.
 
 **Block only when** the classification's `blocking` rule fires:
@@ -40,30 +40,44 @@ the receipt, and continue — do not halt to ask.
   `order` + priority). If `auto_execute: within-patterns-low-risk` and the item
   is low-risk and pattern-following, start it; otherwise surface one line:
   `next up: T-007 (your call — touches UX)`.
-- **Questions**: answer the ones resolvable from code or `.ai/DECISIONS.md`
-  immediately and log the answer; batch genuinely Chris-only questions for a
-  natural break rather than interrupting.
+- **Questions** (`.ai/questions/`, one `Q-NNN.md` each, `answerable_by: chris|claude`):
+  `/drain` resolves the `answerable_by: claude` ones from code + `.ai/decisions/` — writing
+  the answer + date into the file's `**Resolution:**` and setting `status: resolved` (RECORD
+  the answer, never delete) — and batches the `answerable_by: chris` ones into the next
+  `/decide`. Lifecycle is open → resolved; the store never rots into a dead drop.
 - **Regressions**: priority-bumped per config; surface proactively.
 - **Anti-relitigation**: if an interjection reopens a point already in
   `.ai/DECISIONS.md`, cite it in one line ("settled 2026-05-30: X because Y —
   still holds?") instead of re-debating. Settled stays settled.
 
 ### Working a ticket
-On "work KIT-T001" (or when I pull it from the drain):
-1. Read `.ai/tickets/KIT-T001*.md`; **restate the acceptance criteria**.
+On "work T-001" (or when I pull it from the drain):
+1. Read `.ai/tickets/T-001*.md`; **restate the acceptance criteria**.
 2. **Confirm scope before editing files** (Chris's standing rule). Within an
    already-approved ticket, proceed through the plan without re-asking per file.
+   **Provenance first (KIT-T079):** on any module-identity question — "which file?",
+   "why isn't X showing?", "is this the right module?" — run provenance BEFORE runtime
+   theories (cache, zombie dev-server): `git log -- <path>` plus
+   `code-graph --query entry-points` / `--query duplicate-defines <symbol>`. A repo can
+   hold two of a module (one canonical, one superseded); git + the graph say which
+   outright. Edit the canonical twin, never whichever you opened first.
 3. Set `status: doing`. Mirror each acceptance criterion into the native task
-   list (TaskCreate, with blockedBy for ordering) for live progress in the UI —
-   native tasks are throwaway; **the ticket file is truth.**
-4. As each criterion is satisfied, check its box `[x]` in the ticket and append
-   to `## Notes` (a log — never delete prior notes).
-5. When all criteria pass WITH test evidence, consult `config.uat` (KIT-D034):
-   - `none` (THIS repo — per-ticket `uat:` frontmatter overrides): set `status: done`
-     directly, move the file to `tickets/archive/`, regenerate the index, summarize.
-   - `required`: set `status: review`, stop, summarize the diff for Chris.
-6. **Never set a `statuses.human_only` status myself** (this repo's list is empty —
-   acceptance is delegated per KIT-D034; the template keeps `done` human-only).
+   list as a task titled `T-NNN <criterion>` (TaskCreate, with blockedBy for
+   ordering) — the prefix marks it as ticket-backed. **The ticket file is truth;**
+   the native list is a live projection kept in lockstep (see Native task sync).
+4. As each criterion is satisfied, check its box `[x]` and append a `## History`
+   line. Log every status change, comment, decision, and blocker there **as it
+   happens** (append-only — never edit a prior line): it's the task's audit trail.
+5. When all criteria pass: set `status: review`, record `(fixed) <sha>` + the
+   `fixed_commit` frontmatter in History, stop, summarize the diff.
+   **Evidence floor (KIT-T061):** the closing transition (→`review` when
+   `config.uat: required`, →`done` when `none`) requires the ticket's Notes/History
+   to cite a **test artifact** — a test path, a suite-run reference (`npm test`,
+   "N passed"), or the test/fixing commit sha — OR an explicit `[no-test: <reason>]`.
+   The commit gate blocks the commit otherwise; "review/done" must mean test-backed,
+   not self-asserted.
+6. Chris sets `status: done` after merge (a `statuses.human_only` status — **never
+   set it myself**). On done, the ticket moves to `.ai/tickets/archive/`.
 
 ### Backlog vs roadmap
 - **Backlog** = tickets with `status: todo` and no `milestone`. Everything
@@ -81,3 +95,66 @@ On "work KIT-T001" (or when I pull it from the drain):
 - **Before any /compact or /clear, flush SESSION.md first.**
 - Prefer subagents for codebase search; pass pointers (path + line range), not
   whole-file dumps, to keep the main thread lean.
+
+### The capture → delegate → stay-free cadence (KIT-D015 — a resume-RESTATED mode)
+The loop that makes `/clear` consequence-free: **capture** every observation to disk the
+moment it lands (the request ratchet enforces it), **delegate** substantial work to
+subagents, and **stay free** to clear at any point because nothing lives only in context.
+This cadence is itself **restated on every resume** (orient replays it), not a fact held
+in the conversation — so a cold session re-enters it without being told. The on-disk
+guarantees that back it:
+- **In-flight delegated agents** are recorded automatically in `.ai/agents.jsonl` (a
+  PostToolUse(Task) hook appends a row per delegation; SubagentStop marks completion). orient
+  replays them under **In-flight agents** at SessionStart, and flags any uncollected one. So a
+  `/clear` mid-delegation never orphans the work — the resume sees the roster and reattaches
+  (TaskList / the agent's output) or reconciles it. If you ever dispatch outside the hook,
+  record it yourself: `recordAgent(root, { id, status, task, scope })`.
+- **The SESSION.md anchor stays live**: the Stop-time anchor ratchet (flush.mjs) nudges once
+  if work landed this turn (a commit / a durable-store edit) without SESSION.md being touched —
+  so the anchor a resume reads is never stale between flushes.
+- **Trust the floor, not your memory**: at resume, the roster + SESSION + git ARE the state.
+  Reconcile to them and say so; never reconstruct delegated work from a chat summary.
+
+### Native task sync (.ai/ ↔ native list)
+The native task list is a **live, bidirectional projection** of the tickets — the
+ticket file stays the durable truth (native tasks are per-session + machine-local).
+Config: `.ai/config.yml` → `native_task_sync`. Because I am the only writer of native
+tasks, keeping both in lockstep IS the sync:
+- **Hydrate on start:** rebuild the native list from the active ticket(s) at session /
+  `/work` start — `node <kit>/scripts/sync-tasks.mjs` emits the task spec from
+  `.ai/tickets/`. (Native tasks don't survive the session; the ticket does.)
+- **Lockstep:** when a ticket's status or a criterion changes, update the matching
+  native task in the same step — and write any native status change back to the ticket.
+- **Prefix:** every ticket-backed native task is titled `T-NNN …` so it's visibly
+  distinct from ad-hoc tasks. Status maps per `native_task_sync.status_map`.
+- **Promote orphans:** a native task with no `T-` prefix is unpersisted work — capture
+  it to `.ai/inbox/` (per `promote_orphans_to`), then re-title the native task with
+  the id triage assigns. Nothing important is left living only in the ephemeral list.
+
+### History & regression tracking
+- **Every ticket** keeps an append-only `## History` (timestamped events:
+  `status | comment | decision | blocker | unblocked | fixed | regressed`, per
+  `config.history.events`). Never edit or delete a prior line — it's the audit trail.
+  Cross-cutting decisions also go in `.ai/DECISIONS.md`.
+- **A recurring bug is a `regression` ticket, not a reopen:** set `regressed_from:
+  <original id>` and `causing_commit:`; add a `(regressed) → T-NNN` line to the
+  original's History. Repeat offenders surface in the generated regression index. Triage
+  PROPOSES these for a provenance-less bug (KIT-T065 — symptom → code-graph → `q governing`
+  → `git log`); an accepted link is marked `provenance: inferred` (a triage guess,
+  auditable) vs `given` (a culprit you named), so a wrong guess is never silently authoritative.
+- **Reference files are generated, never the truth:** after a status/regression change
+  run `node <kit>/scripts/index-tickets.mjs` to rebuild `.ai/tickets/INDEX.md` (the
+  board), `.ai/REGRESSIONS.md` (chains), and `.ai/ROADMAP.md` (thin sequence, when
+  `roadmap_mode: generated`) from the ticket frontmatter.
+
+### Where items live (atomic — D-009)
+Every category of items is a **folder of one-file-per-item**, like `tickets/`: never a
+monolith file.
+- `tickets/` (+ `archive/`) · `decisions/` (DEC-NNN.md) · `questions/` (Q-NNN.md) ·
+  `notes/` (N-NNN.md) · `inbox/` (one file per raw capture; `cap` writes here; triage
+  promotes each into the others and deletes it).
+- Singletons stay single: `config.yml`, `SESSION.md`.
+- **Generated views (don't hand-edit):** `tickets/INDEX.md`, `REGRESSIONS.md`,
+  `ROADMAP.md` (in generated mode) — all rebuilt from the folders by `index-tickets.mjs`.
+- Routing a captured item = create the atomic file in the right folder (per
+  `config.yml` `routes_to`), then regenerate the views.

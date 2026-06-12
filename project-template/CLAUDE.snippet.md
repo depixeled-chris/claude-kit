@@ -126,7 +126,7 @@ tasks, keeping both in lockstep IS the sync:
 - **Prefix:** every ticket-backed native task is titled `T-NNN …` so it's visibly
   distinct from ad-hoc tasks. Status maps per `native_task_sync.status_map`.
 - **Promote orphans:** a native task with no `T-` prefix is unpersisted work — capture
-  it to `.ai/INBOX.md` (per `promote_orphans_to`), then re-title the native task with
+  it to `.ai/inbox/` (per `promote_orphans_to`), then re-title the native task with
   the id triage assigns. Nothing important is left living only in the ephemeral list.
 
 ### History & regression tracking
