@@ -7,6 +7,12 @@
 //   cap feature dark-mode toggle persists
 //   cap --project hod feature graded roads        (explicit target — wins over cwd)
 //   cap "hod: roads are graded, not raw terrain"  (leading name: prefix — same effect)
+//   cap --done "already fixed the moon"           (resolved event — skips inbox/triage)
+//   cap --done bug "fixed login crash"            (resolved event with type)
+//
+// --done writes a resolved record to .ai/resolved/ (OUTSIDE the inbox triage queue).
+// This keeps the inbox=open-queue invariant: inbox/ holds only items that need attention;
+// resolved/ is an immutable audit trail of already-handled items (KIT-D036, KIT-T013).
 //
 // TARGETING (KIT-T067 — cwd is NOT a reliable signal of the target project): a capture is
 // routed to a project's store by, in order of precedence:
@@ -33,6 +39,7 @@ const DATE_END = 10; // slice [0,DATE_END) of an ISO string = YYYY-MM-DD
 const TIME_START = 11; // HH:MM:SS begins here
 const TIME_END = 16; // through the minutes
 const SLUG_MAX = 48;
+const RESOLVED_DIR = 'resolved'; // one-file-per-event audit log, outside the triage queue
 
 function findAiDir(start) {
   let dir = resolve(start);
@@ -135,13 +142,27 @@ function takeProjectFlag(argv) {
   return { project, rest: out };
 }
 
+// Strip the --done flag before anything else, so it is invisible to the type/words split
+// and the existing project-routing logic. Must come BEFORE takeProjectFlag so a call like
+// `cap --done --project hod bug "..."` is handled correctly in either order.
+function takeDoneFlag(argv) {
+  const out = [];
+  let done = false;
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--done') { done = true; continue; }
+    out.push(argv[i]);
+  }
+  return { done, rest: out };
+}
+
 const argv = process.argv.slice(2);
 if (argv.length === 0) {
-  console.error('usage: cap [--project <name>] [type] <text>   (or "<name>: <text>")');
+  console.error('usage: cap [--project <name>] [--done] [type] <text>   (or "<name>: <text>")');
   process.exit(1);
 }
 
-const { project: flagProject, rest } = takeProjectFlag(argv);
+const { done: isDone, rest: argvAfterDone } = takeDoneFlag(argv);
+const { project: flagProject, rest } = takeProjectFlag(argvAfterDone);
 if (rest.length === 0) {
   console.error('cap: nothing to capture.');
   process.exit(1);
@@ -220,11 +241,29 @@ const time = iso.slice(TIME_START, TIME_END).replace(':', '');
 const text = words.join(' ').trim();
 const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, SLUG_MAX) || 'capture';
 
-const inboxDir = join(aiDir, 'inbox');
-mkdirSync(inboxDir, { recursive: true });
 const name = `${date}-${time}-${slug}.md`;
-writeFileSync(join(inboxDir, name), `${type ? `(${type}) ` : ''}${text}\n`);
-console.log(`captured${type ? ` (${type})` : ''} -> ${projectName}/inbox/${name}`);
+
+if (isDone) {
+  // Resolved event: write OUTSIDE the inbox triage queue so inbox stays = open work only.
+  // One-file-per-event, same slug/date scheme as a normal cap, plus a `resolved:` timestamp.
+  const resolvedDir = join(aiDir, RESOLVED_DIR);
+  mkdirSync(resolvedDir, { recursive: true });
+  const content = [
+    type ? `(${type}) ` : '',
+    text,
+    '\n',
+    `resolved: ${iso}`,
+    '\n',
+  ].join('');
+  writeFileSync(join(resolvedDir, name), content);
+  console.log(`resolved${type ? ` (${type})` : ''} -> ${projectName}/${RESOLVED_DIR}/${name}`);
+} else {
+  const inboxDir = join(aiDir, 'inbox');
+  mkdirSync(inboxDir, { recursive: true });
+  writeFileSync(join(inboxDir, name), `${type ? `(${type}) ` : ''}${text}\n`);
+  console.log(`captured${type ? ` (${type})` : ''} -> ${projectName}/inbox/${name}`);
+}
+
 if (proposed) {
   console.error(`cap: this text names ${proposed.name}` + (proposed.key ? ` (${proposed.key})` : '') +
     ` but was captured into ${projectName} (cwd). If misrouted, re-run with --project ${proposed.key ? proposed.key.toLowerCase() : proposed.name}.`);

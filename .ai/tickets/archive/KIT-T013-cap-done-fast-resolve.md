@@ -2,7 +2,7 @@
 id: KIT-T013
 title: cap --done fast-resolve — log an already-handled item without inbox/triage debt
 type: feature
-status: todo
+status: done
 priority: medium
 milestone:
 labels: [capture, cap, workflow, dogfooding]
@@ -11,7 +11,7 @@ files:
   - scripts/cap.mjs
   - .ai/config.yml
 created: 2026-06-03T01:15:00Z
-updated: 2026-06-03T01:15:00Z
+updated: 2026-06-12T14:46:41Z
 ---
 
 ## Description
@@ -37,12 +37,12 @@ Leaning A (a dedicated resolved-event log) — it keeps inbox = open queue invar
 
 ## Acceptance Criteria
 <!-- Each must be a checkable observation. Claude ticks these as it satisfies them. -->
-- [ ] `cap --done <text>` (and optional `cap --done <type> <text>`) writes a resolved
+- [x] `cap --done <text>` (and optional `cap --done <type> <text>`) writes a resolved
       record OUTSIDE the inbox triage queue
-- [ ] the record carries a resolved timestamp + optional type, same slug/date scheme as cap
-- [ ] `cap` with no `--done` is byte-for-byte unchanged (open inbox capture)
-- [ ] index/board generation does not count resolved records as open work
-- [ ] README/usage line documents `--done`
+- [x] the record carries a resolved timestamp + optional type, same slug/date scheme as cap
+- [x] `cap` with no `--done` is byte-for-byte unchanged (open inbox capture)
+- [x] index/board generation does not count resolved records as open work
+- [x] README/usage line documents `--done`
 
 ## Plan
 <!-- filled in before editing; Claude waits for OK if the plan changes scope -->
@@ -63,4 +63,14 @@ Leaning A (a dedicated resolved-event log) — it keeps inbox = open queue invar
 - [2026-06-03 01:20] (comment) rekeyed T012→T013: a remote machine concurrently
   claimed KIT-T012 (code-graph). Same hazard KIT-T009 (id-allocator collision guard)
   exists to solve — this is live evidence for it.
+- [2026-06-12 14:46] (done) `--done` flag added to cap.mjs (takeDoneFlag before takeProjectFlag); writes to `.ai/resolved/` with `resolved:` ISO timestamp. `resolved` added to NON_STORE_DIRS in id-utils.mjs so never counted as open work. index-tickets.mjs untouched (only scans tickets/). config.yml untouched. Decision KIT-D036 created. README updated. cap.test.mjs: 16/16; npm test exit 0. hooks/lib.mjs NOT edited.
 </content>
+
+## History
+- [2026-06-12 14:40] (status) todo → doing
+- [2026-06-12 14:45] (comment) ticked: `cap --done <text>` (and optional `cap --done <type> <text>`) writes a resolved
+- [2026-06-12 14:45] (comment) ticked: `cap` with no `--done` is byte-for-byte unchanged (open inbox capture)
+- [2026-06-12 14:45] (comment) ticked: README/usage line documents `--done`
+- [2026-06-12 14:46] (comment) ticked: the record carries a resolved timestamp + optional type, same slug/date scheme as cap
+- [2026-06-12 14:46] (comment) ticked: index/board generation does not count resolved records as open work
+- [2026-06-12 14:46] (status) doing → done

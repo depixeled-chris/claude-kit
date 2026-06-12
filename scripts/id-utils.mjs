@@ -32,7 +32,9 @@ const SKIP = new Set(['_TEMPLATE.md', 'README.md', 'INDEX.md', 'REGRESSIONS.md',
 // too (KIT-D024: stay open to new stores), excluding the generated `archive` (handled per
 // store) — so adding a store dir needs no code change here.
 const KNOWN_STORE_ORDER = ['tickets', 'decisions', 'notes', 'questions', 'inbox'];
-const NON_STORE_DIRS = new Set(['archive']);
+// `resolved` is an immutable audit log (cap --done), NOT a triage queue — its records must
+// never be counted as open work. `archive` holds done tickets (same reason). (KIT-D036)
+const NON_STORE_DIRS = new Set(['archive', 'resolved']);
 
 function storeDirs(ai) {
   const present = [];

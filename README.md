@@ -22,7 +22,10 @@ round it off and a fresh session resumes cold.
 ## How it works (one minute)
 
 1. **Capture** anything, anytime: `cap bug login loops after SSO`. Lands in
-   `.ai/inbox/` (one file per capture). Sub-second, no interruption.
+   `.ai/inbox/` (one file per capture). Sub-second, no interruption. Already
+   handled it? `cap --done "fixed login crash"` (or `cap --done bug "..."`)
+   logs it as a resolved event in `.ai/resolved/` — audit trail without triage
+   debt. The inbox stays clean: inbox = open work only.
 2. **Interject while Claude works** — it classifies, routes, and gives a
    one-line receipt, then keeps going. Blocking is the exception (scope change,
    a regression from the current edit, or you saying "stop").
