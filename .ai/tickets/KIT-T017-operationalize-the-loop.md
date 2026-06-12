@@ -2,14 +2,14 @@
 id: KIT-T017
 title: Operationalize the always-on loop (D017) — drain-never-idle + questionnaire-surfacing discipline
 type: feature
-status: todo
+status: review
 priority: high
 milestone:
 labels: [drain, orchestration, contract, hooks]
 links: [KIT-D017, KIT-D015]
 files: [commands/drain.md, commands/work.md, hooks/flush.mjs]
 created: 2026-06-04T12:00:00Z
-updated: 2026-06-04T12:00:00Z
+updated: 2026-06-12T18:06:52Z
 ---
 
 ## Description
@@ -20,14 +20,17 @@ DISCIPLINE — genuine maintainer-only decisions are batched to AskUserQuestion 
 first, "(Recommended)" at the FRONT of the label), never buried in prose.
 
 ## Acceptance Criteria
-- [ ] drain/work contract docs state the never-idle redispatch rule + the questionnaire rule.
+- [x] drain/work contract docs state the never-idle redispatch rule + the questionnaire rule.
 - [ ] A Stop-time signal (soft) when the drain has captured-but-undispatched items and no agents running.
-- [ ] No existing hook weakened.
+- [x] No existing hook weakened.
 
 ## Plan
 1.
 
 ## Notes
+- 2026-06-12: prose criteria shipped — "one blocked thread ≠ idle" standing bullet and subagent
+  fan-out orchestration contract (verify-as-user-plays included) added to commands/drain.md.
+  The Stop-time idle-signal hook is gated on KIT-T021 freeing lib.mjs — finish then.
 - [2026-06-05 20:16] (comment) folded from triage: drain should ORCHESTRATE subagents: fan independent work out to parallel subagents in the drain, coordinate them + batch the maintainer's requests so progress doesn't depend on the maintainer interrupting, and minimize token use (don't do everything inline/serially). Model on the D:/dev/workflow repo's turn-process + subagent design (consolidates 3 maintainer messages 2026-06-04)
 - 2026-06-04: From the live session where the drain went idle between waves and decisions were made
   unilaterally instead of surfaced.
@@ -49,3 +52,9 @@ first, "(Recommended)" at the FRONT of the label), never buried in prose.
     the whole drain to stall. Keep the OTHER unblocked threads (other tickets, other projects)
     draining in parallel while that one waits. (Recurring failure: single-threading on a conversation
     while the rest of the queue sat idle.)
+
+## History
+- [2026-06-12 18:00] (status) todo → doing
+- [2026-06-12 18:06] (comment) ticked: drain/work contract docs state the never-idle redispatch rule + the questionnaire rule.
+- [2026-06-12 18:06] (comment) ticked: No existing hook weakened.
+- [2026-06-12 18:06] (status) doing → review

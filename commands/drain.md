@@ -43,5 +43,16 @@ status flip becomes a zombie that nags every session start. For every ticket you
 - Work complete → `t status <id> review` (or `done` when uat=none).
 - Bail / blocked / interrupted → `t status <id> todo` before you stop. Never leave doing.
 
+**ONE BLOCKED THREAD ≠ IDLE:** a single item gated on the maintainer (or in review) does NOT
+license the whole drain to stall — pull the next workable item from the queue and keep draining
+in parallel while that thread waits.
+
+**SUBAGENT FAN-OUT:** fan INDEPENDENT work to parallel agents, coordinate via ticket Notes, and
+batch all maintainer decisions into one AskUserQuestion questionnaire rather than surfacing them
+piecemeal. When tickets share the checkout or need sequential commits, run them serially; otherwise
+fan out. A delegated agent must VERIFY its change by exercising it as the user would — run the
+test suite, start the app, or hit the probe — and report empirical evidence. A compile-check alone
+is not verification.
+
 Honor the standing rules throughout: log work to its ticket in the same change (the commit gate
 enforces), record decisions the turn they happen, and don't start deferred/gated work.

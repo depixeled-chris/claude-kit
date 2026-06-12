@@ -12,9 +12,10 @@
 // FAIL-OPEN on EVERYTHING (try/catch, exit 0). A durability hook must never wedge a session or
 // block a delegation; the worst case is a missing/extra roster row the orchestrator reconciles.
 
-import { gitRoot, adopted, payload, recordAgent, updateAgent } from './lib.mjs';
+import { gitRoot, adopted, payload, recordAgent, updateAgent, ID_CITE_SRC } from './lib.mjs';
 
 const TASK_LABEL_MAX = 140; // clip a pasted brief to a scannable one-liner in the roster
+const ID_CITE_RE = new RegExp(ID_CITE_SRC); // at least one ticket/decision id anywhere in the brief
 
 main().catch(() => process.exit(0));
 
@@ -50,6 +51,11 @@ function recordDispatch(root, p) {
     const scope = firstString(inp.subagent_type, inp.agent_type, inp.subagentType, inp.type) || 'general';
     const background = isBackground(inp);
     recordAgent(root, { id, status: 'in-flight', task, scope, background, source: 'posttooluse' });
+    // Advisory: a delegation with no ticket id is ungrounded work — warn, never block (exit 0).
+    const brief = firstString(inp.description, inp.task, inp.title, inp.prompt) || '';
+    if (brief && !ID_CITE_RE.test(brief)) {
+      process.stderr.write('delegation cites no ticket — ground it in one if this is real work\n');
+    }
   } catch {
     /* fail-open — a roster miss is reconciled by the orchestrator, never a wedged tool call */
   }

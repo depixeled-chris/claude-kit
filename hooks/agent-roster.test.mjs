@@ -133,6 +133,30 @@ try {
     ok('hook: unadopted repo no-ops', hook(ROSTER_HOOK, { hook_event_name: 'PostToolUse', tool_name: 'Task', tool_input: {} }, makeRepo({ adopt: false })).code === 0);
     const bad = spawnSync(process.execPath, [ROSTER_HOOK], { input: 'not json', cwd: makeRepo(), encoding: 'utf8', env: ENV });
     ok('hook: malformed payload fails open (exit 0)', bad.status === 0);
+
+    // Ticket-citation lint (KIT-T018 criterion 3): advisory warn, never block.
+    // A Task whose description has no id matching the project pattern gets a warning on stderr.
+    {
+      const dl = makeRepo();
+      const rNoId = hook(ROSTER_HOOK, {
+        hook_event_name: 'PostToolUse', tool_name: 'Task',
+        tool_input: { description: 'do some refactoring without citing any ticket', subagent_type: 'general-purpose' },
+        tool_response: { agent_id: 'warn-test-01' },
+      }, dl);
+      ok('lint: ticket-less Task exits 0 (advisory, not a block)', rNoId.code === 0);
+      ok('lint: ticket-less Task emits a warning on stderr', rNoId.out.includes('delegation cites no ticket'));
+    }
+    // A Task that cites a real ticket id produces NO warning.
+    {
+      const dl2 = makeRepo();
+      const rWithId = hook(ROSTER_HOOK, {
+        hook_event_name: 'PostToolUse', tool_name: 'Task',
+        tool_input: { description: 'fix the collision bug — implements KIT-T001', subagent_type: 'general-purpose' },
+        tool_response: { agent_id: 'warn-test-02' },
+      }, dl2);
+      ok('lint: Task citing KIT-T001 exits 0', rWithId.code === 0);
+      ok('lint: Task citing KIT-T001 emits no warning', !rWithId.out.includes('delegation cites no ticket'));
+    }
   }
 
   // ===== 3. THE RESUME DRILL — delegate -> /clear -> orient, assert ZERO loss =

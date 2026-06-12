@@ -27,10 +27,15 @@ Work ticket $ARGUMENTS per the contract:
      guard so you don't need to re-explain them in the task prompt.
    - Else use the closest generic kit agent (researcher / refactorer / test-author /
      code-reviewer); bare general-purpose is the last resort.
-   - Include this standard handoff guard in every delegation brief:
+   - Include these standard handoff guards in every delegation brief:
      > **Out-of-scope / legacy guard:** do not touch files, modules, or subsystems outside
      > the ticket's stated scope. If a fix traces to legacy or deprecated code outside your
      > domain, STOP and surface it — don't expand scope unilaterally.
+     >
+     > **Verify as the user plays:** after completing your change, exercise it as the user
+     > would — run the test suite, start the app, or hit the probe — and report empirical
+     > evidence (exit code, rendered output, probe readings). A compile-check alone is not
+     > verification.
 4. Execute. Tick each criterion as satisfied with `node <kit>/scripts/t.mjs tick $ARGUMENTS
    <ordinal|match>`; append narrative progress to the ticket's Notes by hand (prose).
 5. When all criteria pass, `node <kit>/scripts/t.mjs status $ARGUMENTS review`, stop, and

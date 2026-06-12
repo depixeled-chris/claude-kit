@@ -13,7 +13,6 @@
 - KIT-T082 — Branch-switch guard — block git switch / checkout -b in a shared checkout; force worktrees for parallel agents (critical)
 - KIT-T003 — Implement the workflow domain model — LAB scope, request/epic types, hierarchy + relationship graph (high)
 - KIT-T017 — Operationalize the always-on loop (D017) — drain-never-idle + questionnaire-surfacing discipline (high)
-- KIT-T018 — Enforce provenance-grounded delegation (D018) — triage-to-ticket before delegate; handoff embeds ticket+links (high)
 - KIT-T019 — Subagent bubble-up — agents surface communication to orchestrator AND maintainer (not only at completion) (high)
 - KIT-T021 — RIGID — always alert the maintainer when something lands (commit / push / deploy) (high)
 - KIT-T025 — General deduplication strategy across the whole workflow (capture → inbox → tickets → decisions → memory) (high)
