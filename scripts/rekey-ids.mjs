@@ -10,7 +10,7 @@
 // References are rewritten across .ai/, docs/, and root-level *.md only (not source/code).
 // NOTE: a project whose .ai is a junction lands those edits in the DATA repo — commit there.
 
-import { readdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
 import { join, extname } from 'node:path';
 
 const [, , repo, KEY, flag] = process.argv;
@@ -55,9 +55,43 @@ if (!APPLY) {
   process.exit(0);
 }
 
+// After renaming: push the OLD id onto `aka:` in the frontmatter so future
+// consumers (INDEX.md board, q, cache) surface the prior label (KIT-T091).
+function pushAka(filePath, oldId) {
+  let text;
+  try { text = readFileSync(filePath, 'utf8'); } catch { return; }
+  const fmMatch = text.match(/^(---\n)([\s\S]*?)(\n---)/);
+  if (!fmMatch) return;
+  const [, open, fm, close] = fmMatch;
+  const rest = text.slice(fmMatch[0].length);
+
+  // Parse existing aka list (inline `[A, B]` or empty `[]`).
+  const akaM = fm.match(/^aka:[ \t]*(.*)$/m);
+  let newFm;
+  if (akaM) {
+    const raw = akaM[1].trim();
+    // Extract current entries, add oldId if not already present.
+    const inner = raw.replace(/^\[|\]$/g, '');
+    const existing = inner.split(',').map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+    if (!existing.includes(oldId)) existing.push(oldId);
+    newFm = fm.replace(/^aka:[ \t]*.*$/m, `aka: [${existing.join(', ')}]`);
+  } else {
+    // No aka field — append one before the closing delimiter.
+    newFm = fm + `\naka: [${oldId}]`;
+  }
+  writeFileSync(filePath, open + newFm + close + rest);
+}
+
+// Track final paths so pushAka can run AFTER the ref-rewrite (if it ran before,
+// the global ref-sweep would overwrite `aka: [R045]` with `aka: [HOD-T045]`).
+const renamedPaths = []; // { finalPath, oldId }
+
 for (const [oldId, info] of map) {
   const newName = info.file.replace(oldId, info.newId);
-  if (newName !== info.file) renameSync(join(ai, info.subdir, info.file), join(ai, info.subdir, newName));
+  const srcPath = join(ai, info.subdir, info.file);
+  const dstPath = join(ai, info.subdir, newName);
+  if (newName !== info.file) renameSync(srcPath, dstPath);
+  renamedPaths.push({ finalPath: newName !== info.file ? dstPath : srcPath, oldId });
 }
 
 function collectMd(dir, acc) {
@@ -97,4 +131,7 @@ for (const f of mdFiles) {
     edits++;
   }
 }
+// Push old ids onto aka: AFTER the ref-rewrite pass so the sweep can't clobber them.
+for (const { finalPath, oldId } of renamedPaths) pushAka(finalPath, oldId);
+
 console.log(`\napplied: renamed ${map.size} files, rewrote refs in ${edits} md files`);

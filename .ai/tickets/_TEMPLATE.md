@@ -6,6 +6,7 @@ status: todo           # todo | doing | review | done | superseded  (see config.
 priority: medium       # critical | high | medium | low
 milestone:             # blank = backlog; set to schedule onto ROADMAP.md
 labels: []
+aka: []                # prior ids/labels this item was known by (populated by rekey-ids)
 links: []              # related tickets, commits (regressions: causing commit), URLs
 files: []              # repo-root-relative paths this ticket touches
 tier:                  # OPTIONAL dispatch firepower: light | standard | deep — expands to (model, effort)

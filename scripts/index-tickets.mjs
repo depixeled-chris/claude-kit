@@ -34,6 +34,20 @@ function field(fm, key) {
   return m[1].replace(/(^|\s)#.*$/, '').trim().replace(/^["']|["']$/g, '');
 }
 
+// Tolerant inline-list parse — `aka: [R045, R046]` or `aka: []` -> string[].
+// Mirrors the `list()` idiom in db-parse.mjs (no dep, no YAML library).
+function listField(fm, key) {
+  const m = fm.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'));
+  if (!m) return [];
+  const raw = m[1].replace(/(^|\s)#.*$/, '').trim();
+  if (!raw) return [];
+  return raw
+    .replace(/^\[|\]$/g, '')
+    .split(',')
+    .map((s) => s.trim().replace(/^["']|["']$/g, ''))
+    .filter(Boolean);
+}
+
 function readTickets(dir, archived) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
@@ -49,6 +63,7 @@ function readTickets(dir, archived) {
         status: field(fm, 'status') || '—',
         priority: field(fm, 'priority') || '—',
         milestone: field(fm, 'milestone'),
+        aka: listField(fm, 'aka'),
         regressedFrom: field(fm, 'regressed_from'),
         causingCommit: field(fm, 'causing_commit'),
         fixedCommit: field(fm, 'fixed_commit'),
@@ -121,8 +136,9 @@ export async function regenerateIndexes(root) {
   const isSuperseded = (t) => t.status === 'superseded' || !!t.supersededBy;
   const HEADER = '| id | type | status | priority | title |\n| --- | --- | --- | --- | --- |';
   const SUP_HEADER = '| id | status | title | superseded by |\n| --- | --- | --- | --- |';
-  const row = (t) => `| ${t.id} | ${t.type} | ${t.status} | ${t.priority} | ${t.title} |`;
-  const supRow = (t) => `| ${t.id} | ${t.status} | ${t.title} | ${t.supersededBy || '—'} |`;
+  const akaTag = (t) => t.aka && t.aka.length ? ` · was ${t.aka.join(', ')}` : '';
+  const row = (t) => `| ${t.id} | ${t.type} | ${t.status} | ${t.priority} | ${t.title}${akaTag(t)} |`;
+  const supRow = (t) => `| ${t.id} | ${t.status} | ${t.title}${akaTag(t)} | ${t.supersededBy || '—'} |`;
   const active = tickets.filter((t) => !t.archived && !isSuperseded(t));
   const archived = tickets.filter((t) => t.archived);
   const superseded = tickets.filter((t) => !t.archived && isSuperseded(t));
