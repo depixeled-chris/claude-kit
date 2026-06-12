@@ -2,13 +2,13 @@
 id: KIT-T025
 title: General deduplication strategy across the whole workflow (capture → inbox → tickets → decisions → memory)
 type: feature
-status: doing
+status: review
 priority: high
 labels: [dedup, capture, tickets, decisions, memory, strategy]
 links: [KIT-T024, KIT-D017, KIT-D018]
 files: [scripts/, hooks/, commands/]
 created: 2026-06-04T15:05:00Z
-updated: 2026-06-12T17:56:09Z
+updated: 2026-06-12T17:59:43Z
 ---
 
 ## Description
@@ -101,3 +101,4 @@ system-wide approach so duplicates don't accumulate in ANY store. Needs design (
 
 ## History
 - [2026-06-12 17:56] (status) todo → doing
+- [2026-06-12 17:59] (status) doing → review

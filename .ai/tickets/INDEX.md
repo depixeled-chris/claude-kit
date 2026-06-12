@@ -10,8 +10,8 @@
 | KIT-T019 | feature | todo | high | Subagent bubble-up — agents surface communication to orchestrator AND maintainer (not only at completion) |
 | KIT-T021 | feature | todo | high | RIGID — always alert the maintainer when something lands (commit / push / deploy) |
 | KIT-T022 | feature | done | high | Hard license guard — block GPL/LGPL/AGPL/unlicensed code from entering a repo; THIRD_PARTY_LICENSES ledger |
-| KIT-T023 | feature | doing | critical | SYSTEM PROBLEM — the durable record is passive; it must actively surface + connect relevant context at decision points |
-| KIT-T025 | feature | doing | high | General deduplication strategy across the whole workflow (capture → inbox → tickets → decisions → memory) |
+| KIT-T023 | feature | review | critical | SYSTEM PROBLEM — the durable record is passive; it must actively surface + connect relevant context at decision points |
+| KIT-T025 | feature | review | high | General deduplication strategy across the whole workflow (capture → inbox → tickets → decisions → memory) |
 | KIT-T027 | feature | todo | high | Redesign the .ai store structure as first-class KIT-owned machinery (item model; reassess `notes`; triage/backlog as plugin code) |
 | KIT-T029 | feature | todo | high | Formal script-based handoff — borrow workflow's begin/end-task scripts so collation is programmatic, not orchestrator-ingested |
 | KIT-T048 | feature | todo | high | Provenance enforcement — q trail (walk-up summary), ticket-start gate, missing-antecedent lint, item summaries |

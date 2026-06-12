@@ -2,13 +2,13 @@
 id: KIT-T023
 title: "SYSTEM PROBLEM — the durable record is passive; it must actively surface + connect relevant context at decision points"
 type: feature
-status: doing
+status: review
 priority: critical
 labels: [system, context, memory, hooks, provenance, orient]
 links: [KIT-D015, KIT-D017, KIT-D018, KIT-T019]
 files: [hooks/orient.mjs, hooks/pre-write.mjs, commands/drain.md]
 created: 2026-06-04T13:30:00Z
-updated: 2026-06-12T17:56:08Z
+updated: 2026-06-12T17:59:42Z
 ---
 
 ## Description
@@ -41,3 +41,4 @@ SURFACE-AND-CONNECT. It is not operative at the moment of a decision or in an ag
 
 ## History
 - [2026-06-12 17:56] (status) todo → doing
+- [2026-06-12 17:59] (status) doing → review
