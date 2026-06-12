@@ -28,6 +28,8 @@ classifications:
   question:     { routes_to: questions,     blocking: never,    answerable_by: [claude, chris] }
   observation:  { routes_to: notes,         blocking: never }
   decision:     { routes_to: decisions,     blocking: never }
+  request:      { routes_to: requests,      priority: medium,  blocking: never }
+  epic:         { routes_to: epics,         priority: medium,  blocking: never }
   scope-change: { routes_to: active-ticket, blocking: always }
 
 # ---------------------------------------------------------------------------
@@ -120,6 +122,8 @@ dispatch:
     bug:        standard
     feature:    standard
     tech-debt:  light
+    request:    standard
+    epic:       deep
     "*":        standard
 
 # ---------------------------------------------------------------------------

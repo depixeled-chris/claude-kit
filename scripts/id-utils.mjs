@@ -21,7 +21,7 @@ import { join, extname } from 'node:path';
 // questions are tracked items too — so the set of dirs to SCAN is derived separately
 // (storeDirs), not from STORE_TYPE. Conflating the two is what omitted inbox/questions from
 // the cache (KIT-T026/KIT-D024: index EVERY tracked item).
-export const STORE_TYPE = { tickets: 'T', decisions: 'D', notes: 'N', questions: 'Q' };
+export const STORE_TYPE = { tickets: 'T', decisions: 'D', notes: 'N', questions: 'Q', requests: 'R', epics: 'E' };
 
 // Generated/reference files in a store dir that are not items.
 const SKIP = new Set(['_TEMPLATE.md', 'README.md', 'INDEX.md', 'REGRESSIONS.md', 'ROADMAP.md']);
@@ -31,7 +31,7 @@ const SKIP = new Set(['_TEMPLATE.md', 'README.md', 'INDEX.md', 'REGRESSIONS.md',
 // id-less items the cache must still see. Any OTHER store dir present under .ai is picked up
 // too (KIT-D024: stay open to new stores), excluding the generated `archive` (handled per
 // store) — so adding a store dir needs no code change here.
-const KNOWN_STORE_ORDER = ['tickets', 'decisions', 'notes', 'questions', 'inbox'];
+const KNOWN_STORE_ORDER = ['tickets', 'decisions', 'notes', 'questions', 'inbox', 'requests', 'epics'];
 // `resolved` is an immutable audit log (cap --done), NOT a triage queue — its records must
 // never be counted as open work. `archive` holds done tickets (same reason). (KIT-D036)
 const NON_STORE_DIRS = new Set(['archive', 'resolved']);

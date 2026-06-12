@@ -143,6 +143,45 @@ ok('non-regression ticket is unaffected (KIT-T066 C4)', findRegressionGaps(join(
 // A clean store (no regression tickets at all) has no gaps.
 ok('clean store has no regressionGaps (KIT-T066)', checkIds(seeded).regressionGaps.length === 0);
 
+// ---- KIT-T092: requests (R) + epics (E) first-class store types -----------------
+
+// nextId mints <KEY>-R### for requests and <KEY>-E### for epics.
+const emptyR = project();
+ok('nextId mints KIT-T092 R001 for requests store', nextId(emptyR, 'requests') === 'HOD-R001');
+ok('nextId mints KIT-T092 E001 for epics store', nextId(emptyR, 'epics') === 'HOD-E001');
+
+// nextId increments correctly beyond existing items in the store.
+const seededR = project({}, {
+  requests: { 'HOD-R003-a.md': 'HOD-R003', 'HOD-R001-b.md': 'HOD-R001' },
+  epics:    { 'HOD-E002-a.md': 'HOD-E002' },
+});
+ok('nextId requests = max+1 (KIT-T092)', nextId(seededR, 'requests') === 'HOD-R004');
+ok('nextId epics = max+1 (KIT-T092)', nextId(seededR, 'epics') === 'HOD-E003');
+
+// scanStores discovers items in requests/ and epics/ stores.
+const multiRE = project({}, {
+  requests: { 'HOD-R001-a.md': 'HOD-R001' },
+  epics:    { 'HOD-E001-a.md': 'HOD-E001' },
+});
+const itemsRE = scanStores(multiRE);
+ok('scanStores discovers requests store (KIT-T092)', itemsRE.some((i) => i.store === 'requests'));
+ok('scanStores discovers epics store (KIT-T092)', itemsRE.some((i) => i.store === 'epics'));
+ok('scanStores item in requests has correct id (KIT-T092)', itemsRE.some((i) => i.store === 'requests' && i.id === 'HOD-R001'));
+ok('scanStores item in epics has correct id (KIT-T092)', itemsRE.some((i) => i.store === 'epics' && i.id === 'HOD-E001'));
+
+// checkIds sees no false positives across requests/epics stores.
+const cleanRE = checkIds(multiRE);
+ok('checkIds clean on requests+epics stores (KIT-T092)', cleanRE.duplicates.length === 0 && cleanRE.mismatches.length === 0);
+
+// POSIX paths are maintained for requests/epics items too.
+const collideR = project({}, {
+  requests: { 'HOD-R001-a.md': 'HOD-R001', 'HOD-R001-b.md': 'HOD-R001' },
+});
+const cr = checkIds(collideR);
+ok('checkIds finds collision in requests store (KIT-T092)', cr.duplicates.length === 1 && cr.duplicates[0].id === 'HOD-R001');
+ok('collision paths are POSIX-style for requests (KIT-T092)',
+  cr.duplicates[0].files.every((f) => f.includes('/') && !f.includes('\\')));
+
 for (const d of fixtures) { try { rmSync(d, { recursive: true, force: true }); } catch {} }
 console.log(`\nid-utils: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
