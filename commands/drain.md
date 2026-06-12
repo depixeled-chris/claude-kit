@@ -40,6 +40,10 @@ Keep going item-to-item until the queue needs them or they stop.
      project-local agent exists yet, SURFACE a one-line suggestion after completing the current
      ticket: `suggest: <repo>/.claude/agents/<domain>.md not found — recurring delegations could
      share a knowledge-agent (use /scaffold-agent to create one)`. Don't block; just note it once.
+   - **RESEARCH PREFLIGHT (KIT-T047):** before commissioning a researcher or design-doc agent,
+     run `node <kit>/scripts/research-preflight.mjs <topic>` (from the adopting repo's root) to
+     surface any existing canonical doc; if one is found, instruct the agent to EXTEND it rather
+     than author a parallel doc.
 3. BOLDNESS per `drain.auto_execute`:
    - `within-patterns-low-risk`: start the item if it follows established patterns and is
      low-risk; otherwise surface ONE line — `next up: <id> — your call: <why>` — and wait.
