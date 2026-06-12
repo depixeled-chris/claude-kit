@@ -38,7 +38,22 @@ delegations inherit the conventions + past mistakes instead of re-deriving them.
 - [ ] The legacy-code / out-of-scope guard is part of the standard agent-handoff template.
 
 ## Plan
-1.
+Scoped 2026-06-12 (drain). No blocking dependency; the pattern is already demonstrated
+(HOD's `.claude/agents/` hod-render / hod-sim-core / hod-verify / backporter / scope-reviewer).
+Pure docs/contract + a scaffold — no code logic, low risk.
+1. **Orchestration rule** in `commands/drain.md` + `commands/work.md`: (a) when a domain recurs
+   across delegations, SUGGEST standing up a project-local knowledge-agent; (b) when a matching
+   `<repo>/.claude/agents/<domain>.md` exists, ROUTE the delegation there instead of bare
+   general-purpose. (Folds in the "pick the RIGHT kit agent, not default general-purpose" note.)
+2. **Convention doc** (section in `agents/README.md`): project knowledge-agents live in
+   `<repo>/.claude/agents/`, named by domain, encode conventions + known gotchas + a guard
+   section; they are NOT added to claude-kit. Reference the HOD exemplars.
+3. **Scaffold**: a template (or a tiny `/scaffold-agent` skill) emitting the standard shape
+   (frontmatter name/description/tools; body: role, conventions, gotchas, out-of-scope guard).
+4. **Handoff template**: fold the legacy-code / out-of-scope guard into the standard delegation
+   brief boilerplate so every handoff carries it.
+Verification: `[no-test]` (docs/contract) — exit proof is a doc-audit-style check that the new
+commands/sections reference real paths + the cited exemplars exist.
 
 ## Notes
 - [2026-06-05 20:16] (comment) folded from triage: drain/orchestration should pick the RIGHT claude-kit agent for each task (researcher/refactorer/test-author/code-reviewer/etc.), not default to general-purpose; AND when a task needs a persistent section of domain knowledge, proactively SUGGEST a dedicated knowledge-holding subagent. Bake both into the orchestration process (folds into the subagent-orchestration feature)

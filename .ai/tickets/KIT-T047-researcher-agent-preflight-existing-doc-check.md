@@ -23,7 +23,23 @@ PROCESS MISS (2026-06-05, HOD): a researcher/design-doc agent was commissioned f
 - [ ] Depends on / composes with the research-doc cache index (KIT-T041/T042) so the preflight can query the cache rather than raw grep.
 
 ## Plan
-1.
+Scoped 2026-06-12 (drain). DEPENDENCY CHANGED: the index half (KIT-T041/T042 — a queryable
+research-doc cache) is now **superseded**, so AC3 ("compose with the cache index") cannot rely
+on it. The preflight falls back to a direct scan of `docs/research/` (H1 + frontmatter titles)
++ the topic tickets' cited docs. Behavior half is otherwise independently buildable.
+1. **Contract step** in `agents/researcher.md` (+ any `/research` path): a PREFLIGHT — before
+   authoring, scan `docs/research/` titles/frontmatter and the topic tickets' cited docs for an
+   existing canonical doc on the topic.
+2. **Extend-not-duplicate**: if a canonical doc exists, instruct the agent to EXTEND it, never
+   author a parallel doc (the failure this fixes).
+3. **Automated check (relaxed)**: since the cache index is superseded, ship a lightweight
+   `scripts/research-preflight.mjs <topic>` (or fold into `q fts`, IF research docs are FTS-indexed)
+   that lists candidate canonical docs — verify current research-doc discoverability first and
+   pick scan-vs-q accordingly. AC3 is satisfied by this fallback, not the dead index.
+Verification: a test asserting the preflight surfaces a known canonical doc for a matching topic
+and stays silent for a novel one.
+OPEN (for the go): full preflight SCRIPT now, or documented contract-step + manual scan only?
 
 ## Notes
 - 2026-06-06: split from the 2026-06-05 process-miss cap. The index half is KIT-T041/T042; this is the agent-preflight behavior half.
+- 2026-06-12: KIT-T041/T042 are superseded — AC3's "cache index" no longer exists; preflight scans docs/research/ directly instead.
