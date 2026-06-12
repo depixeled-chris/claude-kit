@@ -29,6 +29,17 @@ Keep going item-to-item until the queue needs them or they stop.
      wins): explicit ticket `model:`/`effort:` (per-axis override) → ticket `tier:` expanded via
      `dispatch.tiers` → `dispatch.default_tier` for the ticket's `type` (else the `*` catch-all).
      A `tier` expands to BOTH model and effort — they are one firepower decision, not two knobs.
+   - **PICK THE RIGHT AGENT (KIT-T015):** when delegating, first check for a matching
+     project-local knowledge-agent at `<repo>/.claude/agents/<domain>.md`; if one exists, route
+     the delegation there instead of a bare general-purpose invocation. It carries the domain's
+     conventions, past gotchas, and out-of-scope guard — don't re-explain these in the task
+     prompt. If no matching project agent exists, use the closest generic kit agent
+     (researcher / refactorer / test-author / code-reviewer) over plain general-purpose.
+   - **SUGGEST A KNOWLEDGE-AGENT (KIT-T015):** when a domain (e.g. render layer, physics core,
+     verification harness, backport/scope boundary) recurs across multiple delegations and no
+     project-local agent exists yet, SURFACE a one-line suggestion after completing the current
+     ticket: `suggest: <repo>/.claude/agents/<domain>.md not found — recurring delegations could
+     share a knowledge-agent (use /scaffold-agent to create one)`. Don't block; just note it once.
 3. BOLDNESS per `drain.auto_execute`:
    - `within-patterns-low-risk`: start the item if it follows established patterns and is
      low-risk; otherwise surface ONE line — `next up: <id> — your call: <why>` — and wait.

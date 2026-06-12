@@ -21,6 +21,16 @@ Work ticket $ARGUMENTS per the contract:
    expanded via `dispatch.tiers`, else `dispatch.default_tier` for the ticket's `type` (then the
    `*` catch-all). One `tier` sets BOTH model and effort; never inherit the parent model by
    default (Opus-inheritance is the token bleed — KIT-D022).
+   When delegating, ROUTE to the right agent (KIT-T015):
+   - Check for a project-local knowledge-agent at `<repo>/.claude/agents/<domain>.md` first.
+     If one exists, route there — it carries conventions, past gotchas, and the out-of-scope
+     guard so you don't need to re-explain them in the task prompt.
+   - Else use the closest generic kit agent (researcher / refactorer / test-author /
+     code-reviewer); bare general-purpose is the last resort.
+   - Include this standard handoff guard in every delegation brief:
+     > **Out-of-scope / legacy guard:** do not touch files, modules, or subsystems outside
+     > the ticket's stated scope. If a fix traces to legacy or deprecated code outside your
+     > domain, STOP and surface it — don't expand scope unilaterally.
 4. Execute. Tick each criterion as satisfied with `node <kit>/scripts/t.mjs tick $ARGUMENTS
    <ordinal|match>`; append narrative progress to the ticket's Notes by hand (prose).
 5. When all criteria pass, `node <kit>/scripts/t.mjs status $ARGUMENTS review`, stop, and

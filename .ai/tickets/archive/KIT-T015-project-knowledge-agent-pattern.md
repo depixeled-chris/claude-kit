@@ -2,7 +2,7 @@
 id: KIT-T015
 title: Repeatable project-knowledge-agent pattern — drain suggests + routes to project-local agents
 type: feature
-status: todo
+status: done
 priority: medium
 milestone:
 labels: [agents, drain, orchestration, pattern]
@@ -12,7 +12,7 @@ files:
   - skills/
   - agents/
 created: 2026-06-04T11:27:00Z
-updated: 2026-06-04T11:27:00Z
+updated: 2026-06-12T15:19:21Z
 ---
 
 ## Description
@@ -28,14 +28,14 @@ agent via copy-pasted guards. A project-local knowledge-agent carries that nativ
 delegations inherit the conventions + past mistakes instead of re-deriving them.
 
 ## Acceptance Criteria
-- [ ] The drain/orchestration contract instructs the orchestrator to (a) SUGGEST creating a
+- [x] The drain/orchestration contract instructs the orchestrator to (a) SUGGEST creating a
       project-local knowledge-agent when a domain recurs across delegations, and (b) ROUTE
       delegations to the matching project agent when one exists (instead of bare general-purpose).
-- [ ] A documented convention: project knowledge-agents live in `<repo>/.claude/agents/`, named
+- [x] A documented convention: project knowledge-agents live in `<repo>/.claude/agents/`, named
       by domain, and encode conventions + known gotchas + a guard section; they are NOT added to
       claude-kit. (Reference exemplars: HOD's backporter/scope-reviewer.)
-- [ ] A scaffold/template (or skill) for authoring one, so it's repeatable, not ad-hoc.
-- [ ] The legacy-code / out-of-scope guard is part of the standard agent-handoff template.
+- [x] A scaffold/template (or skill) for authoring one, so it's repeatable, not ad-hoc.
+- [x] The legacy-code / out-of-scope guard is part of the standard agent-handoff template.
 
 ## Plan
 Scoped 2026-06-12 (drain). No blocking dependency; the pattern is already demonstrated
@@ -61,3 +61,22 @@ commands/sections reference real paths + the cited exemplars exist.
   the project, not claude-kit" + "that needs to be a repeatable pattern across projects." First
   application: HOD gains hod-render / hod-sim-core / hod-verify / hod-rust-convergence in its own
   .claude/agents/ this session.
+- [2026-06-12] Implemented. Added: `PICK THE RIGHT AGENT` + `SUGGEST A KNOWLEDGE-AGENT` rules to
+  `commands/drain.md`; routing rule + standard handoff guard (out-of-scope/legacy) to
+  `commands/work.md`; `## Project knowledge-agents` convention section to `agents/README.md`;
+  new `skills/scaffold-agent/SKILL.md` skill + indexed in `skills/README.md`.
+  Reference-existence check: HOD exemplars verified at `D:\dev\hustle-or-die\.claude\agents\`
+  (hod-render.md, hod-sim-core.md, hod-verify.md, backporter.md, scope-reviewer.md,
+  hod-rust-convergence.md — all present). Generic agents researcher/refactorer/test-author/
+  code-reviewer verified in `agents/`. Commands drain.md and work.md verified in `commands/`.
+  Skills claude-kit/doc-audit/release-checklist verified in `skills/`. All cited paths real.
+  `npm test` exit 0. [no-test: docs/contract pattern; verified by reference-existence check]
+
+## History
+- [2026-06-12 15:14] (status) todo → doing
+- [2026-06-12 15:18] (comment) ticked: The drain/orchestration contract instructs the orchestrator to (a) SUGGEST creating a
+- [2026-06-12 15:18] (comment) ticked: A documented convention: project knowledge-agents live in `<repo>/.claude/agents/`, named
+- [2026-06-12 15:18] (comment) ticked: A scaffold/template (or skill) for authoring one, so it's repeatable, not ad-hoc.
+- [2026-06-12 15:18] (comment) ticked: The legacy-code / out-of-scope guard is part of the standard agent-handoff template.
+- [2026-06-12 15:19] (status) doing → review
+- [2026-06-12 15:19] (status) review → done
