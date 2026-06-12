@@ -19,9 +19,35 @@ import { fileURLToPath } from 'node:url';
 
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TEMPLATE = join(KIT, 'project-template');
-const target = resolve(process.argv[2] || process.cwd());
+
+// Parse positional arg and --key=ABC flag. The positional must NOT start with "--".
+const args = process.argv.slice(2);
+const keyFlag = args.find((a) => a.startsWith('--key='));
+const positional = args.find((a) => !a.startsWith('--'));
+const FLAG_KEY = keyFlag ? keyFlag.slice('--key='.length).trim().toUpperCase() : '';
+
+const target = resolve(positional || process.cwd());
 const DATA = process.env.CLAUDE_DATA || '';
 const MARKER = '## Workflow contract (.ai/)';
+
+// The placeholder value the template ships. Only replace this literal string — never
+// clobber a key that someone has already customised.
+const KEY_PLACEHOLDER = 'KEY';
+
+// Derive a short uppercase key from a directory/project name.
+// Split on hyphens, underscores, and whitespace; take the first letter of each word.
+// Single-word name → first 3 letters. Strip non-alphanumerics. Final fallback: "PRJ".
+export function deriveKey(name) {
+  const words = name.split(/[-_\s]+/).filter(Boolean);
+  let key;
+  if (words.length > 1) {
+    key = words.map((w) => w[0] || '').join('');
+  } else {
+    key = (words[0] || '').slice(0, 3);
+  }
+  key = key.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  return key || 'PRJ';
+}
 
 function copyDir(src, dst) {
   mkdirSync(dst, { recursive: true });
@@ -61,11 +87,37 @@ if (DATA) {
     symlinkSync(dataDir, aiDst, process.platform === 'win32' ? 'junction' : 'dir');
     console.log(`• .ai linked -> ${dataDir}`);
   }
+  seedProjectKey(dataDir);
 } else if (existsSync(aiDst)) {
   console.log('• .ai/ already exists — left untouched');
+  seedProjectKey(aiDst);
 } else {
   copyDir(join(TEMPLATE, '.ai'), aiDst);
   console.log('• .ai/ scaffolded (local; set CLAUDE_DATA to centralize)');
+  seedProjectKey(aiDst);
+}
+
+// Set ids.key + ids.prefix in config.yml when the key is still the placeholder.
+// FLAG_KEY overrides derivation; derivation reads the project directory name.
+function seedProjectKey(aiDir) {
+  const cfgPath = join(aiDir, 'config.yml');
+  if (!existsSync(cfgPath)) return;
+  const text = readFileSync(cfgPath, 'utf8');
+
+  // Only act when the key is still the literal placeholder — never clobber a real key.
+  const km = text.match(/^([ \t]*key:[ \t]*)["']?([A-Za-z0-9]+)["']?([ \t]*)$/m);
+  if (!km || km[2] !== KEY_PLACEHOLDER) {
+    console.log(`• ids.key already set — left as-is`);
+    return;
+  }
+
+  const key = FLAG_KEY || deriveKey(basename(target));
+  const prefix = `${key}-T`;
+  let updated = text
+    .replace(/^([ \t]*key:[ \t]*)["']?KEY["']?([ \t]*)$/m, `$1"${key}"$2`)
+    .replace(/^([ \t]*prefix:[ \t]*)["']?KEY-T["']?([ \t]*)$/m, `$1"${prefix}"$2`);
+  writeFileSync(cfgPath, updated);
+  console.log(`• ids.key=${key}  ids.prefix=${prefix}  (derived from "${basename(target)}"${FLAG_KEY ? '; --key override' : ''})`);
 }
 
 // CLAUDE.md — append the contract once (both modes)
