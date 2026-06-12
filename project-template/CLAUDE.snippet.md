@@ -120,16 +120,16 @@ The native task list is a **live, bidirectional projection** of the tickets — 
 ticket file stays the durable truth (native tasks are per-session + machine-local).
 Config: `.ai/config.yml` → `native_task_sync`. Because I am the only writer of native
 tasks, keeping both in lockstep IS the sync:
-- **Hydrate on start:** rebuild the native list from the active ticket(s) at session /
-  `/work` start — `node <kit>/scripts/sync-tasks.mjs` emits the task spec from
-  `.ai/tickets/`. (Native tasks don't survive the session; the ticket does.)
+- **Hydrate on start:** rebuild the native list from the active ticket(s) at `/work`
+  start — `node <kit>/scripts/sync-tasks.mjs` emits the task spec from `.ai/tickets/`.
+  (Native tasks don't survive the session; the ticket does.)
 - **Lockstep:** when a ticket's status or a criterion changes, update the matching
   native task in the same step — and write any native status change back to the ticket.
 - **Prefix:** every ticket-backed native task is titled `T-NNN …` so it's visibly
   distinct from ad-hoc tasks. Status maps per `native_task_sync.status_map`.
 - **Promote orphans:** a native task with no `T-` prefix is unpersisted work — capture
-  it to `.ai/inbox/` (per `promote_orphans_to`), then re-title the native task with
-  the id triage assigns. Nothing important is left living only in the ephemeral list.
+  it to `.ai/inbox/`, then re-title the native task with the id triage assigns.
+  Nothing important is left living only in the ephemeral list.
 
 ### History & regression tracking
 - **Every ticket** carries two append-only sections (KIT-D037):

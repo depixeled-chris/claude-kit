@@ -1,0 +1,55 @@
+---
+id: KIT-T069
+title: Config truth — reconcile template vs repo config, hooks.json vs settings.recommended, remove vapor knobs
+type: tech-debt
+status: done
+priority: high
+milestone: M4-one-truth
+labels: [config, contract]
+files:
+  - project-template/.ai/config.yml
+  - .ai/config.yml
+  - hooks/hooks.json
+  - user-config/settings.recommended.json
+links: [KIT-T068]
+supersedes:
+superseded_by:
+created: 2026-06-10T03:10:00Z
+updated: 2026-06-12T17:53:10Z
+---
+
+## Description
+Config has drifted in BOTH directions and promises software that doesn't exist:
+- Template lacks `statuses.off_board` (KIT-T024) — yet ships supersede frontmatter that
+  depends on it — and lacks the entire `capture:` request-gate block, so adopters can't
+  see or tune the Stop gate.
+- Repo's own config lacks the template's `roadmap_mode` and `watch_repos`.
+- hooks.json claims to mirror settings.recommended.json but wires query-gate + ingest-data
+  that the legacy file lacks (a LINK_TOOLING=1 install silently runs without the
+  retrieval gate); its $comment still describes the pre-plugin world.
+- Vapor (decided 2026-06-09, remove/slim): delete the `drain.groomer` knob until an
+  implementation exists; slim `native_task_sync` to what /work actually does (mirror
+  criteria into native tasks) and drop the unused sync-tasks.mjs machinery from the spec.
+
+## Acceptance Criteria
+- [x] Template and repo config carry the same schema (off_board, capture, roadmap_mode, watch_repos reconciled deliberately, not blindly copied).
+- [x] hooks.json and settings.recommended.json agree; the mirror $comment is true (or the legacy file is retired with a migration note).
+- [x] groomer knob removed; native_task_sync slimmed; GLOSSARY/STRATEGY references updated.
+- [x] A drift check exists (test or release-checklist step) comparing template config keys to repo config keys.
+
+## Plan
+1. Schema diff + deliberate reconcile.
+2. hooks.json/settings sync.
+3. Vapor removal; drift check.
+
+## Notes
+- 2026-06-09: opened from the full-plugin review; vapor disposition decided by Chris (remove/slim).
+- 2026-06-12: Template config: added off_board, capture block, dispatch block; slimmed native_task_sync (removed prefix_with_ticket_id + promote_orphans_to); removed groomer; added INTENTIONAL DIVERGENCES comment (uat, ids.key placeholder). Repo config: added roadmap_mode + watch_repos; slimmed native_task_sync; removed groomer. hooks.json: updated $comment to be honest about parity. settings.recommended.json: added query-gate, ingest-data, big-ask-nudge; fixed commit-gate matcher to Bash|PowerShell. GLOSSARY.md: retitled groomer section. STRATEGY.md: updated native_task_sync prose. CLAUDE.md + CLAUDE.snippet.md: removed promote_orphans_to config-key refs. release-checklist: added step 9 (config drift check). npm test green (init-project KEY-placeholder test fixed by removing quoted "KEY" from comment). [no-test: config reconciliation; verified by grep groomer gone + npm test exit 0]
+
+## History
+- [2026-06-12 17:31] (status) todo → doing
+- [2026-06-12 17:52] (comment) ticked: Template and repo config carry the same schema (off_board, capture, roadmap_mode, watch_repos reconciled deliberately, not blindly copied).
+- [2026-06-12 17:52] (comment) ticked: hooks.json and settings.recommended.json agree; the mirror $comment is true (or the legacy file is retired with a migration note).
+- [2026-06-12 17:52] (comment) ticked: groomer knob removed; native_task_sync slimmed; GLOSSARY/STRATEGY references updated.
+- [2026-06-12 17:52] (comment) ticked: A drift check exists (test or release-checklist step) comparing template config keys to repo config keys.
+- [2026-06-12 17:53] (status) doing → done

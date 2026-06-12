@@ -64,7 +64,7 @@ cost, branch, `session_id`). No token cost. The kit ships one showing
 *(version-fragile)*. **Do not resume across machines** — IDs and paths are
 machine-local. Use `git pull` + fresh session + re-prime instead.
 
-### Scheduling (for the optional unattended groomer)
+### Scheduling (recurring / background agents)
 - `/loop` — recurring prompt *within* a running session (needs the session open).
 - `CronCreate` — local cron; durable form writes `.claude/scheduled_tasks.json`.
 - `RemoteTrigger` — cloud-run via `/v1/code/triggers`.

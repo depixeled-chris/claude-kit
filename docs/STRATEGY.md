@@ -92,13 +92,13 @@ A backlog nobody drains is a graveyard. The drain runs on Claude's action:
   machine-local, so it's never the handoff layer — but it is a **faithful,
   bidirectional projection** of the tickets, not a throwaway. Because Claude is the
   only writer of native tasks, sync is just discipline at write time + a rebuild on
-  start (KIT-D005, `config.yml → native_task_sync`):
-  - Hydrate the native list from the active ticket(s) at session start
+  start (KIT-D005, `config.yml → native_task_sync.status_map`):
+  - Hydrate the native list from the active ticket(s) at `/work` start
     (`scripts/sync-tasks.mjs`), since native tasks don't survive a session.
   - Keep both in lockstep: a ticket change updates its native task and vice versa.
   - Each ticket-backed native task is titled `T-NNN …` so it's distinct from ad-hoc
-    ones; an orphan (unprefixed) task is promoted to `.ai/` so no work lives only in
-    the ephemeral list.
+    ones; orphan tasks are promoted to `.ai/inbox/` so no work lives only in the
+    ephemeral list.
 
 ## Task history & regressions
 

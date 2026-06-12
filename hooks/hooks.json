@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "_comment": "Plugin hook wiring (auto-loaded on install). ${CLAUDE_PLUGIN_ROOT} resolves to the installed plugin dir. Every hook is opt-in-aware (no-ops unless the repo has .ai/), except the advisory lint/jscpd which run on any code edit. Mirrors user-config/settings.recommended.json for the non-plugin (bootstrap) install path.",
+  "_comment": "Plugin hook wiring (auto-loaded on install). ${CLAUDE_PLUGIN_ROOT} resolves to the installed plugin dir. Every hook is opt-in-aware (no-ops unless the repo has .ai/), except the advisory lint/jscpd which run on any code edit. Kept in parity with user-config/settings.recommended.json (bootstrap install path) — both carry the full hook set (KIT-T069).",
   "hooks": {
     "PreToolUse": [
       {

@@ -34,6 +34,11 @@ vibe-based "looks good."
    code refs — grep each mentioned path/command/flag; flag zero-hit ones, (c) command
    and script counts match `ls commands/` and `ls scripts/*.mjs`. The audit must come
    back CLEAN before GO.
+9. **Config drift check** — diff the top-level keys in `.ai/config.yml` vs
+   `project-template/.ai/config.yml`. Any key present in one but absent from the other
+   is either a deliberate divergence (documented in the template's INTENTIONAL DIVERGENCES
+   comment, or in a KIT-D decision) or an unintentional drift. Flag unintentional drifts
+   as NO-GO (KIT-T069).
 
 ## Output
 A checklist with ✓/✗/skip per item, the command + result for each ✗, and a one-line

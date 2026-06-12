@@ -6,6 +6,11 @@
 # CLAUDE.md points at this file, so behavior changes when this changes.
 #
 # This is the single source of truth for the taxonomy.
+#
+# INTENTIONAL DIVERGENCES from the claude-kit repo config (KIT-T069):
+#   uat.default: required  (template default) vs none (repo: maintainer-delegated, KIT-D034)
+#   ids.key: placeholder   (template — init-project replaces with the real project key)
+#                          vs KIT (repo's hardcoded key)
 
 # ---------------------------------------------------------------------------
 # CLASSIFICATIONS
@@ -43,6 +48,9 @@ priorities: [critical, high, medium, low]
 statuses:
   flow: [todo, doing, review, done]
   human_only: [done]        # Claude moves to review; only Chris marks done.
+  # `superseded` is OFF-FLOW: a newer ticket retired this one (set `superseded_by:` here +
+  # `supersedes:` on the replacement). Drops out of the active board + drain (KIT-T024).
+  off_board: [superseded]
 
 # ---------------------------------------------------------------------------
 # UAT — who ACCEPTS finished work (KIT-D034). `review` is the UAT stage.
@@ -72,15 +80,62 @@ drain:
   # Questions Claude can answer from code/decisions are answered + logged inline.
   # Questions needing Chris are surfaced BATCHED at natural breaks, not as interruptions.
   answer_self_questions: true
-  # Unattended backlog grooming (dedupe INBOX, link regressions, propose worklist).
-  # off | loop | cron  — opt-in; costs tokens / needs the machine on.
-  groomer: off
+  # NOTE: drain.groomer knob removed (KIT-D030 — no config vapor: no implementation yet).
 
 # ---------------------------------------------------------------------------
 # RECEIPTS — how routing is acknowledged so you can catch a misroute fast.
 #   one-line = "→ BUG-024 logged, still on T-001"   | silent = no ack, check the board
 # ---------------------------------------------------------------------------
 receipts: one-line
+
+# ---------------------------------------------------------------------------
+# CAPTURE RATCHET — the Stop-time gate (hooks/request-gate.mjs) that makes request
+# capture structural instead of memory-dependent. Requests have no choke point like
+# `git commit`, so the gate manufactures one at the end of every assistant turn: if
+# the last user message looks like an actionable request and nothing was captured
+# this turn, it blocks the stop ONCE (loop-proof via stop_hook_active).
+#   enabled: true|false   — turn the gate off per project.
+#   mode:    block-once    — rigid: block the stop once (recommended).
+#            warn          — soft: stderr only, never block.
+#   release: a routing receipt ("→ KIT-T005 filed" / "… logged") OR a
+#            "[no-capture: reason]" note in the reply OR any new/changed file in an
+#            .ai capture store this turn satisfies the gate.
+#   signals: case-insensitive regexes; these OVERRIDE the built-in default set.
+# ---------------------------------------------------------------------------
+capture:
+  enabled: true
+  mode: block-once
+  signals:
+    - "i'?d like"
+    - "can you (add|make|build|create|write|set ?up)"
+    - "could you (add|make|build|create)"
+    - "we should"
+    - "you should (add|make|build)"
+    - "in the future"
+    - "eventually"
+    - "don'?t forget"
+    - "it would be (nice|good|great)"
+    - "let'?s\\b.*\\blater\\b"
+    - "remember to"
+    - "at some point"
+    - "would be (nice|good|worth)"
+
+# ---------------------------------------------------------------------------
+# DISPATCH — the FIREPOWER a ticket gets when delegated to a subagent (KIT-D035).
+# Resolution order (first hit wins): explicit ticket model:/effort: → ticket tier:
+# expanded via tiers → default_tier for the ticket's type (then * catch-all).
+# ---------------------------------------------------------------------------
+dispatch:
+  tiers:
+    light:    { model: haiku,  effort: low }
+    standard: { model: sonnet, effort: medium }
+    deep:     { model: opus,   effort: high }
+  default_tier:
+    regression: standard
+    bug:        standard
+    feature:    standard
+    tech-debt:  light
+    "*":        standard
 
 # ---------------------------------------------------------------------------
 # IDS — scheme is <KEY>-<TYPE><NUM> (KIT-D011). key = project key (HOD, KIT, ...),
@@ -101,11 +156,11 @@ roadmap_mode: generated
 
 # ---------------------------------------------------------------------------
 # NATIVE TASK SYNC (D-005) — native task list is a live projection of tickets/.
+# Slimmed to what the code reads (KIT-D030): sync-tasks.mjs reads `status_map`
+# only; the behavioral contract (prefix, orphan promotion) is in CLAUDE.md.
 # ---------------------------------------------------------------------------
 native_task_sync:
   enabled: true
-  prefix_with_ticket_id: true
-  promote_orphans_to: inbox      # an unprefixed native task -> a new inbox/ capture
   status_map:
     todo: pending
     doing: in_progress

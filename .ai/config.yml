@@ -78,9 +78,7 @@ drain:
   # Questions Claude can answer from code/decisions are answered + logged inline.
   # Questions needing Chris are surfaced BATCHED at natural breaks, not as interruptions.
   answer_self_questions: true
-  # Unattended backlog grooming (dedupe INBOX, link regressions, propose worklist).
-  # off | loop | cron  — opt-in; costs tokens / needs the machine on.
-  groomer: off
+  # NOTE: drain.groomer knob removed (KIT-D030 — no config vapor: no implementation yet).
 
 # ---------------------------------------------------------------------------
 # DISPATCH — the FIREPOWER a ticket gets when it is delegated to a subagent
@@ -175,24 +173,31 @@ ids:
   pad: 3            # KIT-T001, KIT-T002, ...
 
 # ---------------------------------------------------------------------------
-# NATIVE TASK SYNC — the native Claude Code task list is a LIVE projection of
-# the tickets here (DECISIONS D-005). Ticket = durable truth; native = ephemeral,
-# per-session view. Claude is the only writer, so it keeps both in lockstep.
+# NATIVE TASK SYNC (KIT-D005) — native task list is a live projection of tickets/.
+# Slimmed to what the code reads (KIT-D030): sync-tasks.mjs reads `status_map`
+# only; the behavioral contract (prefix, orphan promotion) is in CLAUDE.md.
 # ---------------------------------------------------------------------------
 native_task_sync:
   enabled: true
-  # Prefix each kit-managed native task's subject with its ticket id ("T-001 ..."),
-  # so ticket-backed tasks are visibly distinct from ad-hoc ones.
-  prefix_with_ticket_id: true
-  # An orphan (unprefixed) native task is work living only in the ephemeral list.
-  # Persist it here before re-tagging the native task:  inbox | ticket
-  promote_orphans_to: inbox
-  # ticket status -> native task status (native has no review/human-gate state)
   status_map:
     todo: pending
     doing: in_progress
     review: completed
     done: completed
+
+# ---------------------------------------------------------------------------
+# ROADMAP — generated | narrative.  generated = thin sequence assembled from
+# ticket frontmatter (milestone + priority) by scripts/index-tickets.mjs;
+# narrative = a hand-curated prose ROADMAP the generator leaves alone.
+# ---------------------------------------------------------------------------
+roadmap_mode: generated
+
+# ---------------------------------------------------------------------------
+# WATCH_REPOS — extra repo paths (relative to the project root) the orient hook
+# includes in its resume working-tree survey. Surfaces uncommitted + unpushed
+# state in sibling repos so local-only work is never lost.
+# ---------------------------------------------------------------------------
+watch_repos: []
 
 # ---------------------------------------------------------------------------
 # HISTORY & REGRESSIONS (DECISIONS D-006). Every ticket carries an append-only

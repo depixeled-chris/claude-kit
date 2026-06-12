@@ -20,12 +20,16 @@
         "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/pre-write.mjs\"" }]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/commit-gate.mjs\"" }]
       },
       {
         "matcher": "Bash|PowerShell",
         "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/branch-guard.mjs\"" }]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/query-gate.mjs\"" }]
       },
       {
         "matcher": "Bash|PowerShell",
@@ -41,12 +45,18 @@
         "matcher": "Write|Edit",
         "hooks": [
           { "type": "command", "command": "node \"$HOME/.claude/hooks/lint.mjs\"" },
-          { "type": "command", "command": "node \"$HOME/.claude/hooks/jscpd.mjs\"" }
+          { "type": "command", "command": "node \"$HOME/.claude/hooks/jscpd.mjs\"" },
+          { "type": "command", "command": "node \"$HOME/.claude/hooks/ingest-data.mjs\"" }
         ]
       },
       {
         "matcher": "Task",
         "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/agent-roster.mjs\"" }]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/big-ask-nudge.mjs\"" }]
       }
     ],
     "SessionStart": [
