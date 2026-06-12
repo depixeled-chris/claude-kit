@@ -34,4 +34,17 @@ updated: <YYYY-MM-DDThh:mm:ssZ>
 1.
 
 ## Notes
-<!-- append-only log of decisions/progress while working — never delete prior notes -->
+<!-- prose/narrative progress — free-form, direct-edit. Context, blockers, research,
+     why a tradeoff was made. Append freely; no format enforced. -->
+
+## History
+<!-- structured event log — APPEND-ONLY, stamped by the `t` CLI (KIT-T075). One line per
+     event, oldest first. Format: - [YYYY-MM-DD HH:MM] (event) detail
+     events: created | status | comment | decision | blocker | unblocked | fixed | regressed
+       (status)    todo → doing            (a transition)
+       (comment)   free-text progress / why
+       (decision)  what was chosen — cross-cut ones also go in DECISIONS.md
+       (blocker)   <title> — open          (unblocked) <title> — <resolution>
+       (fixed)     <sha>                    (regressed) → T-040   (recurred as)
+     NEVER edit or delete a prior line — this is the task's audit trail (KIT-D037). -->
+- [<YYYY-MM-DD HH:MM>] (created)

@@ -45,7 +45,7 @@ one-file edit; no code changes.
 ```
 claude-kit/                     # public plugin + marketplace (MIT)
 ├── .claude-plugin/             # plugin.json + marketplace.json — makes it installable
-├── commands/                   # /cap /decide /done /drain /flush /prime /standup /status /triage /work
+├── commands/                   # /cap /decide /done /drain /flush /prime /standup /triage /work
 ├── agents/                     # researcher, code-reviewer, refactorer, test-author
 ├── skills/                     # claude-kit, release-checklist, doc-audit
 ├── hooks/                      # Node enforcement hooks + hooks.json (plugin wiring) + lib.mjs

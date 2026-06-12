@@ -18,32 +18,9 @@ Keep going item-to-item until the queue needs them or they stop.
      by the replacement) — `q.mjs open` already excludes these, so trust that list (KIT-T024).
    - Arg: none = current milestone then backlog · `all` = ignore milestone gating (pure
      priority) · a milestone name = drain only that milestone.
-2. WORK it via the `/work` contract: read the ticket, **restate its acceptance criteria**,
-   confirm scope in ONE line (wait for OK only if the plan changes scope or touches files
-   outside the ticket), then drive STRUCTURED mutations through the `t` CLI (KIT-T075) — never
-   hand-edited frontmatter: `t status <id> doing`, mirror criteria into native tasks, execute,
-   `t tick <id> <ordinal|match>` each criterion as it passes. Narrative Notes stay direct-edit.
-   - **DISPATCH FIREPOWER (KIT-T034):** when you delegate the ticket to a subagent, resolve its
-     model + effort from `config.dispatch` and pass them as the Agent `model`/`effort` — don't
-     inherit the parent (Opus-inheritance was the token bleed, KIT-D022). Resolution (first hit
-     wins): explicit ticket `model:`/`effort:` (per-axis override) → ticket `tier:` expanded via
-     `dispatch.tiers` → `dispatch.default_tier` for the ticket's `type` (else the `*` catch-all).
-     A `tier` expands to BOTH model and effort — they are one firepower decision, not two knobs.
-   - **PICK THE RIGHT AGENT (KIT-T015):** when delegating, first check for a matching
-     project-local knowledge-agent at `<repo>/.claude/agents/<domain>.md`; if one exists, route
-     the delegation there instead of a bare general-purpose invocation. It carries the domain's
-     conventions, past gotchas, and out-of-scope guard — don't re-explain these in the task
-     prompt. If no matching project agent exists, use the closest generic kit agent
-     (researcher / refactorer / test-author / code-reviewer) over plain general-purpose.
-   - **SUGGEST A KNOWLEDGE-AGENT (KIT-T015):** when a domain (e.g. render layer, physics core,
-     verification harness, backport/scope boundary) recurs across multiple delegations and no
-     project-local agent exists yet, SURFACE a one-line suggestion after completing the current
-     ticket: `suggest: <repo>/.claude/agents/<domain>.md not found — recurring delegations could
-     share a knowledge-agent (use /scaffold-agent to create one)`. Don't block; just note it once.
-   - **RESEARCH PREFLIGHT (KIT-T047):** before commissioning a researcher or design-doc agent,
-     run `node <kit>/scripts/research-preflight.mjs <topic>` (from the adopting repo's root) to
-     surface any existing canonical doc; if one is found, instruct the agent to EXTEND it rather
-     than author a parallel doc.
+2. WORK the selected ticket via the full `/work` contract — dispatch, scope confirm, `t`
+   CLI mutations, Notes/History updates, evidence floor. See `/work` for the complete
+   working contract; do not repeat it here.
 3. BOLDNESS per `drain.auto_execute`:
    - `within-patterns-low-risk`: start the item if it follows established patterns and is
      low-risk; otherwise surface ONE line — `next up: <id> — your call: <why>` — and wait.

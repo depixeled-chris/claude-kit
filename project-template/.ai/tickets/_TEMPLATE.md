@@ -35,6 +35,10 @@ provenance:            # how regressed_from/causing_commit got here: `given` (us
 <!-- filled in before editing; Claude waits for OK if the plan changes scope -->
 1.
 
+## Notes
+<!-- prose/narrative progress — free-form, direct-edit. Context, blockers, research,
+     why a tradeoff was made. Append freely; no format enforced (KIT-D037). -->
+
 ## History
 <!-- APPEND-ONLY, oldest first. One line per event; NEVER edit or delete a prior line —
      this is the task's audit trail. Format:  - [YYYY-MM-DD HH:MM] (event) detail

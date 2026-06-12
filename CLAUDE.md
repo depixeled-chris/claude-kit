@@ -40,7 +40,7 @@ the receipt, and continue — do not halt to ask.
   `order` + priority). If `auto_execute: within-patterns-low-risk` and the item
   is low-risk and pattern-following, start it; otherwise surface one line:
   `next up: T-007 (your call — touches UX)`.
-- **Questions** (`.ai/questions/`, one `Q-NNN.md` each, `answerable_by: chris|claude`):
+- **Questions** (`.ai/questions/`, one `<KEY>-Q###.md` each, `answerable_by: chris|claude`):
   `/drain` resolves the `answerable_by: claude` ones from code + `.ai/decisions/` — writing
   the answer + date into the file's `**Resolution:**` and setting `status: resolved` (RECORD
   the answer, never delete) — and batches the `answerable_by: chris` ones into the next
@@ -65,9 +65,11 @@ On "work T-001" (or when I pull it from the drain):
    list as a task titled `T-NNN <criterion>` (TaskCreate, with blockedBy for
    ordering) — the prefix marks it as ticket-backed. **The ticket file is truth;**
    the native list is a live projection kept in lockstep (see Native task sync).
-4. As each criterion is satisfied, check its box `[x]` and append a `## History`
-   line. Log every status change, comment, decision, and blocker there **as it
-   happens** (append-only — never edit a prior line): it's the task's audit trail.
+4. As each criterion is satisfied, check its box `[x]`, append a `## History`
+   line for structured events (status changes, blockers, decisions — stamped by the
+   `t` CLI), and append narrative context to `## Notes` by hand (prose, free-form,
+   direct-edit). **History = structured timestamped events (never edit); Notes =
+   prose progress (append freely).** Both sections are append-only (KIT-D037).
 5. When all criteria pass: set `status: review`, record `(fixed) <sha>` + the
    `fixed_commit` frontmatter in History, stop, summarize the diff.
    **Evidence floor (KIT-T061):** the closing transition (→`review` when
@@ -132,9 +134,13 @@ tasks, keeping both in lockstep IS the sync:
   the id triage assigns. Nothing important is left living only in the ephemeral list.
 
 ### History & regression tracking
-- **Every ticket** keeps an append-only `## History` (timestamped events:
-  `status | comment | decision | blocker | unblocked | fixed | regressed`, per
-  `config.history.events`). Never edit or delete a prior line — it's the audit trail.
+- **Every ticket** carries two append-only sections (KIT-D037):
+  - `## Notes` — prose/narrative progress, free-form, direct-edit. Context, blockers,
+    tradeoffs, research findings. Append freely, no format enforced.
+  - `## History` — structured event log, stamped by the `t` CLI. One line per event,
+    oldest first: `- [YYYY-MM-DD HH:MM] (event) detail` (events: `status | comment |
+    decision | blocker | unblocked | fixed | regressed`, per `config.history.events`).
+    Never edit or delete a prior line — it is the ticket's audit trail.
   Cross-cutting decisions also go in `.ai/DECISIONS.md`.
 - **A recurring bug is a `regression` ticket, not a reopen:** set `regressed_from:
   <original id>` and `causing_commit:`; add a `(regressed) → T-NNN` line to the
@@ -150,9 +156,9 @@ tasks, keeping both in lockstep IS the sync:
 ### Where items live (atomic — D-009)
 Every category of items is a **folder of one-file-per-item**, like `tickets/`: never a
 monolith file.
-- `tickets/` (+ `archive/`) · `decisions/` (DEC-NNN.md) · `questions/` (Q-NNN.md) ·
-  `notes/` (N-NNN.md) · `inbox/` (one file per raw capture; `cap` writes here; triage
-  promotes each into the others and deletes it).
+- `tickets/` (+ `archive/`) · `decisions/` (`<KEY>-D###.md`) · `questions/` (`<KEY>-Q###.md`) ·
+  `notes/` (`<KEY>-N###.md`) · `inbox/` (one file per raw capture; `cap` writes here; triage
+  promotes each into the others and moves it to `inbox/triaged/`).
 - Singletons stay single: `config.yml`, `SESSION.md`.
 - **Generated views (don't hand-edit):** `tickets/INDEX.md`, `REGRESSIONS.md`,
   `ROADMAP.md` (in generated mode) — all rebuilt from the folders by `index-tickets.mjs`.
