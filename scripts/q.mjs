@@ -37,7 +37,7 @@ import { fileURLToPath } from 'node:url';
 import { resolveEngine } from './db-engine.mjs';
 import { collectItems } from './db-parse.mjs';
 import { hydrate, defaultDbPath, hydrationSources } from './hydrate-db.mjs';
-import { readIdConfig, STORE_TYPE, compareIds } from './id-utils.mjs';
+import { readIdConfig, STORE_TYPE, compareIds, statStoreFiles } from './id-utils.mjs';
 
 const OPEN = ['todo', 'doing', 'review'];
 const FTS_LIMIT = 25;        // cap FTS hits — a retrieval list, not a full dump
@@ -83,13 +83,60 @@ function newestAcross(sources) {
 // Open the cache, auto-(re)hydrating when it is missing or stale. `root` is undefined for a
 // cross-scope query (all registered scopes) and set only when --root forces single-scope;
 // staleness is checked against exactly the sources that will be hydrated (KIT-T031). Returns
-// a db handle, or null when no SQLite engine exists (caller then uses the markdown fallback).
-async function db(root, dbPath) {
+// { handle, wasStale } — handle is null when no engine exists (caller then uses the markdown
+// fallback); wasStale is true when the DB needed rehydration before the query, so callers can
+// surface a one-line notice to the user (KIT-T076).
+async function dbOpen(root, dbPath) {
   const open = await resolveEngine();
-  if (!open) return null;
-  const stale = !existsSync(dbPath) || statSync(dbPath).mtimeMs < newestAcross(hydrationSources(root));
-  if (stale) await hydrate({ root, dbPath });
-  return open(dbPath);
+  if (!open) return { handle: null, wasStale: false };
+  const wasStale = !existsSync(dbPath) || statSync(dbPath).mtimeMs < newestAcross(hydrationSources(root));
+  if (wasStale) await hydrate({ root, dbPath });
+  return { handle: open(dbPath), wasStale };
+}
+
+// ---- q verify (KIT-T076) — per-scope staleness self-check --------------------
+// Compare the DB's source_files manifest (what it was hydrated from) against the current
+// on-disk stat for every file in each scope's store. Reports each scope as fresh or stale,
+// with the manifest delta (added/changed/removed files) as evidence.
+// Returns { scopes: [{scope, aiDir, status:'fresh'|'stale', delta:{added,changed,removed}}], stale: bool }.
+// Exits 0 when all scopes are fresh, 1 when any scope is stale (script mode).
+async function verifyCache(root, dbPath) {
+  const open = await resolveEngine();
+  if (!open) return { error: 'no-engine', scopes: [], stale: false };
+  if (!existsSync(dbPath)) return { error: 'no-db', scopes: [], stale: true };
+
+  const handle = open(dbPath);
+  const scopeRows = [];
+  try {
+    const sources = hydrationSources(root);
+    for (const s of sources) {
+      const { key } = readIdConfig(s.root, s.aiDir);
+      const scope = key || '';
+      // On-disk stat (no content reads — the whole point is a cheap check).
+      const onDisk = existsSync(s.aiDir) ? statStoreFiles(s.aiDir) : [];
+      const byRel = new Map(onDisk.map((e) => [e.relpath, e]));
+      // Manifest as hydrated.
+      const stored = new Map(
+        handle.all('SELECT relpath, mtime, size FROM source_files WHERE scope = ?', [scope])
+          .map((r) => [r.relpath, r]),
+      );
+
+      const added = [];
+      const changed = [];
+      for (const e of onDisk) {
+        const prev = stored.get(e.relpath);
+        if (!prev) { added.push(e.relpath); continue; }
+        if (prev.mtime !== e.mtimeMs || prev.size !== e.size) changed.push(e.relpath);
+      }
+      const removed = [...stored.keys()].filter((r) => !byRel.has(r));
+      const isStale = added.length > 0 || changed.length > 0 || removed.length > 0;
+      scopeRows.push({ scope, aiDir: s.aiDir, status: isStale ? 'stale' : 'fresh', delta: { added, changed, removed } });
+    }
+  } finally {
+    handle.close();
+  }
+  const anyStale = scopeRows.some((s) => s.status === 'stale');
+  return { scopes: scopeRows, stale: anyStale };
 }
 
 function storeForType(type) {
@@ -587,6 +634,9 @@ function printRows(rows, json) {
 const compact = (r) =>
   typeof r === 'string' ? r : Object.values(r).map((v) => (v === null ? '' : String(v))).join('  ');
 
+// Export verifyCache so tests can assert the manifest diff logic without shelling out.
+export { verifyCache };
+
 // Programmatic query surface — the SINGLE entry the process tooling (next-id, survey,
 // orient) shares with the CLI, so cache-vs-scan parity lives in ONE place (KIT-T026).
 // Runs a canned query against the cache, auto-(re)hydrating, and degrades to the
@@ -600,16 +650,21 @@ export async function query(cmd, args = [], { root, cwdRoot = root || process.cw
   if (cmd === 'governing' || cmd === 'drift') {
     return { rows: fallback(cmd, args, cwdRoot), cached: false };
   }
-  const handle = noDb ? null : await db(root, dbPath);
+  const { handle, wasStale } = noDb ? { handle: null, wasStale: false } : await dbOpen(root, dbPath);
   if (!handle) {
     return { rows: fallback(cmd, args, cwdRoot), cached: false };
+  }
+  // Surface a one-line stale notice so consumers know the DB was rehydrated mid-session
+  // (the KIT-T035 incident: stale counts were silently served until a manual re-hydrate).
+  if (wasStale) {
+    process.stderr.write('q: cache was stale — rehydrated before answering.\n');
   }
   try {
     const Q = cannedQueries(cwdRoot);
     const fn = Q[cmd];
     if (!fn) throw new Error(`unknown query '${cmd}'.`);
     const rows = (cmd === 'fts' || cmd === 'similar') ? fn(handle, args.join(' ')) : fn(handle, ...args);
-    return { rows, cached: true };
+    return { rows, cached: true, wasStale };
   } finally {
     handle.close();
   }
@@ -629,12 +684,49 @@ async function main() {
   const FLAGS = new Set(['--json', '--no-db']);
   const rest = argv.filter((a, i) => !FLAGS.has(a) && a !== '--root' && argv[i - 1] !== '--root');
   const [cmd, ...args] = rest;
-  if (!cmd) { process.stderr.write('usage: q.mjs <open|children|backlinks|trail|governing|drift|by-commit|doc-trail|fts|similar|next-id|rundown|regressions|supersedes|integrity|sql> [args]\n'); process.exit(2); }
+  if (!cmd) { process.stderr.write('usage: q.mjs <open|children|backlinks|trail|governing|drift|by-commit|doc-trail|fts|similar|next-id|rundown|regressions|supersedes|integrity|sql|verify> [args]\n'); process.exit(2); }
 
   const dbPath = defaultDbPath();
 
+  if (cmd === 'verify') {
+    // `q verify [scope]` — staleness self-check (KIT-T076). Compares the DB manifest
+    // against current disk stats; reports per-scope fresh/stale with the delta evidence.
+    // Exit 0 = all scopes fresh. Exit 1 = at least one scope stale (or no DB/engine).
+    const result = await verifyCache(root, dbPath);
+    if (result.error === 'no-engine') {
+      process.stderr.write('q verify: no SQLite engine — cannot check manifest (cache is optional).\n');
+      process.exit(0);
+    }
+    if (result.error === 'no-db') {
+      process.stdout.write('q verify: no DB found — cache has never been hydrated.\n');
+      process.exit(1);
+    }
+    const filterScope = args[0];
+    const rows = result.scopes.filter((s) => !filterScope || s.scope === filterScope);
+    if (json) {
+      process.stdout.write(JSON.stringify(rows, null, 2) + '\n');
+    } else {
+      for (const s of rows) {
+        const { delta } = s;
+        const parts = [];
+        if (delta.added.length) parts.push(`+${delta.added.length} added`);
+        if (delta.changed.length) parts.push(`~${delta.changed.length} changed`);
+        if (delta.removed.length) parts.push(`-${delta.removed.length} removed`);
+        const evidence = parts.length ? `  [${parts.join(', ')}]` : '';
+        process.stdout.write(`${s.scope}  ${s.status}${evidence}\n`);
+        if (s.status === 'stale') {
+          for (const f of delta.added) process.stdout.write(`  + ${f}\n`);
+          for (const f of delta.changed) process.stdout.write(`  ~ ${f}\n`);
+          for (const f of delta.removed) process.stdout.write(`  - ${f}\n`);
+        }
+      }
+    }
+    process.exit(result.stale ? 1 : 0);
+    return;
+  }
+
   if (cmd === 'sql') {
-    const handle = noDb ? null : await db(root, dbPath);
+    const { handle } = noDb ? { handle: null } : await dbOpen(root, dbPath);
     if (!handle) { process.stderr.write('q: ad-hoc SQL needs a SQLite engine (none found).\n'); process.exit(1); }
     const sql = args.join(' ');
     if (!/^\s*(select|with|pragma|explain)\b/i.test(sql)) { process.stderr.write('q: only read-only SQL (SELECT/WITH/PRAGMA/EXPLAIN) — the cache is never written back.\n'); handle.close(); process.exit(1); }

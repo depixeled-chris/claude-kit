@@ -2,7 +2,7 @@
 id: KIT-T076
 title: Cache hardening — q verify (staleness self-check) + DB/fallback parity tests
 type: tech-debt
-status: todo
+status: done
 priority: medium
 milestone:
 labels: [cache, q, tests]
@@ -13,7 +13,7 @@ links: [KIT-T035, KIT-T026]
 supersedes:
 superseded_by:
 created: 2026-06-10T05:30:00Z
-updated: 2026-06-10T05:30:00Z
+updated: 2026-06-12T03:00:00Z
 ---
 
 ## Description
@@ -30,10 +30,10 @@ silently drift from the DB path because nothing asserts they agree. Two hardenin
    store. Every future verb gets a parity case or it doesn't merge.
 
 ## Acceptance Criteria
-- [ ] `q verify [scope]` reports per-scope freshness with the evidence (manifest delta), exit 0 fresh / 1 stale.
-- [ ] q (or its callers) surfaces a one-line stale notice instead of silently answering from a stale DB.
-- [ ] Parity test file: fixture store → each query verb run through BOTH paths → identical results asserted; wired into npm test.
-- [ ] Test-fixture isolation pattern (CLAUDE_PLUGIN_ROOT db redirect, KIT-T058) documented in the test header as the required idiom.
+- [x] `q verify [scope]` reports per-scope freshness with the evidence (manifest delta), exit 0 fresh / 1 stale.
+- [x] q (or its callers) surfaces a one-line stale notice instead of silently answering from a stale DB.
+- [x] Parity test file: fixture store → each query verb run through BOTH paths → identical results asserted; wired into npm test.
+- [x] Test-fixture isolation pattern (CLAUDE_PLUGIN_ROOT db redirect, KIT-T058) documented in the test header as the required idiom.
 
 ## Plan
 1. Manifest snapshot at hydrate time (store alongside the DB) + verify comparator.
@@ -44,3 +44,14 @@ silently drift from the DB path because nothing asserts they agree. Two hardenin
 - 2026-06-10: opened from the maintainer's cache-usefulness question. Unscheduled
   backlog by design (joins T071-T074, post-M4) — freshness and parity are where this
   system's future bugs live, but nothing corrupts while it waits.
+
+## Notes
+- 2026-06-12: implemented `verifyCache()` in q.mjs (stat-diff against source_files manifest),
+  `q verify` CLI subcommand (exit 0/1), stale notice via `wasStale` on `dbOpen()`, and
+  `scripts/db-parity.test.mjs` (21 tests: open/fts/trail/governing/rundown/regressions/
+  supersedes/by-commit/next-id/similar/children/backlinks + 3 verify staleness cases).
+  All 4 criteria ticked. npm test: 136+66+21+10 = 233 passed, 0 failed.
+
+## History
+- [2026-06-12 02:00] (status) todo → doing
+- [2026-06-12 03:00] (status) doing → done
