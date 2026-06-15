@@ -111,6 +111,57 @@ await regenerateIndexes(noParent);
 const idx8 = readIndex(noParent);
 ok('ticket without parent has no upward ↳ marker', !idx8.includes('↳'));
 
+// --- provenance fields: produced_by / informs / introduced_by (KIT-T095) ---
+
+// A source doc with informs: [...] gets a downward rollup under its row; the informed
+// items each get an upward ← produced_by marker on their row.
+const withProvenanceInforms = project({
+  'HOD-R067-research.md': `---\nid: HOD-R067\ntitle: research doc\ntype: request\nstatus: done\npriority: medium\ninforms: [HOD-T127, HOD-T128]\n---\n`,
+  'HOD-T127-child1.md': `---\nid: HOD-T127\ntitle: work item one\ntype: feature\nstatus: todo\npriority: medium\nproduced_by: HOD-R067\n---\n`,
+  'HOD-T128-child2.md': `---\nid: HOD-T128\ntitle: work item two\ntype: feature\nstatus: todo\npriority: medium\nproduced_by: HOD-R067\n---\n`,
+});
+await regenerateIndexes(withProvenanceInforms);
+const idx9 = readIndex(withProvenanceInforms);
+ok('source doc with informs: gets downward rollup listing HOD-T127', idx9.includes('HOD-T127') && idx9.includes('informs'));
+ok('source doc rollup also lists HOD-T128', idx9.includes('HOD-T128'));
+ok('produced item HOD-T127 shows upward marker ← produced_by HOD-R067', idx9.includes('← produced_by HOD-R067'));
+ok('produced item HOD-T128 also shows upward marker', idx9.split('← produced_by HOD-R067').length >= 3); // source row + 2 child rows
+
+// A source doc where produced_by is set — the source renders a ↳ produced: rollup.
+const withProducedBy = project({
+  'HOD-R070-doc.md': `---\nid: HOD-R070\ntitle: design doc\ntype: request\nstatus: done\npriority: medium\n---\n`,
+  'HOD-T130-impl.md': `---\nid: HOD-T130\ntitle: implementation\ntype: feature\nstatus: todo\npriority: medium\nproduced_by: HOD-R070\n---\n`,
+});
+await regenerateIndexes(withProducedBy);
+const idx10 = readIndex(withProducedBy);
+ok('source doc gets ↳ produced: rollup when children set produced_by', idx10.includes('produced'));
+ok('implementation item shows upward ← produced_by HOD-R070 marker', idx10.includes('← produced_by HOD-R070'));
+
+// introduced_by surfaces in the REGRESSIONS view alongside causing_commit.
+function readReg(root) { return readFileSync(join(root, '.ai', 'REGRESSIONS.md'), 'utf8'); }
+const withIntroducedBy = project({
+  'HOD-T050-original.md': `---\nid: HOD-T050\ntitle: original bug\ntype: bug\nstatus: done\npriority: medium\n---\n`,
+  'HOD-T051-regression.md': `---\nid: HOD-T051\ntitle: regression of original\ntype: regression\nstatus: todo\npriority: high\nregressed_from: HOD-T050\nintroduced_by: HOD-T040@abc1234\ncausing_commit: def5678\n---\n`,
+});
+await regenerateIndexes(withIntroducedBy);
+const reg1 = readReg(withIntroducedBy);
+ok('introduced_by surfaces in REGRESSIONS view', reg1.includes('introduced by HOD-T040@abc1234'));
+ok('causing_commit still appears alongside introduced_by', reg1.includes('caused by def5678'));
+
+// A dangling provenance ref (produced_by pointing at a missing id) must not crash.
+const danglingProvenance = project({
+  'HOD-T135-orphan.md': `---\nid: HOD-T135\ntitle: orphan with dangling provenance\ntype: feature\nstatus: todo\npriority: medium\nproduced_by: HOD-MISSING-999\ninforms: [HOD-MISSING-998]\n---\n`,
+});
+let danglingProvOk = false;
+try {
+  await regenerateIndexes(danglingProvenance);
+  const idx11 = readIndex(danglingProvenance);
+  danglingProvOk = idx11.includes('HOD-T135');
+} catch {
+  danglingProvOk = false;
+}
+ok('dangling provenance ref does not crash the board', danglingProvOk);
+
 for (const d of fixtures) { try { rmSync(d, { recursive: true, force: true }); } catch {} }
 console.log(`\nindex-tickets: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

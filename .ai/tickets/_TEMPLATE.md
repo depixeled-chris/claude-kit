@@ -8,6 +8,9 @@ milestone:             # blank = backlog; set to schedule onto ROADMAP.md
 labels: []
 aka: []                # prior ids/labels this item was known by (populated by rekey-ids)
 parent:                # id of the parent item (epic/request) this belongs to — upward link only; children generated
+introduced_by:         # bug provenance: ticket@commit or ticket-id that introduced this bug (KIT-T095)
+produced_by:           # doc provenance: id of the source doc/item that produced this work item (KIT-T095)
+informs: []            # doc provenance: ids of work items this item feeds — reverse of produced_by (KIT-T095)
 links: []              # related tickets, commits (regressions: causing commit), URLs
 files: []              # repo-root-relative paths this ticket touches
 tier:                  # OPTIONAL dispatch firepower: light | standard | deep — expands to (model, effort)
