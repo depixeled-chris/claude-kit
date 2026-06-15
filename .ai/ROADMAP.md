@@ -14,7 +14,6 @@
 - KIT-T003 — Implement the workflow domain model — LAB scope, request/epic types, hierarchy + relationship graph (high)
 - KIT-T017 — Operationalize the always-on loop (D017) — drain-never-idle + questionnaire-surfacing discipline (high)
 - KIT-T019 — Subagent bubble-up — agents surface communication to orchestrator AND maintainer (not only at completion) (high)
-- KIT-T021 — RIGID — always alert the maintainer when something lands (commit / push / deploy) (high)
 - KIT-T025 — General deduplication strategy across the whole workflow (capture → inbox → tickets → decisions → memory) (high)
 - KIT-T027 — Redesign the .ai store structure as first-class KIT-owned machinery (item model; reassess `notes`; triage/backlog as plugin code) (high)
 - KIT-T074 — maintenance-gaps gets a drain path — nags without resolution train you to ignore them (medium)

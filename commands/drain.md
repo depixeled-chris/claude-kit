@@ -58,5 +58,12 @@ fan out. A delegated agent must VERIFY its change by exercising it as the user w
 test suite, start the app, or hit the probe — and report empirical evidence. A compile-check alone
 is not verification.
 
+**DEPLOY-CONFIRM RULE (KIT-T021):** after a push that triggers a deploy (e.g. Pages-Actions,
+Cloudflare, Railway), you MUST confirm the change is LIVE — not just pushed. "Pushed (building)"
+and "deployed (live)" are distinct states; the landing-alert hook flags which state you're in.
+Do not close the loop at "pushed" — wait for the deploy to complete, verify the live URL or
+pipeline status, then report LIVE. If a deploy is not applicable (local-only push, no CI), say
+so explicitly so the maintainer knows the distinction was considered.
+
 Honor the standing rules throughout: log work to its ticket in the same change (the commit gate
 enforces), record decisions the turn they happen, and don't start deferred/gated work.

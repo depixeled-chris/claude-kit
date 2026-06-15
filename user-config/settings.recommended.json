@@ -81,7 +81,8 @@
           { "type": "command", "command": "node \"$HOME/.claude/hooks/sync-data.mjs\"" },
           { "type": "command", "command": "node \"$HOME/.claude/hooks/request-gate.mjs\"" },
           { "type": "command", "command": "node \"$HOME/.claude/hooks/code-graph.mjs\"" },
-          { "type": "command", "command": "node \"$HOME/.claude/hooks/hydrate-cache.mjs\"" }
+          { "type": "command", "command": "node \"$HOME/.claude/hooks/hydrate-cache.mjs\"" },
+          { "type": "command", "command": "node \"$HOME/.claude/hooks/land-alert.mjs\"" }
         ]
       }
     ]
