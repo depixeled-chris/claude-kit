@@ -20,7 +20,6 @@
 - KIT-T074 — maintenance-gaps gets a drain path — nags without resolution train you to ignore them (medium)
 - KIT-T089 — Install + configure eslint in claude-kit and clear its ~40 hits (split from KIT-T074) (medium)
 - KIT-T090 — Reminders store — user-defined recurring nags surfaced by housekeeping (medium)
-- KIT-T093 — Re-key hustle-or-die HOD-T###->HOD-R### into requests/ with aka: backfill (KIT-T003 child, cross-repo) (medium)
 - KIT-T072 — Quiet the per-turn hook chatter — dedupe advisories, conditional receipts (low)
 - KIT-T073 — Progressive disclosure for the global contract — specialist sections become on-demand skills (low)
 - KIT-T078 — Command-level model tiering — static `model:` on fixed-cost read-only commands (low)

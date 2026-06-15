@@ -5,5 +5,6 @@ Chains of `older → newer`, the rightmost id being the live replacement. A tick
 superseded when a newer one sets `supersedes:` (or it carries `superseded_by:` / status
 `superseded`); superseded tickets are dropped from the active board + drain.
 
+- **GG-T015**  →  **GG-T014**  · 1 superseded
 - **KIT-T037**  →  **KIT-T014**  · 1 superseded
 - **KIT-T060**  →  **KIT-T075**  · 1 superseded

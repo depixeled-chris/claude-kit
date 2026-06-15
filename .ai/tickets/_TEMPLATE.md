@@ -7,6 +7,7 @@ priority: medium       # critical | high | medium | low
 milestone:             # blank = backlog; set to schedule onto ROADMAP.md
 labels: []
 aka: []                # prior ids/labels this item was known by (populated by rekey-ids)
+parent:                # id of the parent item (epic/request) this belongs to — upward link only; children generated
 links: []              # related tickets, commits (regressions: causing commit), URLs
 files: []              # repo-root-relative paths this ticket touches
 tier:                  # OPTIONAL dispatch firepower: light | standard | deep — expands to (model, effort)

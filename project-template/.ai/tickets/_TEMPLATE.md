@@ -8,6 +8,7 @@ priority: medium       # critical | high | medium | low
 milestone:             # blank = backlog; set to schedule onto ROADMAP.md
 labels: []
 aka: []                # prior ids/labels this item was known by (populated by rekey-ids)
+parent:                # id of the parent item (epic/request) this belongs to — upward link only; children generated
 files: []              # repo-root-relative paths this ticket touches
 tier:                  # OPTIONAL dispatch firepower: light | standard | deep — expands to (model, effort)
                        # via config.dispatch.tiers (KIT-T034). Blank = config.dispatch.default_tier[type].
