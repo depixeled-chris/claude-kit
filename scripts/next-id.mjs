@@ -17,7 +17,7 @@
 // or DB is present — same answer either way (the cache is derived from the same scan).
 // Pair with check-ids.mjs for the integrity half.
 
-import { nextId, readIdConfig, STORE_TYPE } from './id-utils.mjs';
+import { nextId, nextReminderId, readIdConfig, STORE_TYPE } from './id-utils.mjs';
 import { query } from './q.mjs';
 
 const DEDUP_HINT_MAX = 5; // cap surfaced duplicate candidates — a hint, not a dump
@@ -28,10 +28,24 @@ const proposal = dashdash >= 0 ? argv.slice(dashdash + 1).join(' ').trim() : '';
 const positional = (dashdash >= 0 ? argv.slice(0, dashdash) : argv).filter(Boolean);
 const [store, rootArg] = positional;
 if (!store) {
-  console.error('usage: next-id.mjs <tickets|decisions|notes|questions> [repoRoot] [-- proposed title…]');
+  console.error('usage: next-id.mjs <tickets|decisions|notes|questions|reminders> [repoRoot] [-- proposed title…]');
   process.exit(2);
 }
 const root = rootArg || process.cwd();
+
+// Reminders are the one UNKEYED store (KIT-T090): a fixed `REM-###` id, NOT `<KEY>-<TYPE><NUM>`.
+// They bypass STORE_TYPE, the id-key requirement, the O(1) cache (the store is single-digit
+// files), and the dedup hint — a direct scan of `.ai/reminders/` mints the next id. Handled
+// before the keyed-path validation so `reminders` is never rejected as an "unknown store".
+if (store === 'reminders') {
+  try {
+    process.stdout.write(nextReminderId(root) + '\n');
+  } catch (e) {
+    console.error('next-id: ' + e.message);
+    process.exit(1);
+  }
+  process.exit(0);
+}
 
 try {
   // Validate the store + read this project's id key up front (cheap config read, no file

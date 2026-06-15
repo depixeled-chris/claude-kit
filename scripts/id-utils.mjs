@@ -34,7 +34,11 @@ const SKIP = new Set(['_TEMPLATE.md', 'README.md', 'INDEX.md', 'REGRESSIONS.md',
 const KNOWN_STORE_ORDER = ['tickets', 'decisions', 'notes', 'questions', 'inbox', 'requests', 'epics'];
 // `resolved` is an immutable audit log (cap --done), NOT a triage queue — its records must
 // never be counted as open work. `archive` holds done tickets (same reason). (KIT-D036)
-const NON_STORE_DIRS = new Set(['archive', 'resolved']);
+// `reminders` is a user-defined NAG store on a FIXED, UNKEYED `REM-###` id (KIT-T090) — it is
+// NOT a `<KEY>-<TYPE><NUM>` work store, so the keyed-id machinery (scanStores → nextId / the
+// id-collision scan / the board / the cache) must never treat REM files as keyed items. The
+// reminders CLI (rem.mjs) scans `.ai/reminders/` directly; nothing keyed needs to see it.
+const NON_STORE_DIRS = new Set(['archive', 'resolved', 'reminders']);
 
 function storeDirs(ai) {
   const present = [];
@@ -264,4 +268,26 @@ export function nextId(root, store) {
     if (m) max = Math.max(max, parseInt(m[1], 10));
   }
   return `${key}-${letter}${String(max + 1).padStart(pad, '0')}`;
+}
+
+// Reminders are the one store on a FIXED, UNKEYED id (KIT-T090): `REM-###`, NOT
+// `<KEY>-<TYPE><NUM>`. They are user-defined recurring nags, not keyed work, so the id reads
+// identically in every project and never collides with a project's R-prefixed requests
+// (`REM-001` ≠ `HOD-R001`). This is why reminders are excluded from STORE_TYPE / scanStores and
+// get their own minter: scan `.ai/reminders/REM-*.md` for the max trailing number and return
+// the next, padded to 3. Gaps from deletions are not reused (a returned id is always fresh).
+const REM_PAD = 3;
+export function nextReminderId(root) {
+  let max = 0;
+  try {
+    const dir = join(root, '.ai', 'reminders');
+    for (const f of readdirSync(dir)) {
+      if (extname(f) !== '.md' || SKIP.has(f)) continue;
+      const m = f.match(/^REM-(\d+)/);
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+  } catch {
+    /* no reminders dir yet — REM-001 is the first */
+  }
+  return `REM-${String(max + 1).padStart(REM_PAD, '0')}`;
 }

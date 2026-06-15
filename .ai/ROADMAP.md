@@ -18,7 +18,6 @@
 - KIT-T027 — Redesign the .ai store structure as first-class KIT-owned machinery (item model; reassess `notes`; triage/backlog as plugin code) (high)
 - KIT-T074 — maintenance-gaps gets a drain path — nags without resolution train you to ignore them (medium)
 - KIT-T089 — Install + configure eslint in claude-kit and clear its ~40 hits (split from KIT-T074) (medium)
-- KIT-T090 — Reminders store — user-defined recurring nags surfaced by housekeeping (medium)
 - KIT-T072 — Quiet the per-turn hook chatter — dedupe advisories, conditional receipts (low)
 - KIT-T073 — Progressive disclosure for the global contract — specialist sections become on-demand skills (low)
 - KIT-T078 — Command-level model tiering — static `model:` on fixed-cost read-only commands (low)

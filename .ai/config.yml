@@ -30,6 +30,7 @@ classifications:
   decision:     { routes_to: decisions,     blocking: never }
   request:      { routes_to: requests,      priority: medium,  blocking: never }
   epic:         { routes_to: epics,         priority: medium,  blocking: never }
+  reminder:     { routes_to: reminders,     blocking: never }
   scope-change: { routes_to: active-ticket, blocking: always }
 
 # ---------------------------------------------------------------------------

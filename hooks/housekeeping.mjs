@@ -10,7 +10,7 @@
 import { statSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { payload, MAINT_LOG, git, gitRoot, adopted, wipSummary, scanInbox, scanReviewQueue, scanStaleDoingTickets, readTurnState, writeTurnState } from './lib.mjs';
+import { payload, MAINT_LOG, git, gitRoot, adopted, wipSummary, scanInbox, scanReviewQueue, scanStaleDoingTickets, scanReminders, readTurnState, writeTurnState } from './lib.mjs';
 
 const REVIEW_DAYS = 7;
 const MISSING_AGE = 999;
@@ -27,6 +27,10 @@ const REVIEW_LIST_MAX = 6; // list review tickets individually below this; else 
 // without flipping status back to `todo`. Nag at both SessionStart and Stop.
 const DOING_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
 const DOING_LIST_MAX = 4; // list individual ids up to this count
+// KIT-T090 — user-defined recurring reminders. Each DUE reminder is one line carrying its own
+// `rem done` command (KIT-T074: a nag without a drain path trains you to ignore it). Cap the
+// list so a backlog of reminders can't swamp the orientation block.
+const REMINDER_LIST_MAX = 5;
 
 const claudeDir = join(homedir(), '.claude');
 const encodedHome = homedir().replace(/[:\\/ ]/g, '-');
@@ -57,6 +61,13 @@ function staleDoingLine(sd) {
     return `${sd.count} zombie \`doing\` (${sd.ids.join(', ')}), oldest ~${oldestH}h`;
   }
   return `${sd.count} zombie \`doing\` tickets, oldest ~${oldestH}h`;
+}
+
+// One reminder → its nag line, carrying the resolution command inline (KIT-T074). `<kit>` is the
+// same literal placeholder the other housekeeping commands use for the kit's scripts dir.
+function reminderLine(r) {
+  const when = r.overdueDays > 0 ? `${r.overdueDays}d overdue` : 'due today';
+  return `REMINDER DUE: ${r.title} (${r.id}, ${when}) — done: node <kit>/scripts/rem.mjs done ${r.id}`;
 }
 
 const memAge = daysSince(memTs);
@@ -166,6 +177,13 @@ try {
         `ZOMBIE DOING: ${staleDoingLine(sd)} — an agent likely bailed without flipping status. ` +
           `Reconcile: flip to \`todo\` (bailed) or \`review\` (done): node <kit>/scripts/t.mjs status <id> todo`,
       );
+    }
+    // KIT-T090: user-defined recurring reminders that are DUE today. One line each carrying its
+    // own `rem done` command; capped so a reminder backlog can't swamp the block.
+    const rem = scanReminders(root);
+    for (const r of rem.due.slice(0, REMINDER_LIST_MAX)) reminders.push(reminderLine(r));
+    if (rem.due.length > REMINDER_LIST_MAX) {
+      reminders.push(`(+${rem.due.length - REMINDER_LIST_MAX} more reminder(s) due — rem list)`);
     }
   }
 } catch {

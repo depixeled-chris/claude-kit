@@ -35,6 +35,10 @@ round it off and a fresh session resumes cold.
    scope → execute, ticking boxes.
 5. **Drain** keeps going between tickets without being asked.
 6. **Flush** before any compact/clear writes state to `.ai/SESSION.md`.
+7. **Recurring obligations** ("cut a weekly release so CI caches stay warm")
+   live in `.ai/reminders/` — `rem add "..." --every 7`. SessionStart surfaces
+   each one when due, with its `rem done` command inline; state is git-synced
+   (`last_done` in frontmatter, not mtime). See `.ai/reminders/README.md`.
 
 The taxonomy (types, priorities, statuses, routing, drain rules) is **all
 config** — `.ai/config.yml`. Add a classification or change a workflow with a
@@ -49,14 +53,14 @@ claude-kit/                     # public plugin + marketplace (MIT)
 ├── agents/                     # researcher, code-reviewer, refactorer, test-author
 ├── skills/                     # claude-kit, release-checklist, doc-audit
 ├── hooks/                      # Node enforcement hooks + hooks.json (plugin wiring) + lib.mjs
-├── scripts/                    # 27 .mjs scripts: cap, check-ids, code-graph, db-cache, db-engine,
+├── scripts/                    # .mjs scripts: cap, check-ids, code-graph, db-cache, db-engine,
 │                               #   db-parse, dev-link, hydrate-db, id-utils, index-tickets,
-│                               #   init-project, next-id, q, reconcile-supersede, rekey-ids,
+│                               #   init-project, next-id, q, reconcile-supersede, rekey-ids, rem,
 │                               #   survey, sync-tasks, t, test-hooks, treesitter, triage, …
 ├── user-config/                # statusline, settings.recommended.json, CLAUDE.global.md (base)
 ├── project-template/           # scaffolded into a repo by init-project
 │   ├── .ai/                    # config.yml + atomic stores: tickets/ decisions/ questions/
-│   │                           #   notes/ inbox/ (+ archive/) + SESSION.md; ROADMAP.md generated
+│   │                           #   notes/ inbox/ reminders/ (+ archive/) + SESSION.md; ROADMAP.md generated
 │   └── CLAUDE.snippet.md       # the behavioral contract
 ├── docs/STRATEGY.md            # the full model and the why
 └── bootstrap.mjs               # cross-platform installer (Win/mac/Linux): CLAUDE.md +

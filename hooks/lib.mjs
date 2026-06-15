@@ -723,6 +723,67 @@ export function scanStaleDoingTickets(root, thresholdMs) {
   return out;
 }
 
+// User-defined recurring reminders (KIT-T090). Scans `.ai/reminders/*.md` and returns the ones
+// DUE today so housekeeping can nag with the resolution command inline (KIT-T074: every nag
+// carries its own drain). State is in FRONTMATTER, never mtime — reminders travel in git across
+// machines (macOS + Windows), and checkout/clone destroys mtimes, so `last_done` is the only
+// cross-machine-correct cadence anchor. Parsing is the same tolerant line-regex idiom as the
+// rest of the tooling (NO yaml dep).
+//
+// A reminder is DUE when: `enabled !== false` AND `today >= last_done + every_days` AND
+// (`snooze_until` empty OR `today >= snooze_until`). All comparisons are DATE-ONLY in UTC
+// (calendar days since the epoch), so "weekly" means 7 calendar days — no timestamp/timezone
+// hair-splitting. Returns { due: [{id, title, overdueDays, file}], total }, sorted most-overdue
+// first. FAIL-OPEN per file AND overall: a malformed/odd reminder is SKIPPED silently and a
+// broken dir returns the clean empty result — a bad reminder can NEVER throw out of SessionStart.
+const REM_DEFAULT_EVERY = 7; // a reminder missing/!integer every_days falls back to weekly rather than nagging daily
+
+// A date-only ISO string (YYYY-MM-DD, leading field of any ISO timestamp) → whole UTC days since
+// the epoch, or null when absent/unparseable. Date.parse of a bare YYYY-MM-DD is UTC midnight, so
+// the floor is a stable calendar-day number that ignores clock time and timezone.
+function utcDay(dateStr) {
+  if (!dateStr) return null;
+  const ms = Date.parse(String(dateStr).trim().slice(0, 10));
+  return Number.isFinite(ms) ? Math.floor(ms / MS_PER_DAY) : null;
+}
+
+export function scanReminders(root) {
+  const out = { due: [], total: 0 };
+  let entries = [];
+  try {
+    entries = readdirSync(join(root, '.ai', 'reminders'));
+  } catch {
+    return out; // no reminders dir — nothing to nag about
+  }
+  const todayDay = Math.floor(Date.now() / MS_PER_DAY);
+  for (const f of entries) {
+    if (!f.endsWith('.md') || f.startsWith('_') || f === 'README.md') continue;
+    try {
+      const text = readFileSync(join(root, '.ai', 'reminders', f), 'utf8');
+      const fm = (text.match(/^---\n([\s\S]*?)\n---/) || [, ''])[1];
+      if (!fm) continue; // frontmatter-less file (the malformed case) → skip, never throw
+      const pick = (k) => { const m = fm.match(new RegExp(`^${k}:[ \\t]*(.*)$`, 'm')); return m ? m[1].trim().replace(/^["']|["']$/g, '') : ''; };
+      const id = pick('id') || (f.match(/^REM-\d+/) || [, ''])[0];
+      if (!id) continue;
+      out.total++;
+      if (/^(false|no|0)$/i.test(pick('enabled'))) continue; // muted
+      const lastDay = utcDay(pick('last_done'));
+      if (lastDay === null) continue; // no cadence anchor → not actionable, skip silently
+      const everyRaw = parseInt(pick('every_days'), 10);
+      const every = Number.isInteger(everyRaw) && everyRaw > 0 ? everyRaw : REM_DEFAULT_EVERY;
+      const dueDay = lastDay + every;
+      if (todayDay < dueDay) continue; // not yet due
+      const snoozeDay = utcDay(pick('snooze_until'));
+      if (snoozeDay !== null && todayDay < snoozeDay) continue; // snoozed into the future
+      out.due.push({ id, title: pick('title') || id, overdueDays: todayDay - dueDay, file: f });
+    } catch {
+      /* unreadable/odd file — skip it, a broken reminder must never wedge SessionStart */
+    }
+  }
+  out.due.sort((a, b) => b.overdueDays - a.overdueDays);
+  return out;
+}
+
 // Per-repo turn snapshot for the Stop "review queue GREW this turn" nag. SessionStart writes
 // the current review count; Stop compares + rewrites it. Machine-local + disposable (the temp
 // dir), keyed by a sanitized repo path so parallel projects don't collide. FAIL-OPEN: a read
