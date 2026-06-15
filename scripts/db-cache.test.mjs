@@ -95,7 +95,7 @@ async function reconcileTests() {
 
   const field = (text, key) => (text.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm')) || [, ''])[1].trim();
 
-  const first = reconcileSupersede(rroot);
+  const first = await reconcileSupersede(rroot);
   test('reconcile reports the changes it made', () =>
     assert.ok(first.changed.length >= 2, `expected >=2 changes, got ${first.changed.length}`));
 
@@ -110,7 +110,7 @@ async function reconcileTests() {
   // Idempotency: a second run changes nothing and rewrites no bytes.
   const oldBytes = readFileSync(oldPath, 'utf8');
   const newBytes = readFileSync(newPath, 'utf8');
-  const second = reconcileSupersede(rroot);
+  const second = await reconcileSupersede(rroot);
   test('second reconcile run is a no-op (idempotent)', () =>
     assert.equal(second.changed.length, 0, `expected 0 changes, got ${second.changed.join('; ')}`));
   test('idempotent reconcile rewrites no file content', () => {
@@ -166,7 +166,7 @@ async function autoDedupTests() {
     assert.equal(field(readFileSync(lowPath, 'utf8'), 'supersedes'), 'DUP-T005'));
 
   // Reconcile then flips the loser + writes the reciprocal pointer (KIT-T024 mechanism).
-  reconcileSupersede(droot);
+  await reconcileSupersede(droot);
   const highAfter = readFileSync(highPath, 'utf8');
   test('auto-dedup loser is flipped to status: superseded (via reconcile)', () =>
     assert.equal(field(highAfter, 'status'), 'superseded'));
@@ -195,7 +195,7 @@ async function autoDedupTests() {
   const lowBytes = readFileSync(lowPath, 'utf8');
   const highBytes = readFileSync(highPath, 'utf8');
   const second = await autoDedupTickets(droot);
-  reconcileSupersede(droot);
+  await reconcileSupersede(droot);
   test('second auto-dedup run is a no-op (idempotent)', () =>
     assert.equal(second.changed.length, 0, `expected 0 changes, got: ${second.changed.join('; ')}`));
   test('idempotent auto-dedup + reconcile rewrites no file content', () => {

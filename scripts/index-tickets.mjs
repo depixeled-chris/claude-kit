@@ -114,7 +114,7 @@ export async function regenerateIndexes(root) {
   // superseded`. Idempotent + safe (only flips TO superseded). This is the deterministic,
   // automatic home — it already runs to rebuild the board, writes markdown, and is OUT of the
   // PreToolUse/commit hot path.
-  const recon = reconcileSupersede(root);
+  const recon = await reconcileSupersede(root);
   for (const c of recon.changed) process.stdout.write(`reconcile-supersede: ${c}\n`);
 
   const ticketsDir = join(root, '.ai', 'tickets');

@@ -33,7 +33,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve, basename } from 'node:path';
-import { readRegistry, projectAiDirs } from '../hooks/lib.mjs';
+import { readRegistry, projectAiDirs, writeItemFile } from '../hooks/lib.mjs';
 
 const DATE_END = 10; // slice [0,DATE_END) of an ISO string = YYYY-MM-DD
 const TIME_START = 11; // HH:MM:SS begins here
@@ -246,6 +246,7 @@ const name = `${date}-${time}-${slug}.md`;
 if (isDone) {
   // Resolved event: write OUTSIDE the inbox triage queue so inbox stays = open work only.
   // One-file-per-event, same slug/date scheme as a normal cap, plus a `resolved:` timestamp.
+  // resolved/ is in NON_STORE_DIRS so writeItemFile no-ops the hydrate — fine for audit trail.
   const resolvedDir = join(aiDir, RESOLVED_DIR);
   mkdirSync(resolvedDir, { recursive: true });
   const content = [
@@ -255,12 +256,12 @@ if (isDone) {
     `resolved: ${iso}`,
     '\n',
   ].join('');
-  writeFileSync(join(resolvedDir, name), content);
+  await writeItemFile(join(resolvedDir, name), content);
   console.log(`resolved${type ? ` (${type})` : ''} -> ${projectName}/${RESOLVED_DIR}/${name}`);
 } else {
   const inboxDir = join(aiDir, 'inbox');
   mkdirSync(inboxDir, { recursive: true });
-  writeFileSync(join(inboxDir, name), `${type ? `(${type}) ` : ''}${text}\n`);
+  await writeItemFile(join(inboxDir, name), `${type ? `(${type}) ` : ''}${text}\n`);
   console.log(`captured${type ? ` (${type})` : ''} -> ${projectName}/inbox/${name}`);
 }
 

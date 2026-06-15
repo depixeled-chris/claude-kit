@@ -21,7 +21,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve, basename } from 'node:path';
-import { readRegistry, projectAiDirs } from '../hooks/lib.mjs';
+import { readRegistry, projectAiDirs, writeItemFile } from '../hooks/lib.mjs';
 import { nextReminderId } from './id-utils.mjs';
 
 const DEFAULT_EVERY = 7; // weekly — the driving use case (GH Actions cache warmth) and a sane default
@@ -166,13 +166,15 @@ function findReminder(aiDir, id) {
 }
 
 // Rewrite a reminder: optional frontmatter field changes + an optional History line. Always bumps
-// `updated`. One write, so a verb is atomic from the reader's view.
-function rewriteReminder(rem, { fields = {}, history = null } = {}) {
+// `updated`. One write, so a verb is atomic from the reader's view. Routes through writeItemFile
+// so mutations hydrate the cache at the write site (KIT-T096). Reminders are in NON_STORE_DIRS
+// so the hydrate is a no-op by design — future-proof when id-scheme work keys them (follow-up).
+async function rewriteReminder(rem, { fields = {}, history = null } = {}) {
   let { fm, body } = rem.doc;
   for (const [k, v] of Object.entries(fields)) fm = setField(fm, k, v);
   fm = setField(fm, 'updated', nowIso());
   if (history) body = appendUnderSection(body, 'History', `- [${stamp()}] ${history}`);
-  writeFileSync(rem.path, `---\n${fm}\n---\n${body}`);
+  await writeItemFile(rem.path, `---\n${fm}\n---\n${body}`);
 }
 
 // --- arg helpers -------------------------------------------------------------------------------
@@ -205,7 +207,7 @@ function fail(msg) {
 
 // --- verbs -------------------------------------------------------------------------------------
 
-function cmdAdd(args, target) {
+async function cmdAdd(args, target) {
   const ev = takeValueFlag(args, ['--every', '-e']);
   const rb = takeValueFlag(ev.rest, ['--runbook', '-r']);
   const title = rb.rest.join(' ').trim();
@@ -242,7 +244,7 @@ ${rb.value ? rb.value + '\n' : '<what doing this reminder means — commands, li
 ## History
 - [${stamp()}] (created)
 `;
-  writeFileSync(path, doc);
+  await writeItemFile(path, doc);
   console.log(`reminder ${id} -> ${target.projectName}/reminders/${basename(path)} (every ${every}d; first nag in ${every}d)`);
 }
 
@@ -293,16 +295,16 @@ function cmdList(args, target) {
   }
 }
 
-function cmdDone(args, target) {
+async function cmdDone(args, target) {
   const id = args[0];
   if (!id) fail('done: a reminder id is required (rem done REM-001).');
   const rem = findReminder(target.aiDir, id);
   // done advances the cadence anchor; snooze_until is cleared (a fresh cycle starts).
-  rewriteReminder(rem, { fields: { last_done: today(), snooze_until: '' }, history: '(done)' });
+  await rewriteReminder(rem, { fields: { last_done: today(), snooze_until: '' }, history: '(done)' });
   console.log(`${rem.id} done — last_done = ${today()}.`);
 }
 
-function cmdSnooze(args, target) {
+async function cmdSnooze(args, target) {
   const id = args[0];
   const days = parseInt(args[1], 10);
   if (!id) fail('snooze: a reminder id is required (rem snooze REM-001 3).');
@@ -311,15 +313,15 @@ function cmdSnooze(args, target) {
   const until = new Date(Date.now() + days * 86400000).toISOString().slice(0, DATE_END);
   // Snooze defers WITHOUT moving last_done (KIT-T090 §5): done and deferred are different events,
   // and History records which one happened.
-  rewriteReminder(rem, { fields: { snooze_until: until }, history: `(snoozed ${days}d)` });
+  await rewriteReminder(rem, { fields: { snooze_until: until }, history: `(snoozed ${days}d)` });
   console.log(`${rem.id} snoozed ${days}d — snooze_until = ${until} (last_done unchanged).`);
 }
 
-function cmdToggle(args, target, enable) {
+async function cmdToggle(args, target, enable) {
   const id = args[0];
   if (!id) fail(`${enable ? 'enable' : 'disable'}: a reminder id is required.`);
   const rem = findReminder(target.aiDir, id);
-  rewriteReminder(rem, { fields: { enabled: enable ? 'true' : 'false' }, history: enable ? '(enabled)' : '(disabled)' });
+  await rewriteReminder(rem, { fields: { enabled: enable ? 'true' : 'false' }, history: enable ? '(enabled)' : '(disabled)' });
   console.log(`${rem.id} ${enable ? 'enabled' : 'disabled'}.`);
 }
 
@@ -335,11 +337,11 @@ const args = rest.slice(1);
 const target = resolveTarget(flagProject);
 
 switch (verb) {
-  case 'add': cmdAdd(args, target); break;
+  case 'add': await cmdAdd(args, target); break;
   case 'list': case 'ls': cmdList(args, target); break;
-  case 'done': cmdDone(args, target); break;
-  case 'snooze': cmdSnooze(args, target); break;
-  case 'disable': cmdToggle(args, target, false); break;
-  case 'enable': cmdToggle(args, target, true); break;
+  case 'done': await cmdDone(args, target); break;
+  case 'snooze': await cmdSnooze(args, target); break;
+  case 'disable': await cmdToggle(args, target, false); break;
+  case 'enable': await cmdToggle(args, target, true); break;
   default: fail(`unknown verb '${verb ?? ''}'. ${USAGE}`);
 }

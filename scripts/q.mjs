@@ -89,6 +89,8 @@ function newestAcross(sources) {
 async function dbOpen(root, dbPath) {
   const open = await resolveEngine();
   if (!open) return { handle: null, wasStale: false };
+  // Backstop/audit for out-of-band drift (git pull / another machine / parallel session).
+  // In-process writes hydrate at the mutation site via writeItemFile — KIT-T096.
   const wasStale = !existsSync(dbPath) || statSync(dbPath).mtimeMs < newestAcross(hydrationSources(root));
   if (wasStale) await hydrate({ root, dbPath });
   return { handle: open(dbPath), wasStale };

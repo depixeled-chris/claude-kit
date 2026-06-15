@@ -17,11 +17,12 @@
 // Safety: only ever flips a ticket TO `superseded`; never un-flips, never edits a ticket
 // that has no supersede pointer on either side, never touches the live replacement's status.
 
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { query } from './q.mjs';
 import { compareIds } from './id-utils.mjs';
+import { writeItemFile } from '../hooks/lib.mjs';
 
 const SKIP = new Set(['_TEMPLATE.md', 'INDEX.md']);
 
@@ -135,7 +136,7 @@ export async function autoDedupTickets(root) {
 
     survivor.parts = { ...survivor.parts, fm: setField(survivor.parts.fm, 'supersedes', loser.id) };
     const out = survivor.parts.open + survivor.parts.fm + survivor.parts.close + survivor.parts.rest;
-    writeFileSync(survivor.path, out);
+    await writeItemFile(survivor.path, out);
     changed.push(`${survivor.id} supersedes ${loser.id} (auto-dedup: identical title "${normTitleKey(survivor.title)}", detector-confirmed)`);
   }
 
@@ -144,7 +145,7 @@ export async function autoDedupTickets(root) {
 
 // Reconcile every ticket under <root>/.ai/tickets (active set only — archived tickets are
 // frozen and excluded). Returns { changed: [...descriptions], scanned } so callers can log.
-export function reconcileSupersede(root) {
+export async function reconcileSupersede(root) {
   const dir = join(root, '.ai', 'tickets');
   const files = ticketFiles(dir);
 
@@ -201,7 +202,7 @@ export function reconcileSupersede(root) {
   for (const [id, fm] of edits) {
     const t = byId.get(id);
     const out = t.parts.open + fm + t.parts.close + t.parts.rest;
-    if (out !== t.text) writeFileSync(t.path, out);
+    if (out !== t.text) await writeItemFile(t.path, out);
   }
 
   return { changed, scanned: byId.size };
@@ -213,7 +214,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   // flips the loser's status + writes the reciprocal pointer through the one KIT-T024 path.
   const dedup = await autoDedupTickets(root);
   for (const c of dedup.changed) process.stdout.write(`auto-dedup: ${c}\n`);
-  const { changed, scanned } = reconcileSupersede(root);
+  const { changed, scanned } = await reconcileSupersede(root);
   if (changed.length) {
     process.stdout.write(`reconcile-supersede: scanned ${scanned} ticket(s), ${changed.length} change(s):\n`);
     for (const c of changed) process.stdout.write(`  ${c}\n`);
