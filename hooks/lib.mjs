@@ -312,10 +312,11 @@ export function fileExt(p) {
   return b.includes('.') ? b.split('.').pop().toLowerCase() : '';
 }
 
-// The id-citation atom (<KEY>-<T|D|N|Q><num>). commit-gate and request-gate previously
+// The id-citation atom (<KEY>-<T|D|N|Q|R|E><num>). commit-gate and request-gate previously
 // disagreed ([TDNQ]\d+ vs [A-Z]\d{1,4}) so a cite could satisfy one gate and not the
-// other; both now build their regexes from this source (KIT-T059).
-export const ID_CITE_SRC = String.raw`[A-Z]{2,}-[TDNQ]\d{1,4}`;
+// other; both now build their regexes from this source (KIT-T059). R(equest)/E(pic) added
+// with the domain model (KIT-T092) so commits/lints/land-alert recognize HOD-R###/E### ids.
+export const ID_CITE_SRC = String.raw`[A-Z]{2,}-[TDNQRE]\d{1,4}`;
 
 // The central data repo holding this project's .ai (the junction/symlink target), or
 // null when .ai lives in-repo (local mode) / doesn't exist. Was duplicated in orient
