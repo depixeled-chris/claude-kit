@@ -63,3 +63,11 @@ hierarchy, the bug↔prior-effort provenance links, document artifact provenance
   Remaining criteria still tracked here for future children: LAB scope (2), hierarchy `parent:`/rollups
   (5), bug provenance (6), document provenance + backport-strip (7), commit-gate/config/tests (8).
   T003 stays the umbrella; close it when all children land.
+- 2026-06-15: SAFE CHILDREN ALL DONE. [[KIT-T091]] aka: (done), [[KIT-T092]] R/E types+stores (done),
+  [[KIT-T093]] HOD R-series materialized as 11 HOD-R### Requests (done), [[KIT-T094]] hierarchy
+  parent:+rollups (done), [[KIT-T095]] provenance fields introduced_by/produced_by/informs+reverse
+  views (done). Criteria 1,3,4,5,6 fully satisfied; 7 satisfied minus the gift backport-strip.
+  ONLY-REMAINING is lib.mjs-GATED on [[KIT-T021]] (paused session holds lib.mjs): crit 2 LAB scope
+  (survey is in lib.mjs), crit 8 R/E cite-pattern (`ID_CITE_SRC` lib.mjs:318 = `[A-Z]{2,}-[TDNQ]\d{1,4}`,
+  doesn't recognize R/E — latent commit-gate gap from T092), and crit 7's backport-strip. Resume
+  these the moment KIT-T021 lands; then T003 closes.
