@@ -2,7 +2,7 @@
 id: KIT-T093
 title: Re-key hustle-or-die HOD-T###->HOD-R### into requests/ with aka: backfill (KIT-T003 child, cross-repo)
 type: feature
-status: todo
+status: done
 priority: medium
 milestone:
 labels: []
@@ -11,7 +11,7 @@ files: []
 supersedes:
 superseded_by:
 created: 2026-06-12T19:52:29Z
-updated: 2026-06-12T19:52:29Z
+updated: 2026-06-15T14:43:31Z
 ---
 
 ## Description
@@ -26,14 +26,14 @@ implementation tickets would corrupt the product backlog. Gated on [[KIT-T091]] 
 [[KIT-T092]] (R type + requests/ store) — both DONE.
 
 ## Acceptance Criteria
-- [ ] Materialize the un-ticketed research-tree R-series as first-class `HOD-R###` Request items
+- [x] Materialize the un-ticketed research-tree R-series as first-class `HOD-R###` Request items
       in HOD's new `.ai/requests/` store (ADDITIVE — do NOT rename implementation tickets):
       R042, R050, R052, R055, R056, R057, R058, R059, R066 + already-prefixed HOD-R062, HOD-R067.
-- [ ] Each Request: title/status from its `docs/research/<doc>.md`, `aka: [R###]`, `produced_by:`
+- [x] Each Request: title/status from its `docs/research/<doc>.md`, `aka: [R###]`, `produced_by:`
       the research doc, `links:` the implementing `HOD-T###` ticket(s) per the README index.
-- [ ] HOD `.ai/requests/` store + `request` classification exist in HOD config; board/cache regen; `q` resolves new + aka ids.
-- [ ] No `HOD-T###` implementation ticket is renamed. The research-LED early tickets (R005↔T005 etc.) stay as tickets; the hierarchy link (T003 crit 5) connects them upward later.
-- [ ] Its own coordinated commit on HOD `main` (HOD is currently on `roads-wip` — do NOT flip the branch in place; land this when HOD is on main).
+- [x] HOD `.ai/requests/` store + `request` classification exist in HOD config; board/cache regen; `q` resolves new + aka ids.
+- [x] No `HOD-T###` implementation ticket is renamed. The research-LED early tickets (R005↔T005 etc.) stay as tickets; the hierarchy link (T003 crit 5) connects them upward later.
+- [x] Its own coordinated commit on HOD `main` (HOD is currently on `roads-wip` — do NOT flip the branch in place; land this when HOD is on main).
 
 ## Plan
 1. PREREQ done: T091 (aka:) + T092 (R type + requests/ store).
@@ -54,3 +54,11 @@ implementation tickets would corrupt the product backlog. Gated on [[KIT-T091]] 
 
 ## History
 - [2026-06-12 19:52] (created) feature — Re-key hustle-or-die HOD-T###->HOD-R### into requests/ with aka: backfill (KIT-T003 child, cross-repo)
+- [2026-06-15 14:35] (status) todo → doing
+- [2026-06-15 14:43] (comment) ticked: Materialize the un-ticketed research-tree R-series as first-class `HOD-R###` Request items
+- [2026-06-15 14:43] (comment) ticked: Each Request: title/status from its `docs/research/<doc>.md`, `aka: [R###]`, `produced_by:`
+- [2026-06-15 14:43] (comment) ticked: HOD `.ai/requests/` store + `request` classification exist in HOD config; board/cache regen; `q` resolves new + aka ids.
+- [2026-06-15 14:43] (comment) ticked: No `HOD-T###` implementation ticket is renamed. The research-LED early tickets (R005↔T005 etc.) stay as tickets; the hierarchy link (T003 crit 5) connects them upward later.
+- [2026-06-15 14:43] (comment) ticked: Its own coordinated commit on HOD `main` (HOD is currently on `roads-wip` — do NOT flip the branch in place; land this when HOD is on main).
+- [2026-06-15 14:43] (status) doing → review
+- [2026-06-15 14:43] (status) review → done
