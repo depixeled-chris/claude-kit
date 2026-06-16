@@ -9,6 +9,12 @@
 //   - target already has core.hooksPath pointing ELSEWHERE → WARN + SKIP
 //   - target already has non-.sample files in .git/hooks/ → WARN + SKIP
 // Idempotent: if core.hooksPath already equals ours → print "already installed" + exit 0.
+//
+// PER-CLONE, PER-MACHINE: core.hooksPath is LOCAL git config (.git/config), never committed.
+// So this must run once on EACH clone of a repo, on EACH machine (macOS + Windows both). Running
+// it on one box does not configure another box's clone. `init-project` runs it for new adoptions;
+// existing clones (notably claude-kit-data + claude-kit) need a manual run per machine. See the
+// README "Cache-hydration git hooks — per clone, per machine" section (KIT-T097).
 
 import { existsSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';

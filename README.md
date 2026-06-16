@@ -132,6 +132,31 @@ pointer and links `.ai/` as a gitignored junction into `$CLAUDE_DATA/projects/<n
 Without `CLAUDE_DATA`, it scaffolds `.ai/` **inside** the repo (committed there) — the
 simpler per-repo mode.
 
+### 4. Cache-hydration git hooks — per clone, **per machine** (KIT-T097)
+
+The derived SQLite cache hydrates on every in-process item write (KIT-T096) **and** on
+`git pull` / `checkout` / `rebase`, so a pull of `claude-kit-data` from another machine
+refreshes the cache the moment it lands. The pull-side half attaches via
+`git config core.hooksPath <kit>/.githooks` — **local, per-clone config that is NOT
+committed**. So it must be installed **once per clone, on each machine**:
+
+```bash
+node <kit>/scripts/install-git-hooks.mjs /path/to/claude-kit-data   # the high-leverage one (all centralized projects)
+node <kit>/scripts/install-git-hooks.mjs /path/to/claude-kit        # the kit's own .ai
+# + any local-mode project repo whose .ai/ lives in-repo
+```
+
+`init-project` runs this automatically for **new** adoptions. **Existing** clones on a
+second machine (e.g. your macOS `claude-kit-data` + `claude-kit`) need the one-time run
+above — running it on the Windows box does **not** configure the Mac's clone. The installer
+is idempotent and **guards**: it warns and skips if a repo already sets `core.hooksPath` or
+has its own `.git/hooks` (it won't clobber husky etc.).
+
+The `PostToolUse(Bash)` complement (`git-pull-hydrate.mjs`) ships with the **plugin**, so it
+needs no install and covers **agent-run** pulls on every machine; the native hooks above add
+the **manual terminal** pulls. (`git reset --hard` fires no git hook — that residual falls to
+the read-time self-heal audit.)
+
 ## What syncs where
 
 - **Workflow data** lives in one private repo, **`claude-kit-data`** (KIT-D008): a
