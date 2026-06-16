@@ -40,6 +40,10 @@
       {
         "matcher": "Task",
         "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-roster.mjs\"" }]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/git-pull-hydrate.mjs\"" }]
       }
     ],
     "UserPromptSubmit": [

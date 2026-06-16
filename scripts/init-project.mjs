@@ -16,6 +16,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { installGitHooks } from './install-git-hooks.mjs';
 
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TEMPLATE = join(KIT, 'project-template');
@@ -146,6 +147,24 @@ if (missing.length) {
   console.log(`• .gitignore updated (${missing.length})`);
 } else {
   console.log('• .gitignore already covers it');
+}
+
+// Install the native git hooks on the adopted repo (fail-open — a hook install failure
+// must never fail init). For centralized mode the data repo is also a git repo (and it's
+// where item changes land), so install there too when CLAUDE_DATA is set. KIT-T097.
+try {
+  await installGitHooks(target);
+} catch {
+  /* fail-open */
+}
+if (DATA) {
+  try {
+    const { centralDataRoot } = await import('../hooks/lib.mjs');
+    const dataRepo = centralDataRoot(target) || DATA;
+    if (dataRepo && dataRepo !== target) await installGitHooks(dataRepo);
+  } catch {
+    /* fail-open */
+  }
 }
 
 console.log(`\nDone (${DATA ? 'centralized' : 'local'}).`);

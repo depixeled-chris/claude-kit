@@ -1,0 +1,4 @@
+#!/bin/sh
+# post-checkout — hydrate the SQLite cache after branch switch / clone (KIT-T097)
+DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
+node "$DIR/../scripts/hydrate-db.mjs" >/dev/null 2>&1 || true
