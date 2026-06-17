@@ -9,6 +9,11 @@
 //   if it doesn't exist yet.
 // LOCAL (no CLAUDE_DATA): scaffold .ai/ inside the repo (the original behavior).
 // Both modes append CLAUDE.snippet.md to the repo's CLAUDE.md once. Idempotent.
+//
+// LAB scope (--lab <name>): creates a repo-less scope in the centralized data store.
+//   node /path/to/claude-kit/scripts/init-project.mjs --lab <name>
+//   Requires CLAUDE_DATA. Scaffolds $CLAUDE_DATA/projects/<name>/ directly (no junction,
+//   no code repo), writes config.yml with `lab: true`, seeds standard .ai/ structure.
 
 import {
   existsSync, mkdirSync, readdirSync, statSync,
@@ -21,13 +26,13 @@ import { installGitHooks } from './install-git-hooks.mjs';
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TEMPLATE = join(KIT, 'project-template');
 
-// Parse positional arg and --key=ABC flag. The positional must NOT start with "--".
+// Parse positional arg and --key=ABC / --lab flags.
 const args = process.argv.slice(2);
 const keyFlag = args.find((a) => a.startsWith('--key='));
+const labFlag = args.find((a) => a === '--lab');
 const positional = args.find((a) => !a.startsWith('--'));
 const FLAG_KEY = keyFlag ? keyFlag.slice('--key='.length).trim().toUpperCase() : '';
 
-const target = resolve(positional || process.cwd());
 const DATA = process.env.CLAUDE_DATA || '';
 const MARKER = '## Workflow contract (.ai/)';
 
@@ -60,6 +65,85 @@ function copyDir(src, dst) {
   }
 }
 
+// Seed the central data dir from the template if it doesn't exist yet.
+// Exported so both the normal centralized path and --lab can call it.
+export function seedCentralDataDir(dataDir) {
+  if (existsSync(dataDir)) {
+    console.log(`• data dir exists: ${dataDir}`);
+    return false; // already existed
+  }
+  copyDir(join(TEMPLATE, '.ai'), dataDir);
+  console.log(`• data dir seeded from template: ${dataDir}`);
+  return true;
+}
+
+// Set ids.key + ids.prefix in config.yml when the key is still the placeholder.
+// FLAG_KEY overrides derivation; derivation falls back to `nameHint`.
+export function seedProjectKey(aiDir, nameHint) {
+  const cfgPath = join(aiDir, 'config.yml');
+  if (!existsSync(cfgPath)) return;
+  const text = readFileSync(cfgPath, 'utf8');
+
+  // Only act when the key is still the literal placeholder — never clobber a real key.
+  const km = text.match(/^([ \t]*key:[ \t]*)["']?([A-Za-z0-9]+)["']?([ \t]*)$/m);
+  if (!km || km[2] !== KEY_PLACEHOLDER) {
+    console.log(`• ids.key already set — left as-is`);
+    return;
+  }
+
+  const key = FLAG_KEY || deriveKey(nameHint || basename(aiDir));
+  const prefix = `${key}-T`;
+  const updated = text
+    .replace(/^([ \t]*key:[ \t]*)["']?KEY["']?([ \t]*)$/m, `$1"${key}"$2`)
+    .replace(/^([ \t]*prefix:[ \t]*)["']?KEY-T["']?([ \t]*)$/m, `$1"${prefix}"$2`);
+  writeFileSync(cfgPath, updated);
+  console.log(`• ids.key=${key}  ids.prefix=${prefix}  (derived from "${nameHint || basename(aiDir)}"${FLAG_KEY ? '; --key override' : ''})`);
+}
+
+// Stamp `lab: true` at the top of config.yml (after any leading comments, before the
+// first non-comment content) when not already present.
+export function stampLabFlag(cfgPath) {
+  if (!existsSync(cfgPath)) return;
+  const text = readFileSync(cfgPath, 'utf8');
+  if (/^lab:\s*true\s*$/m.test(text)) {
+    console.log('• lab: true already present in config.yml');
+    return;
+  }
+  // Insert before the first non-comment, non-blank line.
+  const lines = text.split('\n');
+  let insertAt = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (t && !t.startsWith('#')) { insertAt = i; break; }
+  }
+  lines.splice(insertAt, 0, 'lab: true');
+  writeFileSync(cfgPath, lines.join('\n'));
+  console.log('• lab: true stamped into config.yml');
+}
+
+// ---- LAB mode (--lab <name>) ------------------------------------------------
+if (labFlag) {
+  if (!positional) {
+    console.error('usage: init-project.mjs --lab <name>');
+    process.exit(1);
+  }
+  if (!DATA) {
+    console.error('--lab requires CLAUDE_DATA to be set (the centralized data store).');
+    process.exit(1);
+  }
+  const name = positional;
+  const dataDir = join(DATA, 'projects', name);
+  seedCentralDataDir(dataDir);
+  seedProjectKey(dataDir, name);
+  stampLabFlag(join(dataDir, 'config.yml'));
+  console.log(`\nDone (lab scope "${name}" at ${dataDir}).`);
+  process.exit(0);
+}
+
+// ---- Normal repo-adoption mode ---------------------------------------------
+
+const target = resolve(positional || process.cwd());
+
 function projectName() {
   const marker = join(target, '.claude-project');
   if (existsSync(marker)) {
@@ -74,12 +158,7 @@ const aiDst = join(target, '.ai');
 if (DATA) {
   const name = projectName();
   const dataDir = join(DATA, 'projects', name);
-  if (existsSync(dataDir)) {
-    console.log(`• data dir exists: ${dataDir}`);
-  } else {
-    copyDir(join(TEMPLATE, '.ai'), dataDir);
-    console.log(`• data dir seeded from template: ${dataDir}`);
-  }
+  seedCentralDataDir(dataDir);
   writeFileSync(join(target, '.claude-project'), `project: ${name}\n`);
   console.log(`• .claude-project -> ${name}`);
   if (existsSync(aiDst)) {
@@ -88,37 +167,14 @@ if (DATA) {
     symlinkSync(dataDir, aiDst, process.platform === 'win32' ? 'junction' : 'dir');
     console.log(`• .ai linked -> ${dataDir}`);
   }
-  seedProjectKey(dataDir);
+  seedProjectKey(dataDir, name);
 } else if (existsSync(aiDst)) {
   console.log('• .ai/ already exists — left untouched');
-  seedProjectKey(aiDst);
+  seedProjectKey(aiDst, basename(target));
 } else {
   copyDir(join(TEMPLATE, '.ai'), aiDst);
   console.log('• .ai/ scaffolded (local; set CLAUDE_DATA to centralize)');
-  seedProjectKey(aiDst);
-}
-
-// Set ids.key + ids.prefix in config.yml when the key is still the placeholder.
-// FLAG_KEY overrides derivation; derivation reads the project directory name.
-function seedProjectKey(aiDir) {
-  const cfgPath = join(aiDir, 'config.yml');
-  if (!existsSync(cfgPath)) return;
-  const text = readFileSync(cfgPath, 'utf8');
-
-  // Only act when the key is still the literal placeholder — never clobber a real key.
-  const km = text.match(/^([ \t]*key:[ \t]*)["']?([A-Za-z0-9]+)["']?([ \t]*)$/m);
-  if (!km || km[2] !== KEY_PLACEHOLDER) {
-    console.log(`• ids.key already set — left as-is`);
-    return;
-  }
-
-  const key = FLAG_KEY || deriveKey(basename(target));
-  const prefix = `${key}-T`;
-  let updated = text
-    .replace(/^([ \t]*key:[ \t]*)["']?KEY["']?([ \t]*)$/m, `$1"${key}"$2`)
-    .replace(/^([ \t]*prefix:[ \t]*)["']?KEY-T["']?([ \t]*)$/m, `$1"${prefix}"$2`);
-  writeFileSync(cfgPath, updated);
-  console.log(`• ids.key=${key}  ids.prefix=${prefix}  (derived from "${basename(target)}"${FLAG_KEY ? '; --key override' : ''})`);
+  seedProjectKey(aiDst, basename(target));
 }
 
 // CLAUDE.md — append the contract once (both modes)

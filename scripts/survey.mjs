@@ -33,6 +33,17 @@ const rawArgs = process.argv.slice(2).filter(Boolean);
 const brief = rawArgs.includes('--brief');
 const arg = rawArgs.filter((a) => !a.startsWith('--'));
 
+// Read a project's config.yml and return true when it contains `lab: true`.
+// Tolerant scan — no YAML parser needed; a bare `^lab:\s*true` line is sufficient.
+function readLabFlag(notebook) {
+  try {
+    const text = readFileSync(join(notebook, 'config.yml'), 'utf8');
+    return /^lab:\s*true\s*$/m.test(text);
+  } catch {
+    return false;
+  }
+}
+
 // ---- the active project: whatever repo this was invoked in (the strongest "what am I
 // working on" signal). Self-heal it into the registry so a first-ever run still sees it.
 const cwdRoot = gitRoot();
@@ -63,7 +74,7 @@ for (const name of names) {
     const central = join(reg.dataRoot, 'projects', name);
     if (existsSync(central)) notebook = central;
   }
-  if (notebook) projects[name] = { repo, notebook };
+  if (notebook) projects[name] = { repo, notebook, lab: readLabFlag(notebook) };
 }
 
 // ---- notebook readers -----------------------------------------------------
@@ -169,7 +180,8 @@ function gitOneLine(repo) {
 
 // ---- views ----------------------------------------------------------------
 function deepView(name, p) {
-  const out = [`### ${name}${p.repo ? '' : '  (no local repo on this machine — notebook only)'}`];
+  const label = p.repo ? '' : p.lab ? '  (lab — repo-less by design)' : '  (no local repo on this machine — notebook only)';
+  const out = [`### ${name}${label}`];
   const sess = headFile(join(p.notebook, 'SESSION.md'), SESSION_PEEK);
   if (sess.trim()) out.push('', '-- SESSION (where we left off) --', sess);
   const sc = scan(p.notebook);
@@ -225,7 +237,7 @@ if (arg.length) {
     const p = projects[name];
     const c = scan(p.notebook).counts;
     const work = `${c.doing} doing, ${c.review} review, ${c.todo} todo`;
-    const git = p.repo ? gitOneLine(p.repo) : 'no local repo here';
+    const git = p.repo ? gitOneLine(p.repo) : p.lab ? 'lab — no repo' : 'no local repo here';
     lines.push(`${name === activeName ? '→' : ' '} ${name}: ${work}  |  git: ${git}`);
   }
 

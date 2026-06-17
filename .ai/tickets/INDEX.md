@@ -4,7 +4,7 @@
 ## Active (20)
 | id | type | status | priority | title |
 | --- | --- | --- | --- | --- |
-| KIT-T003 | feature | todo | high | Implement the workflow domain model — LAB scope, request/epic types, hierarchy + relationship graph |
+| KIT-T003 | feature | doing | high | Implement the workflow domain model — LAB scope, request/epic types, hierarchy + relationship graph |
 | KIT-T017 | feature | review | high | Operationalize the always-on loop (D017) — drain-never-idle + questionnaire-surfacing discipline |
 | KIT-T019 | feature | todo | high | Subagent bubble-up — agents surface communication to orchestrator AND maintainer (not only at completion) |
 | KIT-T022 | feature | done | high | Hard license guard — block GPL/LGPL/AGPL/unlicensed code from entering a repo; THIRD_PARTY_LICENSES ledger |

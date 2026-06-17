@@ -2,7 +2,7 @@
 id: KIT-T003
 title: Implement the workflow domain model — LAB scope, request/epic types, hierarchy + relationship graph
 type: feature
-status: todo
+status: doing
 priority: high
 milestone:
 labels: [taxonomy, hierarchy, relationships, scopes]
@@ -14,7 +14,7 @@ files:
   - scripts/rekey-ids.mjs
   - hooks/commit-gate.mjs
 created: 2026-06-03T14:00:00Z
-updated: 2026-06-03T14:00:00Z
+updated: 2026-06-17T15:39:00Z
 ---
 
 ## Description
@@ -26,7 +26,7 @@ hierarchy, the bug↔prior-effort provenance links, document artifact provenance
 ## Acceptance Criteria
 - [ ] **`aka:`** annotation supported in frontmatter (list of prior labels); the generated
       board renders it (`HOD-R045 · was R045`); backfilled on every item re-keyed under KIT-D011.
-- [ ] **`LAB` scope** — a repo-less scope under `claude-kit-data/` (no junction); the survey /
+- [x] **`LAB` scope** — a repo-less scope under `claude-kit-data/` (no junction); the survey /
       rundown includes it with no git state (not flagged as a missing clone).
 - [ ] **Request (`R`)** and **Epic (`E`)** are first-class types with their own stores
       (`requests/`, `epics/`), config taxonomy entries, and templates.
@@ -71,3 +71,10 @@ hierarchy, the bug↔prior-effort provenance links, document artifact provenance
   (survey is in lib.mjs), crit 8 R/E cite-pattern (`ID_CITE_SRC` lib.mjs:318 = `[A-Z]{2,}-[TDNQ]\d{1,4}`,
   doesn't recognize R/E — latent commit-gate gap from T092), and crit 7's backport-strip. Resume
   these the moment KIT-T021 lands; then T003 closes.
+
+## Notes
+- 2026-06-17: LAB scope shipped (marker `lab:true` in config.yml + survey neutral render "lab — repo-less by design" / "lab — no repo" + `init-project --lab`); 15 new survey.test.mjs assertions green; cite commit below.
+
+## History
+- [2026-06-17 15:39] (status) todo → doing
+- [2026-06-17 15:50] (comment) ticked: **`LAB` scope** — a repo-less scope under `claude-kit-data/` (no junction); the survey /
