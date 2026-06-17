@@ -73,7 +73,7 @@ hierarchy, the bug↔prior-effort provenance links, document artifact provenance
   these the moment KIT-T021 lands; then T003 closes.
 
 ## Notes
-- 2026-06-17: LAB scope shipped (marker `lab:true` in config.yml + survey neutral render "lab — repo-less by design" / "lab — no repo" + `init-project --lab`); 15 new survey.test.mjs assertions green; cite commit below.
+- 2026-06-17: LAB scope shipped (marker `lab:true` in config.yml + survey neutral render "lab — repo-less by design" / "lab — no repo" + `init-project --lab`); 15 new survey.test.mjs assertions green; commit 461cb17.
 
 ## History
 - [2026-06-17 15:39] (status) todo → doing
