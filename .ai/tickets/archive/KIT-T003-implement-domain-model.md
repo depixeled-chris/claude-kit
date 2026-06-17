@@ -2,7 +2,7 @@
 id: KIT-T003
 title: Implement the workflow domain model — LAB scope, request/epic types, hierarchy + relationship graph
 type: feature
-status: doing
+status: done
 priority: high
 milestone:
 labels: [taxonomy, hierarchy, relationships, scopes]
@@ -14,7 +14,7 @@ files:
   - scripts/rekey-ids.mjs
   - hooks/commit-gate.mjs
 created: 2026-06-03T14:00:00Z
-updated: 2026-06-17T15:39:00Z
+updated: 2026-06-17T15:54:40Z
 ---
 
 ## Description
@@ -24,21 +24,21 @@ hierarchy, the bug↔prior-effort provenance links, document artifact provenance
 `aka:` annotation. Large — likely re-expressed as an epic with child tickets once epics exist.
 
 ## Acceptance Criteria
-- [ ] **`aka:`** annotation supported in frontmatter (list of prior labels); the generated
+- [x] **`aka:`** annotation supported in frontmatter (list of prior labels); the generated
       board renders it (`HOD-R045 · was R045`); backfilled on every item re-keyed under KIT-D011.
 - [x] **`LAB` scope** — a repo-less scope under `claude-kit-data/` (no junction); the survey /
       rundown includes it with no git state (not flagged as a missing clone).
-- [ ] **Request (`R`)** and **Epic (`E`)** are first-class types with their own stores
+- [x] **Request (`R`)** and **Epic (`E`)** are first-class types with their own stores
       (`requests/`, `epics/`), config taxonomy entries, and templates.
-- [ ] **Re-key hustle-or-die**: the `R`-series work items are requests → move `tickets/` items
+- [x] **Re-key hustle-or-die**: the `R`-series work items are requests → move `tickets/` items
       to `requests/`, `HOD-T### → HOD-R###`, with `aka:` preserving the bare `R###`.
-- [ ] **Hierarchy**: items carry one upward `parent:`; the indexer GENERATES downward views
+- [x] **Hierarchy**: items carry one upward `parent:`; the indexer GENERATES downward views
       (a request's epics/tickets, an epic's children) — no hand-maintained child lists.
-- [ ] **Bug provenance**: `introduced_by:` links both the originating ticket AND commit;
+- [x] **Bug provenance**: `introduced_by:` links both the originating ticket AND commit;
       `regression_of:` + `causing_commit:` continue to work; REGRESSIONS index reflects both.
-- [ ] **Document provenance**: docs carry `produced_by:` (one) + `informs:` (many); the indexer
+- [x] **Document provenance**: docs carry `produced_by:` (one) + `informs:` (many); the indexer
       generates the reverse view on work items; the backport procedure STRIPS these on gift.
-- [ ] commit-gate cite pattern + config + templates updated for the new types; `npm test` covers
+- [x] commit-gate cite pattern + config + templates updated for the new types; `npm test` covers
       the new behavior (scope discovery, hierarchy rollup, provenance back-links).
 
 ## Plan
@@ -78,3 +78,13 @@ hierarchy, the bug↔prior-effort provenance links, document artifact provenance
 ## History
 - [2026-06-17 15:39] (status) todo → doing
 - [2026-06-17 15:50] (comment) ticked: **`LAB` scope** — a repo-less scope under `claude-kit-data/` (no junction); the survey /
+- [2026-06-17 15:53] (comment) ticked: **`aka:`** annotation supported in frontmatter (list of prior labels); the generated
+- [2026-06-17 15:53] (comment) ticked: **Request (`R`)** and **Epic (`E`)** are first-class types with their own stores
+- [2026-06-17 15:53] (comment) ticked: **Re-key hustle-or-die**: the `R`-series work items are requests → move `tickets/` items
+- [2026-06-17 15:53] (comment) ticked: **Hierarchy**: items carry one upward `parent:`; the indexer GENERATES downward views
+- [2026-06-17 15:53] (comment) ticked: **Bug provenance**: `introduced_by:` links both the originating ticket AND commit;
+- [2026-06-17 15:53] (comment) ticked: **Document provenance**: docs carry `produced_by:` (one) + `informs:` (many); the indexer
+- [2026-06-17 15:53] (comment) ticked: commit-gate cite pattern + config + templates updated for the new types; `npm test` covers
+- [2026-06-17 15:54] (status) doing → review
+- [2026-06-17 15:54] (status) review → done
+- [2026-06-17 15:54] (comment) Epic complete — all 8 criteria: aka (T091), LAB scope (461cb17), R/E types (T092), HOD re-key→11 HOD-R### (T093), hierarchy (T094), bug+doc provenance (T095), R/E cite-pattern (4012701), backport-strip (HOD 6ff945b). Domain model fully landed.
