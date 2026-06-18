@@ -63,14 +63,17 @@ const decisionMeta = (f) => {
     const id = (t.match(/^id:[ \t]*(.+)$/m) || [])[1];
     const title = (t.match(/^title:[ \t]*(.+)$/m) || [])[1];
     const standing = /^standing:[ \t]*(true|yes)\b/im.test(t);
+    // KIT identity tier: a foundational decision is ALWAYS surfaced (top of orient),
+    // never scope-gated — it states what the project fundamentally IS.
+    const foundational = /^foundational:[ \t]*(true|yes)\b/im.test(t);
     // A standing decision declares its own relevance: `scope:` (free token, e.g. world-gen)
     // and/or `paths:` (comma globs). This keeps the kit generic — no project taxonomy baked in.
     const scope = stripQuotes((t.match(/^scope:[ \t]*(.+)$/m) || [])[1]);
     const paths = stripQuotes((t.match(/^paths:[ \t]*(.+)$/m) || [])[1])
       .split(',').map((s) => s.trim()).filter(Boolean);
-    return { id: id ? id.trim() : '', title: title ? stripQuotes(title) : f.replace(/\.md$/, ''), standing, scope, paths };
+    return { id: id ? id.trim() : '', title: title ? stripQuotes(title) : f.replace(/\.md$/, ''), standing, foundational, scope, paths };
   } catch {
-    return { id: '', title: f.replace(/\.md$/, ''), standing: false, scope: '', paths: [] };
+    return { id: '', title: f.replace(/\.md$/, ''), standing: false, foundational: false, scope: '', paths: [] };
   }
 };
 const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
@@ -91,7 +94,7 @@ const recentDecisions = (n) => {
 const standingDecisions = (signals, changed) => {
   const files = decisionFiles();
   if (!files) return null;
-  const all = files.map(decisionMeta).filter((m) => m.standing);
+  const all = files.map(decisionMeta).filter((m) => m.standing && !m.foundational);
   if (!all.length) return null;
   const sig = signals.toLowerCase();
   const inScope = (m) => {
@@ -110,10 +113,26 @@ const standingDecisions = (signals, changed) => {
   };
 };
 
+// FOUNDATIONAL standing decisions: the project's identity-level invariants — what the
+// thing fundamentally IS (e.g. "renderer is Rust/wgpu; three.js is dead"). Unlike scoped
+// standing decisions, these are ALWAYS surfaced at the very top, regardless of which files
+// you're touching, so a stale CLAUDE.md summary can never quietly override them.
+const foundationalDecisions = () => {
+  const files = decisionFiles();
+  if (!files) return [];
+  return files.map(decisionMeta).filter((m) => m.standing && m.foundational);
+};
+
 const out = [];
 out.push('=== PROJECT ORIENTATION (on-disk record — trust over any summary or your memory) ===');
 out.push(`Repo: ${root}`);
 out.push('');
+const foundational = foundationalDecisions();
+if (foundational.length) {
+  out.push('--- PROJECT IDENTITY (foundational — ALWAYS true; this is what the project IS; cite, never contradict) ---');
+  for (const m of foundational) out.push(`  ${m.id ? m.id + ' — ' : ''}${clip(m.title, 140)}`);
+  out.push('');
+}
 out.push('--- Recent commits ---');
 out.push(git(['-C', root, 'log', '--oneline', `-${COMMITS}`]).trim());
 
@@ -293,7 +312,7 @@ try {
   if (filePaths.length) {
     const { query } = await import('../scripts/q.mjs');
     const { rows: govRows } = await query('governing', filePaths, { root, cwdRoot: root });
-    const already = new Set(standing && standing.shownIds ? standing.shownIds : []);
+    const already = new Set([...(standing && standing.shownIds ? standing.shownIds : []), ...foundational.map((m) => m.id).filter(Boolean)]);
     const fresh = (govRows || []).filter((r) => !already.has(r.id));
     if (fresh.length) {
       out.push('');
