@@ -81,25 +81,48 @@ function makeTurnStateDir() {
     run(d, { transcript_path: tx }, tsDir).code, 2);
 }
 
-// ─── case 2: reply announces landing → ALLOW (exit 0) ────────────────────────────────────
+// ─── case 2: reply announces landing AND what to test → ALLOW (exit 0) ───────────────────
+// KIT-T088: the gate now needs BOTH a landing receipt AND a test receipt.
 {
   const d = makeRepo();
   const tsDir = makeTurnStateDir();
   const userTs = new Date(Date.now() - 10000).toISOString();
   const sha = makeCommit(d, 'src/app.ts', 'export const x = 1', 'feat: add x HOD-T002');
-  const tx = writeTranscript(d, 'push it', `pushed ${sha.slice(0, 8)} — HOD-T002 landed.`, userTs);
-  expect('allows when reply announces the push sha',
+  const tx = writeTranscript(d, 'push it', `pushed ${sha.slice(0, 8)} — HOD-T002 landed. Test: \`npm test x\`.`, userTs);
+  expect('allows when reply announces the push sha + what to test',
     run(d, { transcript_path: tx }, tsDir).code, 0);
 }
 
-// ─── case 3: reply says "deployed" (without a sha) → ALLOW ───────────────────────────────
+// ─── case 3: reply says "deployed" + a test receipt → ALLOW ──────────────────────────────
 {
   const d = makeRepo();
   const tsDir = makeTurnStateDir();
   const userTs = new Date(Date.now() - 10000).toISOString();
   makeCommit(d, 'src/util.ts', 'export {}', 'chore: update util HOD-T003');
-  const tx = writeTranscript(d, 'deploy', 'deployed — HOD-T003 is live.', userTs);
-  expect('allows when reply contains "deployed"',
+  const tx = writeTranscript(d, 'deploy', 'deployed — HOD-T003 is live. Verify with `npm test`.', userTs);
+  expect('allows when reply contains "deployed" + a test receipt',
+    run(d, { transcript_path: tx }, tsDir).code, 0);
+}
+
+// ─── case 3b (KIT-T088): landing announced but NO test receipt → BLOCK (exit 2) ──────────
+{
+  const d = makeRepo();
+  const tsDir = makeTurnStateDir();
+  const userTs = new Date(Date.now() - 10000).toISOString();
+  const sha = makeCommit(d, 'src/app.ts', 'export const y = 2', 'feat: add y HOD-T004');
+  const tx = writeTranscript(d, 'push it', `pushed ${sha.slice(0, 8)} — HOD-T004 landed.`, userTs);
+  expect('blocks when landing announced but no test receipt',
+    run(d, { transcript_path: tx }, tsDir).code, 2);
+}
+
+// ─── case 3c (KIT-T088): [no-test: reason] satisfies the test receipt → ALLOW ────────────
+{
+  const d = makeRepo();
+  const tsDir = makeTurnStateDir();
+  const userTs = new Date(Date.now() - 10000).toISOString();
+  const sha = makeCommit(d, 'docs.md', '# x', 'docs: notes HOD-T005');
+  const tx = writeTranscript(d, 'note', `pushed ${sha.slice(0, 8)} — HOD-T005 landed. [no-test: docs only]`, userTs);
+  expect('allows landing + [no-test: reason]',
     run(d, { transcript_path: tx }, tsDir).code, 0);
 }
 

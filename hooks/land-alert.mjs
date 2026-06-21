@@ -59,6 +59,23 @@ const LANDED_RECEIPT = new RegExp(
   'i',
 );
 
+// WHAT CAN BE TESTED — Chris's standing rule (KIT-T088): a turn that lands work must end by
+// telling the maintainer what to run, so they can tell at a glance that work was DONE (not
+// navel-gazing) and exactly how to test it. Cleared by a test verb (test/verify/repro), a test
+// runner / command (cargo, npm, pytest, race_sim, …), "N passed", an explicit "nothing to test",
+// or "[no-test: <reason>]". Absent → the landing reply never said what to run. ([no-alert:] still
+// suppresses the whole gate.)
+const TEST_RECEIPT = new RegExp(
+  String.raw`\[no-?(?:test|alert)\b` +
+    String.raw`|\bnothing to test\b` +
+    String.raw`|\bcan be tested\b` +
+    String.raw`|\b(?:tested?|verif(?:y|ied|ies))\b` +
+    String.raw`|\brepro(?:duce|duced|s)?\b` +
+    String.raw`|\b(?:cargo|npm|pnpm|yarn|pytest|jest|vitest|mocha|gradle|maven|go test|make|race_sim|geom_lint|preview)\b` +
+    String.raw`|\b\d+\s+passed\b`,
+  'i',
+);
+
 main().catch(() => process.exit(0)); // any failure → allow the stop (fail-open)
 
 async function main() {
@@ -81,14 +98,18 @@ async function main() {
   // flips `pushed` false→true, which is a NEW state → a fresh "now pushed/building" alert.
   if (alreadyAlerted(root, head, pushed)) process.exit(0);
 
-  // The reply already announced it → satisfied; still record the state so we don't re-alert later.
-  if (LANDED_RECEIPT.test(lastAssistant || '')) {
+  // Satisfied only when the reply BOTH announces the landing AND says what can be tested
+  // (KIT-T088 — Chris: "I NEED to know what can be fucking tested"). Either missing → nag once.
+  const reply = lastAssistant || '';
+  const hasLanding = LANDED_RECEIPT.test(reply);
+  const hasTest = TEST_RECEIPT.test(reply);
+  if (hasLanding && hasTest) {
     recordAlerted(root, head, pushed);
     process.exit(0);
   }
 
   recordAlerted(root, head, pushed);
-  process.stderr.write(renderAlert(root, landed, pushed));
+  process.stderr.write(renderAlert(root, landed, pushed, hasLanding, hasTest));
   process.exit(2); // block-once (rigid) — the same ratchet as request-gate / flush
 }
 
@@ -131,11 +152,11 @@ function isPushed(root) {
 
 // --- the alert ------------------------------------------------------------------
 
-function renderAlert(root, landed, pushed) {
+function renderAlert(root, landed, pushed, hasLanding, hasTest) {
   const state = pushed
     ? 'PUSHED (building) — confirm it is LIVE once the deploy completes'
     : 'COMMITTED locally — NOT pushed yet (push at the task boundary, then confirm)';
-  const lines = ['', `⚑ LANDING ALERT — work landed this turn. Tell the maintainer WHAT + the ticket + the link.`, `  State: ${state}.`, ''];
+  const lines = ['', `⚑ LANDING ALERT — work landed this turn. Tell the maintainer WHAT landed + WHAT CAN BE TESTED.`, `  State: ${state}.`, ''];
   for (const c of landed.slice(0, MAX_LISTED)) {
     const url = pushed ? remoteCommitUrl(root, c.sha) : null;
     const cite = c.ids.length ? `  [${c.ids.join(', ')}]` : '';
@@ -143,12 +164,16 @@ function renderAlert(root, landed, pushed) {
     if (url) lines.push(`      ${url}`);
   }
   if (landed.length > MAX_LISTED) lines.push(`  • …+${landed.length - MAX_LISTED} more`);
+  lines.push('', 'This alert is structural (KIT-T021/T088), not optional. To clear the gate:');
+  if (!hasLanding) {
+    lines.push('  - announce the landing — WHAT + the ticket + the link ("pushed"/"deployed"/the sha);');
+  }
+  if (!hasTest) {
+    lines.push('  - state WHAT CAN BE TESTED — the exact command(s) to run (e.g. `cargo test …`), or "[no-test: <reason>]" if nothing is testable;');
+  }
   lines.push(
-    '',
-    'This alert is structural (KIT-T021), not optional. To clear the gate, either:',
-    '  - announce the landing in your reply (what + ticket + link; say "pushed"/"deployed"/the sha), or',
-    '  - if a deploy follows, confirm when it is LIVE (not just pushed), or',
-    '  - if this genuinely should not alert, add "[no-alert: <reason>]".',
+    '  - if a deploy follows, confirm when it is LIVE (not just pushed);',
+    '  - or "[no-alert: <reason>]" to suppress the whole gate.',
     '',
   );
   return lines.join('\n');
