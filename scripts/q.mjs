@@ -672,6 +672,30 @@ export async function query(cmd, args = [], { root, cwdRoot = root || process.cw
   }
 }
 
+// The full query surface, printed by --help/-h/help. The query-gate block message sends
+// agents here ("q.mjs --help — the full query surface"), so this MUST be a working exit-0
+// path — it erroring as an unknown query left gate-blocked agents with no discovery route
+// (capped 2026-07-05).
+const QUERY_SURFACE = `usage: q.mjs [--json] [--no-db] [--root <dir>] <query> [args]
+  open [scope]                open items (todo|doing|review)
+  children <id>               items whose parent is <id>
+  backlinks <id>              items that link TO <id> (any rel) — walk DOWN
+  trail <id>                  walk UP <id>'s ancestry — governing decisions/docs/origin
+  governing <path...>         OPEN tickets/decisions that GOVERN the given file path(s)
+  drift                       OPEN items naming a structural target path ABSENT from the tree
+  by-commit <sha>             tickets caused-by / fixed-by <sha>
+  doc-trail <id>              history events for <id>, newest first
+  fts <query...>              full-text search title+body
+  similar [--store <s>] <t>   likely-duplicate items (dedup, suggest-only)
+  next-id <scope> <type>      O(1) next free id (max(num)+1)
+  rundown                     per-scope open-item counts
+  regressions                 regression chain data (index-tickets)
+  supersedes                  supersede chain data (index-tickets)
+  integrity                   orphan parents / dangling links / gaps
+  sql "SELECT ..."            ad-hoc read-only SQL
+  verify [scope]              cache staleness self-check (exit 1 = stale)
+`;
+
 async function main() {
   const argv = process.argv.slice(2);
   const json = argv.includes('--json');
@@ -686,7 +710,8 @@ async function main() {
   const FLAGS = new Set(['--json', '--no-db']);
   const rest = argv.filter((a, i) => !FLAGS.has(a) && a !== '--root' && argv[i - 1] !== '--root');
   const [cmd, ...args] = rest;
-  if (!cmd) { process.stderr.write('usage: q.mjs <open|children|backlinks|trail|governing|drift|by-commit|doc-trail|fts|similar|next-id|rundown|regressions|supersedes|integrity|sql|verify> [args]\n'); process.exit(2); }
+  if (!cmd) { process.stderr.write(QUERY_SURFACE); process.exit(2); }
+  if (cmd === '--help' || cmd === '-h' || cmd === 'help') { process.stdout.write(QUERY_SURFACE); process.exit(0); }
 
   const dbPath = defaultDbPath();
 
