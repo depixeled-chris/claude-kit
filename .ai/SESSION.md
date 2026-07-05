@@ -1,6 +1,15 @@
 # SESSION HANDOFF — claude-kit
 
-Updated: 2026-06-12 00:50  |  Branch: main  |  Active: M2 current — T075 first
+Updated: 2026-07-05  |  Branch: main  |  Active: M2 current — T075 first
+
+## Drive-by (2026-07-05) — T099 renumber follow-through landed
+- Committed + PUSHED 1947625: finished the T088→T099 renumber (18a0c3d renamed the ticket
+  file but left stale KIT-T088 refs in land-alert.mjs/.test, CLAUDE.global.md, ticket
+  frontmatter id) + regen views + this SESSION note. 14 hook tests pass.
+- Committed + PUSHED 7e54ddd: two inbox captures awaiting triage — next-id misses
+  note-proposed T-ids (allocates claimed ids); sync-tasks.mjs emits phantom tasks from
+  _TEMPLATE.md/INDEX.md and pulls criteria from todo tickets.
+- Next: triage the two inbox caps; T099 OPEN AC unchanged (bootstrap.sh re-run below).
 
 ## Drive-by (2026-06-21, from marblerace2 session) — KIT-T099 test-receipt gate
 - KIT-T099 (review): land-alert Stop gate now requires a TEST receipt (not just a landing
