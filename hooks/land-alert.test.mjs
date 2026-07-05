@@ -82,7 +82,7 @@ function makeTurnStateDir() {
 }
 
 // ─── case 2: reply announces landing AND what to test → ALLOW (exit 0) ───────────────────
-// KIT-T088: the gate now needs BOTH a landing receipt AND a test receipt.
+// KIT-T099: the gate now needs BOTH a landing receipt AND a test receipt.
 {
   const d = makeRepo();
   const tsDir = makeTurnStateDir();
@@ -104,7 +104,7 @@ function makeTurnStateDir() {
     run(d, { transcript_path: tx }, tsDir).code, 0);
 }
 
-// ─── case 3b (KIT-T088): landing announced but NO test receipt → BLOCK (exit 2) ──────────
+// ─── case 3b (KIT-T099): landing announced but NO test receipt → BLOCK (exit 2) ──────────
 {
   const d = makeRepo();
   const tsDir = makeTurnStateDir();
@@ -115,7 +115,7 @@ function makeTurnStateDir() {
     run(d, { transcript_path: tx }, tsDir).code, 2);
 }
 
-// ─── case 3c (KIT-T088): [no-test: reason] satisfies the test receipt → ALLOW ────────────
+// ─── case 3c (KIT-T099): [no-test: reason] satisfies the test receipt → ALLOW ────────────
 {
   const d = makeRepo();
   const tsDir = makeTurnStateDir();

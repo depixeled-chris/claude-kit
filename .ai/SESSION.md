@@ -2,6 +2,17 @@
 
 Updated: 2026-06-12 00:50  |  Branch: main  |  Active: M2 current — T075 first
 
+## Drive-by (2026-06-21, from marblerace2 session) — KIT-T099 test-receipt gate
+- KIT-T099 (review): land-alert Stop gate now requires a TEST receipt (not just a landing
+  receipt) — a turn that commits work must say what to RUN, or [no-test: reason]. Plus a
+  WORKING-RULES contract rule (lead with what CHANGED; end with what's TESTABLE). 14 hook
+  tests pass. Files: hooks/land-alert.mjs (+.test), user-config/CLAUDE.global.md, ticket
+  .ai/tickets/KIT-T099-test-receipt-gate.md. OPEN AC: re-run bootstrap.sh on Chris's
+  machines to compose the contract rule + refresh the plugin so the hook reloads.
+- PROCESS NOTE: first mis-numbered this KIT-T088 (collided with the ARCHIVED
+  request-gate-flags-compaction ticket) — renumbered to T099 via `q next-id`. Lesson:
+  check tickets/ AND archive/ (or use `q next-id`) before assigning an id.
+
 ## Drive-by (2026-06-12, from marblerace2 session)
 - KIT-T088 logged (bug, medium): request-gate.mjs flags the harness-injected
   compaction summary ("This session is being continued from a previous

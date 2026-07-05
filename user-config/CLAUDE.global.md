@@ -72,13 +72,13 @@ first. Recommend B because [reason]."
 - **Progress = one-line receipts.** Report each completed task as a single line (what +
   commit sha), no approval-seeking, no process narration. The maintainer pulls a fuller
   rollup on demand (`/standup`, `/prime`). Steady drip, low noise — not batched silence.
-- **Lead with what CHANGED; end with what's TESTABLE (Chris, 2026-06-21; KIT-T088).** The
+- **Lead with what CHANGED; end with what's TESTABLE (Chris, 2026-06-21; KIT-T099).** The
   FIRST line of every reply answers, in three words, "was work done, or is this navel-
   gazing?" — the result, not the process; details come after. Then **END every turn with
   WHAT CAN BE TESTED**: the exact command(s) to run (`cargo test x`, `npm test`, the
   seed/feature/preview to open), or an explicit `[no-test: <reason>]` when nothing is
   testable. The maintainer must never have to ask "what can I test?". Enforced on landings
-  by the land-alert gate (KIT-T088): a turn that commits work must carry a test receipt.
+  by the land-alert gate (KIT-T099): a turn that commits work must carry a test receipt.
 - Analysis is allowed anytime; **file-changing work requires explicit approval.** Get
   approval before any action that modifies files.
 - Run builds/tests inside Docker when the project uses it.

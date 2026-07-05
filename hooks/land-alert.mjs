@@ -59,7 +59,7 @@ const LANDED_RECEIPT = new RegExp(
   'i',
 );
 
-// WHAT CAN BE TESTED — Chris's standing rule (KIT-T088): a turn that lands work must end by
+// WHAT CAN BE TESTED — Chris's standing rule (KIT-T099): a turn that lands work must end by
 // telling the maintainer what to run, so they can tell at a glance that work was DONE (not
 // navel-gazing) and exactly how to test it. Cleared by a test verb (test/verify/repro), a test
 // runner / command (cargo, npm, pytest, race_sim, …), "N passed", an explicit "nothing to test",
@@ -99,7 +99,7 @@ async function main() {
   if (alreadyAlerted(root, head, pushed)) process.exit(0);
 
   // Satisfied only when the reply BOTH announces the landing AND says what can be tested
-  // (KIT-T088 — Chris: "I NEED to know what can be fucking tested"). Either missing → nag once.
+  // (KIT-T099 — Chris: "I NEED to know what can be fucking tested"). Either missing → nag once.
   const reply = lastAssistant || '';
   const hasLanding = LANDED_RECEIPT.test(reply);
   const hasTest = TEST_RECEIPT.test(reply);
@@ -164,7 +164,7 @@ function renderAlert(root, landed, pushed, hasLanding, hasTest) {
     if (url) lines.push(`      ${url}`);
   }
   if (landed.length > MAX_LISTED) lines.push(`  • …+${landed.length - MAX_LISTED} more`);
-  lines.push('', 'This alert is structural (KIT-T021/T088), not optional. To clear the gate:');
+  lines.push('', 'This alert is structural (KIT-T021/T099), not optional. To clear the gate:');
   if (!hasLanding) {
     lines.push('  - announce the landing — WHAT + the ticket + the link ("pushed"/"deployed"/the sha);');
   }
