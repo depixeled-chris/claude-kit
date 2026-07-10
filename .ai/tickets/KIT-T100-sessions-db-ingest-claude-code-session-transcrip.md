@@ -2,7 +2,7 @@
 id: KIT-T100
 title: sessions.db: ingest Claude Code session transcripts into a separate FTS5 SQLite cache + q sessions/session/said query surface (timestamped cross-terminal history, lazy query-time ingest)
 type: feature
-status: doing
+status: review
 priority: medium
 milestone:
 labels: []
@@ -11,7 +11,7 @@ files: []
 supersedes:
 superseded_by:
 created: 2026-07-10T05:04:26Z
-updated: 2026-07-10T05:04:48Z
+updated: 2026-07-10T05:13:24Z
 ---
 
 ## Description
@@ -52,3 +52,5 @@ SESSION.md-diet process change is follow-up scope, not this ticket).
 - [2026-07-10 05:12] (comment) ticked: ingest is incremental (unchanged transcripts skip) and fail-open per file; parser
 - [2026-07-10 05:12] (comment) ticked: no-engine fallback: sessions/session degrade to direct file reads; said says why it can't
 - [2026-07-10 05:12] (comment) ticked: tests in the suite; real-machine backfill receipts recorded
+- [2026-07-10 05:13] (status) doing → review
+- [2026-07-10 05:13] (comment) shipped; awaiting maintainer /done. q sessions 172ms on real data

@@ -25,7 +25,7 @@
 | KIT-T089 | tech-debt | todo | medium | Install + configure eslint in claude-kit and clear its ~40 hits (split from KIT-T074) |
 | KIT-T098 | feature | todo | medium | orient: foundational decision tier - always-surface project identity regardless of scope |
 | KIT-T099 | feature | review | high | Lead with what changed; end every turn with what's TESTABLE (land-alert test-receipt gate) |
-| KIT-T100 | feature | doing | medium | sessions.db: ingest Claude Code session transcripts into a separate FTS5 SQLite cache + q sessions/session/said query surface (timestamped cross-terminal history, lazy query-time ingest) |
+| KIT-T100 | feature | review | medium | sessions.db: ingest Claude Code session transcripts into a separate FTS5 SQLite cache + q sessions/session/said query surface (timestamped cross-terminal history, lazy query-time ingest) |
 
 ## Superseded (8)
 | id | status | title | superseded by |
