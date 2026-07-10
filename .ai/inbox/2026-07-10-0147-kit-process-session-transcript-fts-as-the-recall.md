@@ -1,0 +1,1 @@
+(feature) KIT process: session-transcript FTS as the RECALL mechanism — agents answer 'what was said about X' via q text-search over ingested session logs instead of resident context; enables SESSION.md diet (one screen + pointers), leaner orientation dump; rule: transcripts INFORM, DECISIONS/tickets GOVERN (extends -1550 sessions.db design, 2026-07-09)

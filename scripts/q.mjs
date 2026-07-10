@@ -694,6 +694,9 @@ const QUERY_SURFACE = `usage: q.mjs [--json] [--no-db] [--root <dir>] <query> [a
   integrity                   orphan parents / dangling links / gaps
   sql "SELECT ..."            ad-hoc read-only SQL
   verify [scope]              cache staleness self-check (exit 1 = stale)
+  sessions [--project <s>]    list Claude Code terminal sessions, newest first (KIT-T100)
+  session <id-prefix>         timestamped conversation dump of one session
+  said <words...>             full-text search what was SAID across all sessions
 `;
 
 async function main() {
@@ -712,6 +715,13 @@ async function main() {
   const [cmd, ...args] = rest;
   if (!cmd) { process.stderr.write(QUERY_SURFACE); process.exit(2); }
   if (cmd === '--help' || cmd === '-h' || cmd === 'help') { process.stdout.write(QUERY_SURFACE); process.exit(0); }
+
+  // Session-transcript queries (KIT-T100) delegate whole: conversation history lives in its
+  // own module + its own sessions.db (machine-local, transcript-derived), NOT the work cache.
+  if (cmd === 'sessions' || cmd === 'session' || cmd === 'said') {
+    const { runSessions } = await import('./q-sessions.mjs');
+    process.exit(await runSessions(cmd, args, { json }));
+  }
 
   const dbPath = defaultDbPath();
 
