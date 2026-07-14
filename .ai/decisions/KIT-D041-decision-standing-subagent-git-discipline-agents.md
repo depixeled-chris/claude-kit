@@ -1,0 +1,16 @@
+---
+id: KIT-D041
+title: (decision/standing) SUBAGENT GIT DISCIPLINE — agents must NOT do branch operations on the SHARED working tree. RULE: (1) Unless explicitly told otherwise, a subagent works IN PLACE on the CURRENT branch — no `git checkout <branch>`, `git switch`, `git checkout -b`, no branch creation/switching on the shared filesystem. (2) Parallel/background work uses a SEPARATE git WORKTREE (its own FS dir) — the only sanctioned isolation, since it physically cannot touch the shared tree. THE FAILURE (lived 2026-06-06): a background build agent was told (by the parent's brief) to "commit on a new branch off main"; on the SHARED tree it ran `git stash` + `git checkout main`, stashing the parent's uncommitted in-flight work (a measured unfreeze edit on roads-wip) and switching the working tree out from under concurrent work. Multi-agent + one filesystem + branch-switching = corruption/loss. WHY: git branches share ONE working tree; an agent switching it disrupts every other actor (the maintainer, the parent, sibling agents). The maintainer: "They've got to stop trying to work on branches on the same fucking file system… Unless otherwise told, they should ALWAYS work on the current branch." ENFORCEMENT (same pattern as KIT-T050 retrieval gate / the cap routing + retrieval gaps): bake the rule into subagent system prompts + the orient preamble IDENTITY section (parent default: don't instruct branch ops; for parallel use the Agent tool's worktree isolation); consider a guard that flags/blocks `git checkout`/`switch`/`-b` from a subagent context. Parent-side discipline too: never put "commit on a new branch" in a subagent brief for shared-tree work — either current-branch-in-place or worktree isolation.
+date: 2026-07-14
+supersedes:        # DEC-### this replaces, or blank
+source:            # commit hash / doc path / "conversation YYYY-MM-DD"
+---
+
+**Decision:** <what was decided>
+
+**Why:** <the reason — and what was rejected, and why>
+
+<!-- One decision per file (atomic, like a ticket — KIT-D009). IDs KIT-D### (e.g. KIT-D010),
+     assigned in order, never reused. Allocate with next-id.mjs (KIT-T009). Append a NEW
+     file to supersede an old one; never edit a settled decision's substance. The orient hook
+     surfaces recent decisions each session. Cite the id in commits where relevant. -->
