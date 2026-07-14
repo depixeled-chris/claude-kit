@@ -22,38 +22,18 @@ import { reconcileSupersede, autoDedupTickets } from './reconcile-supersede.mjs'
 
 const SKIP = new Set(['_TEMPLATE.md', 'INDEX.md']);
 
-// A frontmatter scalar, with the YAML inline comment stripped. A blank template line
-// (`superseded_by:            # ticket id that retired THIS one`) must read as EMPTY, not as
-// its trailing placeholder comment (KIT-T063) — otherwise a never-replaced superseded ticket
-// rendered the comment text in the "superseded by" column. The strip fires on a `#` that
-// begins the value or follows whitespace (the YAML inline-comment convention), so a `#` that is
-// part of an unspaced real value is preserved.
-function field(fm, key) {
-  const m = fm.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'));
-  if (!m) return '';
-  return m[1].replace(/(^|\s)#.*$/, '').trim().replace(/^["']|["']$/g, '');
-}
-
-// Tolerant inline-list parse — `aka: [R045, R046]` or `aka: []` -> string[].
-// Mirrors the `list()` idiom in db-parse.mjs (no dep, no YAML library).
-function listField(fm, key) {
-  const m = fm.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'));
-  if (!m) return [];
-  const raw = m[1].replace(/(^|\s)#.*$/, '').trim();
-  if (!raw) return [];
-  return raw
-    .replace(/^\[|\]$/g, '')
-    .split(',')
-    .map((s) => s.trim().replace(/^["']|["']$/g, ''))
-    .filter(Boolean);
-}
+// Shared comment-aware, CRLF-tolerant parser (KIT-T107/KIT-T124). The local copies this
+// replaced: field()'s naive `(^|\s)#` strip (KIT-T063) — superseded by stripComment's
+// quote/bracket awareness — and an LF-only block regex that returned NO frontmatter for a
+// file whose first line ends CRLF (junk board rows, duplicate-id aborts).
+import { frontmatterBlock, field, listField } from './frontmatter.mjs';
 
 function readTickets(dir, archived) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((f) => f.endsWith('.md') && !SKIP.has(f))
     .map((f) => {
-      const fm = (readFileSync(join(dir, f), 'utf8').match(/^---\n([\s\S]*?)\n---/) || [null, ''])[1];
+      const fm = frontmatterBlock(readFileSync(join(dir, f), 'utf8'));
       const id = field(fm, 'id') || (f.match(/[A-Za-z]+-\d+/) || [])[0] || f.replace(/\.md$/, '');
       return {
         id,

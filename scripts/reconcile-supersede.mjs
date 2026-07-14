@@ -23,19 +23,13 @@ import { fileURLToPath } from 'node:url';
 import { query } from './q.mjs';
 import { compareIds } from './id-utils.mjs';
 import { writeItemFile } from '../hooks/lib.mjs';
+// Shared comment-aware parser (KIT-T107): the local field() copy this replaced read the
+// _TEMPLATE's trailing `# …` comment on `superseded_by:` as a REAL pointer, so every
+// template-fresh ticket got flipped to status: superseded on the next board rebuild
+// (mass phantom-supersede, 2026-07-14).
+import { splitFrontmatter, field } from './frontmatter.mjs';
 
 const SKIP = new Set(['_TEMPLATE.md', 'INDEX.md']);
-
-function splitFrontmatter(text) {
-  const m = text.match(/^(---\n)([\s\S]*?)(\n---)/);
-  if (!m) return null;
-  return { open: m[1], fm: m[2], close: m[3], rest: text.slice(m[0].length) };
-}
-
-function field(fm, key) {
-  const m = fm.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'));
-  return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
-}
 
 // Set a frontmatter scalar, preserving an existing (possibly empty) line in place; append a
 // new line at the end of the block if the key is absent. Returns the new frontmatter text.

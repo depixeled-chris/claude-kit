@@ -2,7 +2,7 @@
 id: KIT-T107
 title: index-tickets markdown-fallback field() does not stripComment like db-parse: leftover template comment on 'supersedes:' in KIT-T039-T044 (copied from _TEMPLATE) renders a junk supersede chain in SUPERSEDED.md whenever it regenerates without the cache. Clear the 6 tickets' supersedes/superseded_by comments AND share one comment-aware frontmatter parser between db-parse and index-tickets (DRY). Surfaced during KIT-T075 drain.
 type: bug
-status: todo
+status: review
 priority: high
 milestone:             # blank = backlog; set to schedule onto ROADMAP.md
 labels: []
@@ -20,7 +20,7 @@ effort:                # OPTIONAL override: low | medium | high | xhigh | max �
 supersedes:            # ticket id this one RETIRES (set on the NEWER ticket)
 superseded_by:         # ticket id that retired THIS one (drops it from the active board + drain)
 created: 2026-07-14T17:40:14.677Z
-updated: 2026-07-14T17:40:14.677Z
+updated: 2026-07-14T17:59:16Z
 ---
 
 ## Description
@@ -53,3 +53,5 @@ index-tickets markdown-fallback field() does not stripComment like db-parse: lef
        (fixed)     <sha>                    (regressed) → T-040   (recurred as)
      NEVER edit or delete a prior line — this is the task's audit trail (KIT-D037). -->
 - [<YYYY-MM-DD HH:MM>] (created)
+- [2026-07-14 17:53] (status) todo → doing
+- [2026-07-14 17:59] (status) todo → review

@@ -25,48 +25,11 @@ function readBody(absPath) {
   return readFileSync(absPath, 'utf8');
 }
 
-function frontmatterBlock(text) {
-  const m = text.match(/^---\n([\s\S]*?)\n---/);
-  return m ? m[1] : '';
-}
-
-// Drop a trailing YAML line-comment (` # …`) the stores routinely add to template fields
-// (`files: []   # repo-root-relative paths`). A `#` INSIDE `[...]` or a quote is kept (it may
-// be a real value char); only a `#` at top level — preceded by whitespace or starting the value
-// — is a comment. Without this, `files: [] # note` parsed the comment text as a bogus entry,
-// which surfaced as junk drift/governing targets (KIT-T049).
-function stripComment(raw) {
-  let depth = 0;
-  let quote = '';
-  for (let k = 0; k < raw.length; k++) {
-    const c = raw[k];
-    if (quote) { if (c === quote) quote = ''; continue; }
-    if (c === '"' || c === "'") quote = c;
-    else if (c === '[') depth++;
-    else if (c === ']') depth = Math.max(0, depth - 1);
-    else if (c === '#' && depth === 0 && (k === 0 || /\s/.test(raw[k - 1]))) return raw.slice(0, k);
-  }
-  return raw;
-}
-
-function scalar(fm, key) {
-  const m = fm.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'));
-  return m ? stripComment(m[1]).trim().replace(/^["']|["']$/g, '') : '';
-}
-
-// A YAML-ish inline list (`links: [A, B]`) OR an empty/absent field -> string[]. Also
-// tolerates a single bare scalar (`parent: KIT-T003`) by returning [value].
-function list(fm, key) {
-  const m = fm.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'));
-  if (!m) return [];
-  const raw = stripComment(m[1]).trim();
-  if (!raw) return [];
-  const inner = raw.replace(/^\[|\]$/g, '');
-  return inner
-    .split(',')
-    .map((s) => s.trim().replace(/^["']|["']$/g, ''))
-    .filter(Boolean);
-}
+// Shared comment-aware, CRLF-tolerant parser (KIT-T107/KIT-T124) — stripComment
+// originated here (KIT-T049) and moved to frontmatter.mjs so reconcile-supersede and
+// index-tickets read template fields identically. `scalar`/`list` are this module's
+// established local names for the shared field/listField.
+import { frontmatterBlock, stripComment, field as scalar, listField as list } from './frontmatter.mjs';
 
 // A comma-separated scalar field (`paths: rust/*, src/world/*`) -> string[]. Unlike list(),
 // this expects bare commas (no `[...]` wrapper) — the form decisions write `paths` in, mirrored
