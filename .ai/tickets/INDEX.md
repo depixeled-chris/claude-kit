@@ -65,7 +65,7 @@
 | KIT-T044 | superseded | Sessions must be cache-backed, searchable, and history-tracked across sessions (not one overwritten SESSION.md). Today: orient.mjs:100 raw file-reads SESSION.md; the DB cache+FTS ingests only .ai stores (db-parse), so the session summary is never a row, never searchable via q.mjs — a KIT-D024 violation (index is the SOLE read surface). Wanted: (1) session open/close are first-class boundary events; (2) each session = an append/versioned record (clean breaks, queryable history), not a clobbered file; (3) summaries ingested into items+FTS like any store; (4) orient loads the latest session summary FROM the cache, not a raw head() of the file. Touches: new SESSION store + db-parse, hydrate/sync, orient.mjs, flush.mjs. | — |
 | KIT-T060 | superseded | /done command — the human flip's mechanical tail (History line, archive move, index regen) | KIT-T075 |
 
-## Archived (70)
+## Archived (71)
 | id | type | status | priority | title |
 | --- | --- | --- | --- | --- |
 | KIT-T001 | feature | done | high | Scope-aware /prime — lazy default, "what needs me?" briefing, named deep-dive |
@@ -138,3 +138,4 @@
 | KIT-T095 | feature | done | medium | Provenance fields + generated reverse views: introduced_by / produced_by / informs (KIT-T003 crit 6+7) |
 | KIT-T096 | bug | done | high | Cache hydration is per-writer opt-in, not structural — cap (+ other Bash-invoked item writers) mutate items WITHOUT hydrating; make every item write hydrate-at-source via one write-through primitive |
 | KIT-T097 | feature | done | medium | Proactive hydrate on git pull/checkout/rebase — native .githooks (post-merge/checkout/rewrite via core.hooksPath) + a PostToolUse(Bash) complement; closes the out-of-band drift gap (KIT-T096 follow-up) |
+| KIT-T127 | feature | done | medium | Fable-aware dispatch: deep tier prefers fable with opus fallback |

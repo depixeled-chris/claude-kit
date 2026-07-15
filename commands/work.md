@@ -22,7 +22,11 @@ Work ticket $ARGUMENTS per the contract:
    resolved as — explicit ticket `model:`/`effort:` (per-axis override), else ticket `tier:`
    expanded via `dispatch.tiers`, else `dispatch.default_tier` for the ticket's `type` (then the
    `*` catch-all). One `tier` sets BOTH model and effort; never inherit the parent model by
-   default (Opus-inheritance is the token bleed — KIT-D022).
+   default (Opus-inheritance is the token bleed — KIT-D022). If the resolved model is
+   UNAVAILABLE at dispatch (the harness rejects the value — e.g. `fable`, KIT-D042), retry the
+   same delegation with the tier's `fallback:` model and say so in the receipt. The same
+   resolved firepower applies when dispatch goes through a Workflow script: pass it as the
+   `agent()` call's `model`/`effort` opts.
    When delegating, ROUTE to the right agent (KIT-T015):
    - Check for a project-local knowledge-agent at `<repo>/.claude/agents/<domain>.md` first.
      If one exists, route there — it carries conventions, past gotchas, and the out-of-scope

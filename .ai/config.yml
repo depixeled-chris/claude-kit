@@ -107,12 +107,18 @@ dispatch:
   # tier -> the (model, effort) firepower it expands to. Three tiers span the
   # KIT-D022 ladder: light = mechanical, standard = everyday atomic change,
   # deep = reasoning-heavy planning/architecture/research.
+  #   model values: fable | opus | sonnet | haiku (fable = Claude 5 Mythos-class,
+  #   above opus — preferred for planning/hardest problems, KIT-D042)
   #   effort values (verified to exist as Agent/command/skill frontmatter):
   #   low | medium | high | xhigh | max
+  # `fallback:` on a tier names the model to retry with when the primary is
+  # UNAVAILABLE at dispatch (the harness rejects the model value). The
+  # orchestrator retries the SAME delegation with the fallback and says so in
+  # the receipt — availability handling only, never a silent cost downgrade.
   tiers:
     light:    { model: haiku,  effort: low }     # data formatting, mechanical edits, search, triage
     standard: { model: sonnet, effort: medium }  # normal atomic code change / bug fix (the everyday default)
-    deep:     { model: opus,   effort: high }     # planning, architecture, research, epics, anything reasoning-heavy
+    deep:     { model: fable,  fallback: opus, effort: high }  # planning, architecture, research, epics, anything reasoning-heavy
   # Default tier by ticket `type` when the ticket names no tier/model. Keys are
   # classification types (config.classifications); `*` is the catch-all. Projects
   # that add their own types (epic, research, architecture, chore, format, cleanup,

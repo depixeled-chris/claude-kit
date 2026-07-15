@@ -127,12 +127,14 @@ capture:
 # DISPATCH — the FIREPOWER a ticket gets when delegated to a subagent (KIT-D035).
 # Resolution order (first hit wins): explicit ticket model:/effort: → ticket tier:
 # expanded via tiers → default_tier for the ticket's type (then * catch-all).
+# A tier's `fallback:` is the model to retry with when the primary is unavailable
+# at dispatch (KIT-D042) — availability handling, not a cost downgrade.
 # ---------------------------------------------------------------------------
 dispatch:
   tiers:
     light:    { model: haiku,  effort: low }
     standard: { model: sonnet, effort: medium }
-    deep:     { model: opus,   effort: high }
+    deep:     { model: fable,  fallback: opus, effort: high }
   default_tier:
     regression: standard
     bug:        standard
