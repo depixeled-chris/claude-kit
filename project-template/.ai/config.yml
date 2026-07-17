@@ -133,7 +133,7 @@ capture:
 dispatch:
   tiers:
     light:    { model: haiku,  effort: low }
-    standard: { model: sonnet, effort: medium }
+    standard: { model: opus,   effort: medium }  # KIT-D043: sonnet off the coding ladder (override-only)
     deep:     { model: fable,  fallback: opus, effort: high }
   default_tier:
     regression: standard

@@ -99,6 +99,19 @@ first. Recommend B because [reason]."
   yourself and report the outcome. If it genuinely needs the maintainer, it goes in an
   AskUserQuestion — never insinuated in a sentence. No third option.
 
+# SUBAGENT DISPATCH — one living ladder, one home
+- The model-routing hierarchy is the kit's **firepower ladder** (`.ai/config.yml →
+  dispatch.tiers`; KIT-D035/D042/D043). Model judgments are DATED, lineup-dependent
+  facts — when the model lineup changes, update the ladder + a superseding decision at
+  the kit source. **Never** encode model routing in a per-project memory.
+- Ad-hoc Agent-tool delegations (outside ticket dispatch) follow the same ladder:
+  **coding/implementation → opus**; trivial mechanical chores → haiku; **sonnet never
+  for coding** (legal only as an explicit override; KIT-D043 — Sonnet 5's tokenizer
+  erodes its efficiency edge, opus codes better); fable only for orchestration and the
+  hardest reasoning, budget permitting. On a fable usage-limit error, relaunch the same
+  delegation on opus immediately.
+- Don't burn main-thread fable context on basic work — delegate it DOWN the ladder.
+
 # DEVELOPMENT PRINCIPLES
 - One source of truth for every type/model.
 - Extract reusable UI components early.
