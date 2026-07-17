@@ -2,7 +2,7 @@
 id: KIT-T128
 title: Living model-routing hierarchy: standard tier -> opus, sonnet off the coding ladder (Chris directive 2026-07-16)
 type: request
-status: doing
+status: done
 priority: medium
 milestone:
 labels: []
@@ -11,7 +11,8 @@ files: [.ai/config.yml, project-template/.ai/config.yml, user-config/CLAUDE.glob
 supersedes:
 superseded_by:
 created: 2026-07-17T01:34:38Z
-updated: 2026-07-17T01:35:13Z
+updated: 2026-07-17T01:38:22Z
+fixed_commit: fd2f925
 ---
 
 ## Description
@@ -63,3 +64,4 @@ into the ladder + global contract; retire the project memory.
 - [2026-07-17 01:37] (comment) ticked: `.ai/config.yml` `dispatch.tiers.standard` = (opus, medium) with a dated
 - [2026-07-17 01:37] (comment) ticked: `user-config/CLAUDE.global.md` carries the ad-hoc delegation rule (Agent
 - [2026-07-17 01:37] (comment) ticked: groovegrid project memory `feedback_delegate_basics_off_fable.md` +
+- [2026-07-17 01:38] (status) doing → done
