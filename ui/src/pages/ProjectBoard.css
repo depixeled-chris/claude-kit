@@ -31,6 +31,8 @@
   align-items: center;
   padding: 0.75rem 1rem;
   border-bottom: 2px solid var(--border);
+  border-radius: 8px 8px 0 0; /* match .board-column so the tint doesn't overflow the corners */
+  background: color-mix(in srgb, var(--border) 35%, var(--surface-2));
 }
 
 .column-header h2 { margin: 0; font-size: 1rem; color: var(--text); }
@@ -45,10 +47,22 @@
   font-weight: 600;
 }
 
-.column-todo .column-header { border-bottom-color: #94a3b8; }
-.column-doing .column-header { border-bottom-color: #f59e0b; }
-.column-review .column-header { border-bottom-color: #3b82f6; }
-.column-done .column-header { border-bottom-color: #16a34a; }
+.column-todo .column-header {
+  border-bottom-color: #94a3b8;
+  background: color-mix(in srgb, #94a3b8 14%, var(--surface-2));
+}
+.column-doing .column-header {
+  border-bottom-color: #f59e0b;
+  background: color-mix(in srgb, #f59e0b 14%, var(--surface-2));
+}
+.column-review .column-header {
+  border-bottom-color: #3b82f6;
+  background: color-mix(in srgb, #3b82f6 14%, var(--surface-2));
+}
+.column-done .column-header {
+  border-bottom-color: #16a34a;
+  background: color-mix(in srgb, #16a34a 14%, var(--surface-2));
+}
 
 .column-content {
   flex: 1;
