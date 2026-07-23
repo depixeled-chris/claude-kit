@@ -38,6 +38,10 @@
       {
         "matcher": "AskUserQuestion",
         "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/question-gate.mjs\"" }]
+      },
+      {
+        "matcher": "Task|Agent",
+        "hooks": [{ "type": "command", "command": "node \"$HOME/.claude/hooks/dispatch-guard.mjs\"" }]
       }
     ],
     "PostToolUse": [

@@ -116,6 +116,13 @@ first. Recommend B because [reason]."
   erodes its efficiency edge, opus codes better); fable only for orchestration and the
   hardest reasoning, budget permitting. On a fable usage-limit error, relaunch the same
   delegation on opus immediately.
+- **Kit agents pin `model: opus` in their frontmatter** (researcher, code-reviewer,
+  refactorer, test-author; KIT-T151) so a delegation never silently inherits an expensive
+  main-thread model. On a fable main thread, every delegation to an UNPINNED agent type
+  (general-purpose, Explore, …) must carry an explicit `model` — the `dispatch-ladder`
+  hook blocks the silent inherit. Explicit `model:'fable'` stays legal (a chosen tier,
+  e.g. deep-tier dispatch); to keep a deliberate model-less inherit, put an inline
+  `[allow-fable: <reason>]` token in the delegation prompt.
 - Don't burn main-thread fable context on basic work — delegate it DOWN the ladder.
 
 # DEVELOPMENT PRINCIPLES
