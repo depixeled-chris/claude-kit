@@ -10,8 +10,13 @@ import { buildApp } from './app.mjs';
 const config = resolveConfig();
 const app = buildApp(config);
 
+import { staticUiRoutes } from './lib/static-ui.mjs';
+
 app.listen(config.port, config.host, () => {
+  const uiState = staticUiRoutes(config.uiDist)
+    ? `UI at http://${config.host}:${config.port}/`
+    : 'no ui/dist build — run `npm run ui:build` to serve the UI here';
   process.stdout.write(
-    `claude-kit API listening on http://${config.host}:${config.port} (CORS: ${config.corsOrigin})\n`,
+    `claude-kit API listening on http://${config.host}:${config.port} (${uiState})\n`,
   );
 });

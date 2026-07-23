@@ -6,6 +6,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "npm run ui:build && node server/index.mjs",
     "api": "node server/index.mjs",
     "ui": "npm run dev --prefix ui",
     "ui:build": "npm run build --prefix ui",

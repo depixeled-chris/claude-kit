@@ -259,3 +259,39 @@ test('GET /api/waiting surfaces a review ticket from a central notebook', async 
   assert.ok(wt, 'wtproj on the waiting board');
   assert.ok(wt.items.some((i) => i.kind === 'review' && i.id === 'WT-T001'));
 });
+
+// ---- single-port static UI (npm start mode) ----
+test('serves ui/dist from the API port with SPA fallback; /api keeps JSON 404', async () => {
+  const uiDist = tmp('kit-api-ui-');
+  writeFileSync(join(uiDist, 'index.html'), '<!doctype html><title>kit-ui-fixture</title>');
+  const uiApp = buildApp({ ...config, uiDist });
+  const uiServer = uiApp.listen(0, '127.0.0.1');
+  await new Promise((r) => uiServer.once('listening', r));
+  const uiBase = `http://127.0.0.1:${uiServer.address().port}`;
+  try {
+    const root = await fetch(uiBase + '/');
+    assert.equal(root.status, 200);
+    assert.match(await root.text(), /kit-ui-fixture/);
+    const spa = await fetch(uiBase + '/p/TST/t/TST-T001');
+    assert.equal(spa.status, 200);
+    assert.match(await spa.text(), /kit-ui-fixture/, 'SPA route falls back to index.html');
+    const api = await fetch(uiBase + '/api/nonexistent');
+    assert.equal(api.status, 404);
+    assert.match(api.headers.get('content-type'), /application\/json/, '/api 404 stays typed JSON');
+  } finally {
+    uiServer.close();
+  }
+});
+
+test('static UI disabled cleanly when no build exists', async () => {
+  const bare = buildApp({ ...config, uiDist: join(tmp('kit-api-noui-'), 'missing') });
+  const bareServer = bare.listen(0, '127.0.0.1');
+  await new Promise((r) => bareServer.once('listening', r));
+  try {
+    const res = await fetch(`http://127.0.0.1:${bareServer.address().port}/`);
+    assert.equal(res.status, 404);
+    assert.match(res.headers.get('content-type'), /application\/json/);
+  } finally {
+    bareServer.close();
+  }
+});
