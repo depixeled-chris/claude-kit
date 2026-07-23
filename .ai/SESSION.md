@@ -81,12 +81,22 @@ Updated: 2026-07-23  |  Branch: main  |  Active: M4-web-ui phase 1 SHIPPED
   transition, auto-@mention the agent.
   KIT-T148 sha chips misroute as ticket links → classify chips, GitHub commit URL.
 
+- KIT-T144 DONE + VERIFIED (2f6e6ef): /all stacked collapsible kanbans (KanbanBoard +
+  ProjectSection extracted), full-width boards (.main--wide on /all + /p/:key only),
+  "name (KEY)" headings. Build ✓ 919ms, suite EXIT=0, live /all 200 (I re-verified).
+- KIT-T149 captured (756e9cc): nav redesign — pinnable tabs + secondary dropdowns
+  (project selector, settings w/ /api/me identity).
+
+## In flight (roster: .ai/agents.jsonl)
+- opus agent on the FIVE-ticket UI wave, sequential single writer, per-ticket
+  commit+close: T145 identity/alias → T149 nav tabs → T146 mentions page+badge →
+  T147 send-back-requires-comment (API 422 + inline box) → T148 sha chips.
+  Final step rebuilds ui/dist so 127.0.0.1:4319 serves it all.
+
 ## Next 3 steps
-1. Collect KIT-T144 agent (All view + full-width + name-headings) — verify build +
-  live /all, rebuild served dist if needed, receipt.
-2. Dispatch the T145 → T146/T147/T148 batch (T145 first — identity underpins the
-  rest; single sequential writer in ui/).
-3. KIT-T143 (CRX merge mode) after the UI wave; KIT-T133 on Chris's flip.
+1. Collect the wave agent — verify per-ticket evidence + live /mentions, receipt.
+2. KIT-T143 (CRX merge mode) after the UI wave; KIT-T133 on Chris's flip.
+3. Watch KIT-D045/T135 (parallel session) landing — affects accept/close semantics.
 
 ## Carry-over (pre-2026-07-23, still open)
 - Inbox: 5 un-triaged items ≥2d (oldest 8d) — run /triage.
