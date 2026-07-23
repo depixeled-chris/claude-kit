@@ -66,7 +66,7 @@ function surveyRepo() {
   mkdirSync(join(d, '.ai', 'tickets'), { recursive: true });
   writeFileSync(join(d, '.ai', 'tickets', 'T-001-r.md'), '---\nid: T-001\ntitle: A review item\nstatus: review\n---\n');
   writeFileSync(join(d, '.ai', 'tickets', 'T-002-d.md'), '---\nid: T-002\ntitle: A doing item\nstatus: doing\n---\n');
-  writeFileSync(join(d, '.ai', 'SESSION.md'), '# S\n\n### NEEDS CHRIS\n- decide the thing\n');
+  writeFileSync(join(d, '.ai', 'SESSION.md'), '# S\n\n### NEEDS REVIEW\n- decide the thing\n');
   return d;
 }
 

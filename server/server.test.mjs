@@ -156,6 +156,14 @@ test('GET /health reports ok', async () => {
   assert.equal(r.body.data.status, 'ok');
 });
 
+// ---- resolved viewer identity (KIT-T145) ----
+test('GET /api/me returns the resolved alias', async () => {
+  const r = await get('/api/me');
+  assert.equal(r.status, 200);
+  assert.equal(typeof r.body.data.alias, 'string');
+  assert.ok(r.body.data.alias.length > 0, 'alias is non-empty');
+});
+
 // ---- reads served from the cache ----
 test('GET /api/projects lists the adopted project with open/review counts', async () => {
   const r = await get('/api/projects');
@@ -207,7 +215,7 @@ test('GET list endpoints for questions / decisions / inbox', async () => {
 
 // ---- markdown-WRITE → cache-READ round-trip ----
 test('POST comment is durable in markdown and shows on the next cache-served GET', async () => {
-  const posted = await post('/api/projects/TST/tickets/TST-T001/comments', { text: 'please review @bob', author: 'chris' });
+  const posted = await post('/api/projects/TST/tickets/TST-T001/comments', { text: 'please review @bob', author: 'user' });
   assert.equal(posted.status, 201);
   assert.equal(posted.body.data.ref, 'TST-T001#1');
   assert.deepEqual(posted.body.data.mentions, ['bob']);
@@ -216,7 +224,7 @@ test('POST comment is durable in markdown and shows on the next cache-served GET
   assert.equal(detail.body.data.comments.length, 1);
   const c = detail.body.data.comments[0];
   assert.equal(c.text, 'please review @bob');
-  assert.equal(c.author, 'chris');
+  assert.equal(c.author, 'user');
   assert.deepEqual(c.mentions, ['bob']);
   assert.equal(c.unread, true); // @bob hasn't acked
 });

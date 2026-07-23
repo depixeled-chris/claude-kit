@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { postStatus, ApiError } from '../../services/api';
+import { useIdentity } from '../../lib/identity';
 import { transitionsFor, statusLabel, type Transition } from '../../lib/status';
 import { Modal, ModalHeader, ModalContent, ModalFooter } from '../Modal';
 
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function StatusControls({ projectKey, ticketId, status, onChanged }: Props) {
+  const { alias } = useIdentity();
   const [pending, setPending] = useState<Transition | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [guard, setGuard] = useState<{ code: string; message: string } | null>(null);
@@ -29,7 +31,7 @@ export function StatusControls({ projectKey, ticketId, status, onChanged }: Prop
     setSubmitting(true);
     setGuard(null);
     try {
-      await postStatus(projectKey, ticketId, { status: pending.to, agent: 'chris' });
+      await postStatus(projectKey, ticketId, { status: pending.to, agent: alias });
       setPending(null);
       onChanged();
     } catch (err) {

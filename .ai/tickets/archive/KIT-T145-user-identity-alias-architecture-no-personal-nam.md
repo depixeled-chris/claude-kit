@@ -2,7 +2,7 @@
 id: KIT-T145
 title: User identity/alias architecture — no personal names in code; role 'user' resolved via KIT_USER/registry; /api/me
 type: feature
-status: todo
+status: done
 priority: high
 milestone: M4-web-ui
 labels: []
@@ -11,7 +11,7 @@ files: []
 supersedes:
 superseded_by:
 created: 2026-07-23T18:13:57Z
-updated: 2026-07-23T18:13:57Z
+updated: 2026-07-23T18:39:56Z
 ---
 
 ## Description
@@ -41,11 +41,11 @@ Design:
   registry user field + a fixture list, so the test itself stays name-free.
 
 ## Acceptance Criteria
-- [ ] Identity resolver shipped (KIT_USER → registry user → 'user') and exposed as GET /api/me; t/comments CLI default human author through the same resolver
-- [ ] ui/src has zero personal-name literals: viewer, comment author default, status agent all resolved from /api/me
-- [ ] survey.mjs regex + test fixtures + hook comments de-named; commands/docs use `answerable_by: user` with legacy value accepted as synonym on read
-- [ ] Regression test proves no personal-name literals outside .ai/ (excl. node_modules), name sourced from config not the test body
-- [ ] ui build + full npm test green
+- [x] Identity resolver shipped (KIT_USER → registry user → 'user') and exposed as GET /api/me; t/comments CLI default human author through the same resolver
+- [x] ui/src has zero personal-name literals: viewer, comment author default, status agent all resolved from /api/me
+- [x] survey.mjs regex + test fixtures + hook comments de-named; commands/docs use `answerable_by: user` with legacy value accepted as synonym on read
+- [x] Regression test proves no personal-name literals outside .ai/ (excl. node_modules), name sourced from config not the test body
+- [x] ui build + full npm test green
 
 ## Plan
 1. Resolver in scripts (beside resolveAgent in comments.mjs) + /api/me + CLI default.
@@ -55,3 +55,13 @@ Design:
 
 ## History
 - [2026-07-23 18:13] (created) feature — User identity/alias architecture — no personal names in code; role 'user' resolved via KIT_USER/registry; /api/me
+- [2026-07-23 18:25] (status) todo → doing
+- [2026-07-23 18:39] (comment) ticked: Identity resolver shipped (KIT_USER → registry user → 'user') and exposed as GET /api/me; t/comments CLI default human author through the same resolver
+- [2026-07-23 18:39] (comment) ticked: survey.mjs regex + test fixtures + hook comments de-named; commands/docs use `answerable_by: user` with legacy value accepted as synonym on read
+- [2026-07-23 18:39] (comment) ticked: ui build + full npm test green
+- [2026-07-23 18:39] (comment) ticked: ui/src has zero personal-name literals: viewer, comment author default, status agent all resolved from /api/me
+- [2026-07-23 18:39] (comment) ticked: Regression test proves no personal-name literals outside .ai/ (excl. node_modules), name sourced from config not the test body
+- [2026-07-23 18:39] (comment) @claude: Evidence: root npm test green (identity.test.mjs 6/6 incl. resolver chain + no-personal-name scan across ui/src+server+s (full comment #1 in ## Notes)
+### comment #1 [2026-07-23 18:39] @claude
+Evidence: root npm test green (identity.test.mjs 6/6 incl. resolver chain + no-personal-name scan across ui/src+server+scripts+hooks+commands; server.test.mjs 18/18 incl. GET /api/me → 200). ui build green (tsc -b && vite build, 67 modules). Shared files writes.mjs/api.ts/types landed via 6b479bc (parallel KIT-T137 co-commit); identity.mjs/me.mjs/identity.tsx complete the dependency here.
+- [2026-07-23 18:39] (status) doing → done

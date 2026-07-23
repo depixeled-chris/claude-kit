@@ -26,6 +26,7 @@ import {
   gitRoot, adopted, projectName, readRegistry, recordProject,
   formatWip, watchRepos, wipSummary, WIP_FILES, WIP_COMMITS,
 } from '../hooks/lib.mjs';
+import { resolveUser } from './identity.mjs';
 
 const OPEN_STATUSES = ['todo', 'doing', 'review'];
 const SESSION_PEEK = 28; // lines of SESSION.md shown in a deep view
@@ -120,9 +121,17 @@ export function openQuestions(notebook) {
     return [];
   }
 }
-// Lines under a SESSION.md heading that names the maintainer ("NEEDS CHRIS", "waiting on
-// you", "needs review/decision/approval") — the prose escape hatch for action items that
-// aren't yet structured as review-tickets or questions.
+// A SESSION heading that flags something waiting on the human: generic role words plus the
+// resolved user alias (KIT-T145 — the person is a configurable role, never a hardcoded name),
+// so "NEEDS <alias>", "waiting on you", "needs review/decision/approval" all match. The alias is
+// resolved at runtime because SESSION.md DATA may legitimately name the person.
+function needsHeadingRe() {
+  const alias = resolveUser().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`needs?\\s+(you|maintainer|user|${alias}|review|decision|approval)`, 'i');
+}
+
+// Lines under a SESSION.md heading that flags something waiting on the human — the prose escape
+// hatch for action items not yet structured as review-tickets or questions.
 export function needsBlock(notebook) {
   let text;
   try {
@@ -130,11 +139,12 @@ export function needsBlock(notebook) {
   } catch {
     return [];
   }
+  const headingRe = needsHeadingRe();
   const items = [];
   let capturing = false;
   for (const line of text.split('\n')) {
     if (/^#{1,6}\s/.test(line)) {
-      capturing = /needs?\s+(you|chris|maintainer|review|decision|approval)/i.test(line);
+      capturing = headingRe.test(line);
       continue;
     }
     if (!capturing) continue;

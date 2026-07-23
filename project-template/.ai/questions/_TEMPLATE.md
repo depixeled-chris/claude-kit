@@ -1,7 +1,7 @@
 ---
 id: KEY-Q001
 status: open           # open | resolved
-answerable_by: chris   # chris | claude  (see config.yml classifications.question)
+answerable_by: user    # user | claude  (see config.yml classifications.question)
 created: <YYYY-MM-DD>
 ---
 
@@ -10,5 +10,5 @@ created: <YYYY-MM-DD>
 **Resolution:** <answer + date, filled when resolved; set status: resolved>
 
 <!-- One question per file (atomic — D-009). IDs <KEY>-Q### (e.g. KIT-Q001). Claude answers
-     the answerable_by: claude ones from code/decisions and sets status: resolved; chris-only
+     the answerable_by: claude ones from code/decisions and sets status: resolved; user-only
      ones are surfaced batched at natural breaks. Allocate ids with next-id.mjs (KIT-T009). -->

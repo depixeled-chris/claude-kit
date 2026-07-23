@@ -59,7 +59,7 @@ const LANDED_RECEIPT = new RegExp(
   'i',
 );
 
-// WHAT CAN BE UAT'd — Chris's standing rule (KIT-T099, sharpened by KIT-D045): a turn that
+// WHAT CAN BE UAT'd — the maintainer's standing rule (KIT-T099, sharpened by KIT-D045): a turn that
 // lands work must end by telling the maintainer what THEY can try as a user (the app/preview to
 // open, the CLI to run and read) — automated suites are Claude's own loop, cited only as
 // already-run evidence, never assigned to the maintainer. Cleared by a UAT line, a test verb
@@ -101,7 +101,7 @@ async function main() {
   if (alreadyAlerted(root, head, pushed)) process.exit(0);
 
   // Satisfied only when the reply BOTH announces the landing AND says what can be tested
-  // (KIT-T099 — Chris: "I NEED to know what can be fucking tested"). Either missing → nag once.
+  // (KIT-T099 — the maintainer must always know what can be tested). Either missing → nag once.
   const reply = lastAssistant || '';
   const hasLanding = LANDED_RECEIPT.test(reply);
   const hasTest = TEST_RECEIPT.test(reply);

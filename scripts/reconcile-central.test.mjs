@@ -51,7 +51,7 @@ function runReconcile(registry, args) {
 try {
   // ---- (b) split-brain refusal + clean-case migration --------------------------
   // Expand the base to its long form: on Windows tmpdir carries an 8.3 short component
-  // (CHRISS~1) that git expands but Node's plain realpathSync does not — the mismatch would
+  // (e.g. RUNNER~1) that git expands but Node's plain realpathSync does not — the mismatch would
   // make centralDataRoot mis-detect an in-repo notebook as "already centralized" in-test.
   // realpathSync.native (GetFinalPathNameByHandle) expands short names. Real project paths
   // (D:/dev/...) have none, so this is a test-env normalization, not a product concern.

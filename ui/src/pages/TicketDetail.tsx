@@ -1,6 +1,6 @@
 // Ticket detail (/p/:key/t/:id): title + frontmatter badges, description, the read-only AC
 // checklist, the time-merged activity stream (History + comments, unread @mentions marked), the
-// comment form, and the status controls. Fetched as agent "chris" (the maintainer's view) so
+// comment form, and the status controls. Fetched as the resolved viewer identity (/api/me) so
 // unread-mention state is computed for them. A comment or status write re-fetches, so the durable
 // change shows immediately. Each block is its own component — this file just orchestrates + lays out.
 
@@ -8,6 +8,7 @@ import { useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getTicket } from '../services/api';
 import { useAsync } from '../lib/useAsync';
+import { useIdentity } from '../lib/identity';
 import { mergeActivity } from '../lib/activity';
 import { StatusBadge, PriorityBadge, TypeBadge } from '../components/Badge';
 import { Loading, ErrorState } from '../components/AsyncState';
@@ -17,13 +18,12 @@ import { CommentForm } from '../components/ticket/CommentForm';
 import { StatusControls } from '../components/ticket/StatusControls';
 import './TicketDetail.css';
 
-const VIEWER = 'chris'; // the maintainer's daily view — unread @mentions are computed for them
-
 export default function TicketDetail() {
   const { key = '', id = '' } = useParams<{ key: string; id: string }>();
+  const { alias: viewer } = useIdentity(); // the viewer whose unread @mentions are computed
 
-  const fetchDetail = useCallback(() => getTicket(key, id, VIEWER), [key, id]);
-  const { data, loading, error, reload } = useAsync(fetchDetail, [key, id]);
+  const fetchDetail = useCallback(() => getTicket(key, id, viewer), [key, id, viewer]);
+  const { data, loading, error, reload } = useAsync(fetchDetail, [key, id, viewer]);
 
   if (loading) return <Loading label={`Loading ${id}…`} />;
   if (error) return <ErrorState message={error} onRetry={reload} />;

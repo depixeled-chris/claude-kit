@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { nextId, readIdConfig } from './id-utils.mjs';
 import { buildComment, parseComments, recordAck } from './comments.mjs';
+import { resolveUser } from './identity.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ID_RE = /^[A-Za-z]+-[A-Za-z]?\d+$/; // KIT-T075, KIT-D032
@@ -529,11 +530,14 @@ async function main() {
   if (cmd === 'comment') {
     const [id, ...textWords] = rest;
     const text = textWords.join(' ');
-    if (!id || !text.trim()) { console.error('usage: t comment <id> "<text>" --author <who>'); process.exit(2); }
-    const r = comment(root, id, text, flags);
+    if (!id || !text.trim()) { console.error('usage: t comment <id> "<text>" [--author <who>]'); process.exit(2); }
+    // A human running `t comment` without --author defaults to their resolved alias (KIT-T145),
+    // the same identity /api/me reports; an agent still passes --author (or KIT_AGENT-derived) explicitly.
+    const author = flags.author || resolveUser();
+    const r = comment(root, id, text, { ...flags, author });
     await refresh(root);
     const mentioned = r.mentions.length ? ` — mentions ${r.mentions.map((m) => '@' + m).join(' ')}` : '';
-    process.stdout.write(`comment: ${r.ref} by @${flags.author}${r.spilled ? ' (body → Notes)' : ''}${mentioned}\n`);
+    process.stdout.write(`comment: ${r.ref} by @${author}${r.spilled ? ' (body → Notes)' : ''}${mentioned}\n`);
     return;
   }
   if (cmd === 'ack') {

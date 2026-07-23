@@ -38,10 +38,10 @@ the receipt, and continue — do not halt to ask.
   `order` + priority). If `auto_execute: within-patterns-low-risk` and the item
   is low-risk and pattern-following, start it; otherwise surface one line:
   `next up: T-007 (your call — touches UX)`.
-- **Questions** (`.ai/questions/`, one `<KEY>-Q###.md` each, `answerable_by: chris|claude`):
+- **Questions** (`.ai/questions/`, one `<KEY>-Q###.md` each, `answerable_by: user|claude`):
   `/drain` resolves the `answerable_by: claude` ones from code + `.ai/decisions/` — writing
   the answer + date into the file's `**Resolution:**` and setting `status: resolved` (RECORD
-  the answer, never delete) — and batches the `answerable_by: chris` ones into the next
+  the answer, never delete) — and batches the `answerable_by: user` ones into the next
   `/decide`. Lifecycle is open → resolved; the store never rots into a dead drop.
 - **Regressions**: priority-bumped per config; surface proactively.
 - **Anti-relitigation**: if an interjection reopens a point already in

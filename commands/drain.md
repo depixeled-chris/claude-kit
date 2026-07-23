@@ -33,9 +33,10 @@ Keep going item-to-item until the queue needs them or they stop.
    continue** — that is the drain. Never set `done` (maintainer-only).
 5. QUESTIONS drain alongside tickets (`drain.answer_self_questions`): scan `.ai/questions/` for
    `status: open`. Answer each `answerable_by: claude` one FROM the code + `.ai/decisions/` (never
-   guess — one you can't ground from the record becomes a Chris question), write the answer + date
+   guess — one you can't ground from the record becomes a user question), write the answer + date
    into its `**Resolution:**` and set `status: resolved` — RECORD the answer, never delete
-   (KIT-T064). Leave `answerable_by: chris` ones open and batch them into the next `/decide`.
+   (KIT-T064). Leave `answerable_by: user` ones open and batch them into the next `/decide`
+   (a legacy personal alias in older data is read as `user`).
 6. UNREAD @MENTIONS drain alongside tickets (KIT-T130): at the start of a drain, check the
    comments addressed to the acting agent identity — `node <kit>/scripts/q.mjs mentions <you>`
    (SessionStart already surfaces these; `<you>` defaults to `claude`, or `$KIT_AGENT`). Each

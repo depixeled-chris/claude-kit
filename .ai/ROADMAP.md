@@ -13,6 +13,7 @@
 2. KIT-T146 — Mentions page + top-nav link with unread badge — cross-project mentions of the resolved user, ack from the UI (todo)
 3. KIT-T147 — Send Back requires a comment — inline comment box under the control; API rejects backward transitions without one (todo)
 4. KIT-T148 — Ticket-detail link chips treat commit hashes (fixed_by/causing_commit) as ticket ids — click yields 'no ticket' error (todo)
+5. KIT-T149 — Nav redesign — pinnable tab system as primary nav; secondary nav with dropdowns (project selector, settings) to start (todo)
 
 ## Backlog (priority order)
 - KIT-T023 — SYSTEM PROBLEM — the durable record is passive; it must actively surface + connect relevant context at decision points (critical)

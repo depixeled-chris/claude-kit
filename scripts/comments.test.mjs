@@ -84,41 +84,41 @@ ok('mentions: dedups repeats', JSON.stringify(deriveMentions('@bob @bob')) === J
 ok('mentions: none in plain text', deriveMentions('no handles here').length === 0);
 
 // --- buildComment / parseComments: single-line ---
-const b1 = buildComment('## History\n', { id: 'KIT-T001', author: 'chris', text: 'ping @bob please', ts: '2026-07-23 10:00' });
-ok('build: single-line stays inline (no Notes spill)', b1.notesBlock === null && /\(comment\) @chris: ping @bob please/.test(b1.historyLine));
+const b1 = buildComment('## History\n', { id: 'KIT-T001', author: 'user', text: 'ping @bob please', ts: '2026-07-23 10:00' });
+ok('build: single-line stays inline (no Notes spill)', b1.notesBlock === null && /\(comment\) @user: ping @bob please/.test(b1.historyLine));
 ok('build: ordinal 1 on an empty ticket', b1.ordinal === 1 && b1.ref === 'KIT-T001#1');
 ok('build: mentions exclude the author, include the body handle', JSON.stringify(b1.mentions) === JSON.stringify(['bob']));
 
 // --- buildComment / parseComments: multi-line spills to Notes, mentions reconstructed ---
 const longText = 'summary line\n@carol review the detail\nmore prose';
-const b2 = buildComment('## History\n', { id: 'KIT-T001', author: 'chris', text: longText, ts: '2026-07-23 10:01' });
+const b2 = buildComment('## History\n', { id: 'KIT-T001', author: 'user', text: longText, ts: '2026-07-23 10:01' });
 ok('build: multi-line spills to a Notes block', !!b2.notesBlock && /full comment #1 in ## Notes/.test(b2.historyLine));
 ok('build: spilled Notes block carries the full body', /@carol review the detail/.test(b2.notesBlock));
 ok('build: mentions derived from the FULL (spilled) body', b2.mentions.includes('carol'));
 
 // --- parseComments over a real appended ticket (via t.comment) ---
 const pc = project();
-comment(pc, 'KIT-T001', 'first @bob', { author: 'chris' });
+comment(pc, 'KIT-T001', 'first @bob', { author: 'user' });
 comment(pc, 'KIT-T001', 'second @dave', { author: 'ann' });
 const parsed = parseComments(read(pc, 'KIT-T001'));
 ok('parse: counts both authored comments, in order', parsed.length === 2 && parsed[0].ordinal === 1 && parsed[1].ordinal === 2);
-ok('parse: reads author + mentions per comment', parsed[0].author === 'chris' && parsed[1].mentions.includes('dave'));
+ok('parse: reads author + mentions per comment', parsed[0].author === 'user' && parsed[1].mentions.includes('dave'));
 
 // --- comment(): appends History event, ignores tick/status (comment) noise ---
-ok('comment: History (comment) event appended to the ticket file', /\(comment\) @chris: first @bob/.test(read(pc, 'KIT-T001')));
+ok('comment: History (comment) event appended to the ticket file', /\(comment\) @user: first @bob/.test(read(pc, 'KIT-T001')));
 ok('comment: rejects a blank author', threw(() => comment(pc, 'KIT-T001', 'x', { author: '  ' })));
-ok('comment: rejects empty text', threw(() => comment(pc, 'KIT-T001', '   ', { author: 'chris' })));
-ok('comment: rejects an unknown id', threw(() => comment(pc, 'KIT-T999', 'x', { author: 'chris' })));
+ok('comment: rejects empty text', threw(() => comment(pc, 'KIT-T001', '   ', { author: 'user' })));
+ok('comment: rejects an unknown id', threw(() => comment(pc, 'KIT-T999', 'x', { author: 'user' })));
 
 // A multi-line comment routes prose to ## Notes.
 const ml = project();
-const mlRes = comment(ml, 'KIT-T001', 'head line\n@zed look here\ntail', { author: 'chris' });
+const mlRes = comment(ml, 'KIT-T001', 'head line\n@zed look here\ntail', { author: 'user' });
 ok('comment: multi-line body spilled to Notes', mlRes.spilled === true && /### comment #1/.test(read(ml, 'KIT-T001')));
 ok('comment: spilled comment still derives its mention', mlRes.mentions.includes('zed'));
 
 // --- ack lifecycle (store) ---
 const ackRoot = project();
-comment(ackRoot, 'KIT-T001', 'review this @bob', { author: 'chris' });
+comment(ackRoot, 'KIT-T001', 'review this @bob', { author: 'user' });
 ok('receipts: empty before any ack', readReceipts(ackRoot).acks.length === 0);
 const acked = ack(ackRoot, 'KIT-T001#1', { agent: 'bob' });
 ok('ack: records a receipt for the agent', acked.ref === 'KIT-T001#1' && acked.already === false);
@@ -130,7 +130,7 @@ ok('ack: rejects a non-existent comment ordinal', threw(() => ack(ackRoot, 'KIT-
 ok('ack: rejects a blank agent', threw(() => ack(ackRoot, 'KIT-T001#1', { agent: '' })));
 
 // --- mentionsForAgent + collectComments: unread vs read ---
-const items = [{ id: 'KIT-T001', store: 'tickets', body: '## History\n- [2026-07-23 10:00] (comment) @chris: hey @bob and @amy\n' }];
+const items = [{ id: 'KIT-T001', store: 'tickets', body: '## History\n- [2026-07-23 10:00] (comment) @user: hey @bob and @amy\n' }];
 ok('collectComments: one comment, store-wide ref', collectComments(items).length === 1 && collectComments(items)[0].ref === buildRef('KIT-T001', 1));
 const noAcks = { version: 1, acks: [] };
 ok('mentionsForAgent: unread when un-acked', mentionsForAgent(items, noAcks, 'bob').every((m) => m.acked === false) && mentionsForAgent(items, noAcks, 'bob').length === 1);
@@ -145,7 +145,7 @@ ok('resolveAgent: KIT_AGENT wins', resolveAgent({ KIT_AGENT: 'opus' }) === 'opus
 
 // --- q mentions (in-process) unread -> ack -> read ---
 const qr = project();
-comment(qr, 'KIT-T001', 'can you look @bob', { author: 'chris' });
+comment(qr, 'KIT-T001', 'can you look @bob', { author: 'user' });
 const before = await query('mentions', ['bob'], { cwdRoot: qr });
 ok('q mentions: surfaces the unread mention', before.rows.length === 1 && before.rows[0].state === 'unread' && before.rows[0].ref === 'KIT-T001#1');
 ack(qr, 'KIT-T001#1', { agent: 'bob' });
@@ -155,7 +155,7 @@ ok('q mentions: mention reads as acked after ack (stops surfacing as unread)', a
 // --- CLI integration: real t.mjs comment + ack, real q.mjs mentions ---
 const cli = project();
 try {
-  execFileSync('node', [T_CLI, 'comment', 'KIT-T001', 'CLI ping @bob', '--author', 'chris', '--root', cli], { stdio: 'pipe' });
+  execFileSync('node', [T_CLI, 'comment', 'KIT-T001', 'CLI ping @bob', '--author', 'user', '--root', cli], { stdio: 'pipe' });
   const listed = JSON.parse(execFileSync('node', [Q_CLI, '--json', '--no-db', 'mentions', 'bob', '--root', cli], { stdio: 'pipe' }).toString());
   const unreadOk = listed.length === 1 && listed[0].state === 'unread' && listed[0].ref === 'KIT-T001#1';
   execFileSync('node', [T_CLI, 'ack', 'KIT-T001#1', '--agent', 'bob', '--root', cli], { stdio: 'pipe' });

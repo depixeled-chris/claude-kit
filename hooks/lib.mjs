@@ -240,9 +240,9 @@ export const REGISTRY = registryPath();
 export function readRegistry() {
   try {
     const r = JSON.parse(readFileSync(registryPath(), 'utf8'));
-    return { dataRoot: r.dataRoot || null, projects: r.projects || {} };
+    return { dataRoot: r.dataRoot || null, user: r.user || null, projects: r.projects || {} };
   } catch {
-    return { dataRoot: null, projects: {} };
+    return { dataRoot: null, user: null, projects: {} };
   }
 }
 

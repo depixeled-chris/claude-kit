@@ -23,14 +23,14 @@
 #                 (when-touching-active  = block only if it concerns the file/area I'm in now)
 #                 (when-caused-by-active = block only if it's a regression from my current change)
 #   link:         optional — extra link the router should attach (e.g. causing-commit)
-#   answerable_by: for questions — who can resolve it [claude, chris]
+#   answerable_by: for questions — who can resolve it [claude, user]
 # ---------------------------------------------------------------------------
 classifications:
   bug:          { routes_to: tickets,       priority: high,     blocking: when-touching-active }
   regression:   { routes_to: tickets,       priority: critical, blocking: when-caused-by-active, link: causing-commit }
   feature:      { routes_to: backlog,       priority: medium,   blocking: never }
   tech-debt:    { routes_to: backlog,       priority: low,      blocking: never }
-  question:     { routes_to: questions,     blocking: never,    answerable_by: [claude, chris] }
+  question:     { routes_to: questions,     blocking: never,    answerable_by: [claude, user] }
   observation:  { routes_to: notes,         blocking: never }
   decision:     { routes_to: decisions,     blocking: never }
   request:      { routes_to: requests,      priority: medium,  blocking: never }
