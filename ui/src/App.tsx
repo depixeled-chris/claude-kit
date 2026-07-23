@@ -11,6 +11,7 @@ import AllBoards from './pages/AllBoards';
 import ProjectBoard from './pages/ProjectBoard';
 import ProjectSettings from './pages/ProjectSettings';
 import TicketDetail from './pages/TicketDetail';
+import Mentions from './pages/Mentions';
 import './App.css';
 
 // Board routes render full-width: /all and a single project board (/p/:key), but NOT ticket detail
@@ -30,6 +31,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<WaitingBoard />} />
           <Route path="/all" element={<AllBoards />} />
+          <Route path="/mentions" element={<Mentions />} />
           <Route path="/p/:key" element={<ProjectBoard />} />
           <Route path="/p/:key/settings" element={<ProjectSettings />} />
           <Route path="/p/:key/t/:id" element={<TicketDetail />} />

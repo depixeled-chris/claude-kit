@@ -5,6 +5,7 @@
 
 import { NavLink, Link } from 'react-router-dom';
 import type { ProjectTab } from './useTabs';
+import { MentionsTab } from './MentionsTab';
 import './TabBar.css';
 
 interface Props {
@@ -19,6 +20,7 @@ export function TabBar({ projectTabs, onTogglePin }: Props) {
     <div className="tabbar" role="tablist" aria-label="Open views">
       <NavLink to="/" end className={({ isActive }) => baseClass(isActive)}>Waiting</NavLink>
       <NavLink to="/all" className={({ isActive }) => baseClass(isActive)}>All</NavLink>
+      <MentionsTab />
 
       {projectTabs.map((t) => (
         <span

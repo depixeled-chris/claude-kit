@@ -22,7 +22,7 @@ function renderText(text: string) {
 
 function CommentEntry({ c }: { c: TicketComment }) {
   return (
-    <div className={c.unread ? 'activity-item activity-comment unread' : 'activity-item activity-comment'}>
+    <div id={`comment-${c.ordinal}`} className={c.unread ? 'activity-item activity-comment unread' : 'activity-item activity-comment'}>
       <div className="activity-head">
         <span className="activity-kind">comment</span>
         <span className="activity-author">{c.author}</span>

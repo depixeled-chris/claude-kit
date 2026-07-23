@@ -6,7 +6,7 @@
 
 import type {
   Me, ProjectSummary, ProjectPatchResult, TicketListItem, StoreItem, TicketDetail,
-  WaitingGroup, CommentResult, StatusResult,
+  WaitingGroup, CommentResult, StatusResult, MentionsResponse, AckResult, AckAllResult,
 } from '../types';
 
 const API_BASE = '/api';
@@ -69,6 +69,11 @@ export function getTicket(key: string, id: string, agent?: string) {
 export const getStore = (key: string, store: string) =>
   request<StoreItem[]>(`/projects/${key}/${store}`);
 
+export function getMentions(agent?: string) {
+  const query = agent ? `?agent=${encodeURIComponent(agent)}` : '';
+  return request<MentionsResponse>(`/mentions${query}`);
+}
+
 // ---- writes (markdown truth via the t.mjs code paths; a guard rejection is a typed ApiError) ----
 export function postComment(key: string, id: string, payload: { text: string; author: string }) {
   return request<CommentResult>(`/projects/${key}/tickets/${id}/comments`, {
@@ -91,6 +96,21 @@ export function patchProject(key: string, payload: { displayName: string }) {
   });
 }
 
+export function ackMention(payload: { projectKey: string; ref: string; agent?: string }) {
+  return request<AckResult>('/mentions/ack', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export function ackAllMentions(agent?: string) {
+  return request<AckAllResult>('/mentions/ack-all', {
+    method: 'POST',
+    body: JSON.stringify(agent ? { agent } : {}),
+  });
+}
+
 // Fired after a project-meta write so live views (the Nav tabs) refetch without a reload.
 export const PROJECTS_CHANGED_EVENT = 'kit:projects-changed';
 export const announceProjectsChanged = () => window.dispatchEvent(new Event(PROJECTS_CHANGED_EVENT));
+
+// Fired after a mention ack so the nav's unread badge refetches without a reload.
+export const MENTIONS_CHANGED_EVENT = 'kit:mentions-changed';
+export const announceMentionsChanged = () => window.dispatchEvent(new Event(MENTIONS_CHANGED_EVENT));

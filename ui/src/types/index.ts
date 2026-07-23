@@ -124,3 +124,39 @@ export interface StatusResult {
   archived: boolean;
   warnings: string[];
 }
+
+// One cross-project @mention of the resolved user (services/mentions.mjs collectMentions).
+export interface Mention {
+  projectKey: string;
+  projectName: string;
+  writable: boolean;
+  id: string;        // the ticket id the comment lives on
+  ref: string;       // store-wide comment ref, <id>#<ordinal>
+  ordinal: number;   // comment ordinal within the ticket (the #comment-<n> anchor)
+  author: string;
+  ts: string;
+  excerpt: string;
+  unread: boolean;
+}
+
+// GET /api/mentions — the inbox payload (services/mentions.mjs collectMentions).
+export interface MentionsResponse {
+  agent: string;
+  unreadCount: number;
+  mentions: Mention[];
+}
+
+// POST /api/mentions/ack response (services/mentions.mjs ackMention).
+export interface AckResult {
+  projectKey: string;
+  ref: string;
+  agent: string;
+  already: boolean;
+}
+
+// POST /api/mentions/ack-all response (services/mentions.mjs ackAllMentions).
+export interface AckAllResult {
+  agent: string;
+  acked: number;
+  skipped: number;
+}

@@ -4,8 +4,8 @@
 // unread-mention state is computed for them. A comment or status write re-fetches, so the durable
 // change shows immediately. Each block is its own component — this file just orchestrates + lays out.
 
-import { useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useCallback, useEffect } from 'react';
+import { useParams, useLocation, Link } from 'react-router-dom';
 import { getTicket } from '../services/api';
 import { useAsync } from '../lib/useAsync';
 import { useIdentity } from '../lib/identity';
@@ -20,10 +20,23 @@ import './TicketDetail.css';
 
 export default function TicketDetail() {
   const { key = '', id = '' } = useParams<{ key: string; id: string }>();
+  const { hash } = useLocation();
   const { alias: viewer } = useIdentity(); // the viewer whose unread @mentions are computed
 
   const fetchDetail = useCallback(() => getTicket(key, id, viewer), [key, id, viewer]);
   const { data, loading, error, reload } = useAsync(fetchDetail, [key, id, viewer]);
+
+  // A mention click-through (/…#comment-<n>, KIT-T146) scrolls to that comment once it renders,
+  // with a brief flash so the anchored comment is unmistakable.
+  useEffect(() => {
+    if (!data || !hash) return;
+    const el = document.getElementById(hash.slice(1));
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('anchor-flash');
+    const t = window.setTimeout(() => el.classList.remove('anchor-flash'), 1600);
+    return () => window.clearTimeout(t);
+  }, [data, hash]);
 
   if (loading) return <Loading label={`Loading ${id}…`} />;
   if (error) return <ErrorState message={error} onRetry={reload} />;

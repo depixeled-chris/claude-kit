@@ -259,6 +259,44 @@ test('unknown project → 404, unknown ticket → 404', async () => {
   assert.equal((await get('/api/projects/TST/tickets/TST-T999')).status, 404);
 });
 
+// ---- cross-project @mention inbox (KIT-T146) — mention → unread → ack → gone from the count ----
+test('GET /api/mentions surfaces a mention, POST ack clears it from the unread count', async () => {
+  // Seed a comment @mentioning a unique agent so this test doesn't collide with other fixtures.
+  const posted = await post('/api/projects/TST/tickets/TST-T002/comments', { text: 'ping @menttester take a look', author: 'user' });
+  assert.equal(posted.status, 201);
+
+  const before = await get('/api/mentions?agent=menttester');
+  assert.equal(before.status, 200);
+  const mine = before.body.data.mentions.filter((m) => m.projectKey === 'TST');
+  assert.equal(mine.length, 1, 'exactly the one seeded mention');
+  const m = mine[0];
+  assert.equal(m.id, 'TST-T002');
+  assert.equal(m.unread, true);
+  assert.match(m.excerpt, /take a look/);
+  assert.equal(before.body.data.unreadCount, 1);
+
+  const acked = await post('/api/mentions/ack', { projectKey: 'TST', ref: m.ref, agent: 'menttester' });
+  assert.equal(acked.status, 200);
+  assert.equal(acked.body.data.ref, m.ref);
+
+  const after = await get('/api/mentions?agent=menttester');
+  assert.equal(after.body.data.unreadCount, 0, 'acked mention no longer counts');
+  const still = after.body.data.mentions.find((x) => x.ref === m.ref);
+  assert.ok(still, 'the mention still shows in the list');
+  assert.equal(still.unread, false, 'but now marked read (sinks below unread)');
+});
+
+test('POST /api/mentions/ack-all clears every remaining unread mention', async () => {
+  await post('/api/projects/TST/tickets/TST-T001/comments', { text: 'also @bulkacker please', author: 'user' });
+  const before = await get('/api/mentions?agent=bulkacker');
+  assert.ok(before.body.data.unreadCount >= 1);
+  const res = await post('/api/mentions/ack-all', { agent: 'bulkacker' });
+  assert.equal(res.status, 200);
+  assert.ok(res.body.data.acked >= 1);
+  const after = await get('/api/mentions?agent=bulkacker');
+  assert.equal(after.body.data.unreadCount, 0);
+});
+
 // ---- cross-project waiting board (survey.mjs data) ----
 test('GET /api/waiting surfaces a review ticket from a central notebook', async () => {
   const r = await get('/api/waiting');

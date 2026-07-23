@@ -1,0 +1,71 @@
+/* /mentions inbox (KIT-T146). Tokens from index.css drive light/dark. */
+
+.mentions-page { max-width: 860px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+
+.mentions-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.mentions-header h1 { margin: 0 0 0.2rem; font-size: 1.5rem; }
+
+.mentions-empty { margin-top: 2rem; }
+
+.mentions-group { margin-bottom: 1.5rem; }
+
+.mentions-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+.mentions-group-name { font-weight: 600; }
+.mentions-group-key { font-family: var(--mono); font-size: 0.75rem; color: var(--text-dim); }
+.mentions-group-badge {
+  margin-left: auto;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+}
+
+.mentions-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.mention-card {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  padding: 0.6rem 0.75rem;
+}
+.mention-card.unread {
+  background: var(--unread-bg);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.mention-main { flex: 1 1 auto; text-decoration: none; color: var(--text); min-width: 0; }
+
+.mention-meta { display: flex; align-items: center; gap: 0.6rem; font-size: 0.78rem; color: var(--text-dim); }
+.mention-id { font-family: var(--mono); font-weight: 600; color: var(--accent); }
+.mention-author { font-weight: 500; }
+.mention-time { margin-left: auto; }
+.mention-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+
+.mention-excerpt { margin-top: 0.3rem; font-size: 0.9rem; line-height: 1.4; color: var(--text); }
+
+.mention-ack { align-self: center; white-space: nowrap; }
