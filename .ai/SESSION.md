@@ -50,6 +50,10 @@ Updated: 2026-07-23  |  Branch: main  |  Active: M4-web-ui phase 1 SHIPPED
 - KIT-T129 EPIC CLOSED done (all 5 AC ticked, evidence comment KIT-T129#1). Phase 2 =
   KIT-T133 (headless dispatch, backlog).
 - RUN THE STACK: `node server/index.mjs` (API :4319) + `cd ui && npm run dev` (:5173).
+- Push sweep verified (6b07a47): kit + data + GG/JV/MGP all in sync with remotes;
+  6b07a47 completed the T129 archive move (original's deletion had been left
+  unstaged by the close commit). Only parallel-session files remain uncommitted
+  (KIT-D045, KIT-T135, agents.jsonl) — theirs to land.
 
 ## Parallel session (NOT this session's work — leave uncommitted files alone)
 - KIT-D045 + KIT-T135 (UAT role split) — relevant to UI accept/close semantics.
