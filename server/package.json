@@ -1,0 +1,17 @@
+{
+  "name": "claude-kit-server",
+  "version": "0.1.0",
+  "description": "Localhost REST API over the claude-kit cross-project .ai stores (cache-READ / markdown-WRITE, KIT-T131/KIT-D044).",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs",
+    "test": "node --test server.test.mjs"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}

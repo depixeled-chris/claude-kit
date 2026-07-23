@@ -88,7 +88,11 @@ function newestAcross(sources) {
 // { handle, wasStale } — handle is null when no engine exists (caller then uses the markdown
 // fallback); wasStale is true when the DB needed rehydration before the query, so callers can
 // surface a one-line notice to the user (KIT-T076).
-async function dbOpen(root, dbPath) {
+//
+// EXPORTED (KIT-T131) as the canonical cache-READ entry: the web-UI API opens the cache
+// through this so its reads inherit the SAME staleness→rehydrate guarantee the CLI has —
+// never a bespoke open that could serve stale rows.
+export async function dbOpen(root, dbPath) {
   const open = await resolveEngine();
   if (!open) return { handle: null, wasStale: false };
   // Backstop/audit for out-of-band drift (git pull / another machine / parallel session).
