@@ -24,7 +24,10 @@ export default function ProjectSettings() {
   const project = (data ?? []).find((p) => p.key.toLowerCase() === key.toLowerCase());
   if (!project) return <ErrorState message={`unknown project '${key}'`} onRetry={reload} />;
 
-  const value = draft ?? project.displayName;
+  // Tolerate an API predating displayName (server not yet restarted after upgrade) —
+  // a version skew must degrade to the key, never blank-page the app (2026-07-23 UAT crash).
+  const current = project.displayName ?? project.key;
+  const value = draft ?? current;
 
   const save = async () => {
     setSaving(true);
@@ -46,7 +49,7 @@ export default function ProjectSettings() {
   return (
     <div className="project-settings">
       <header className="page-header">
-        <h1>{project.displayName} settings</h1>
+        <h1>{current} settings</h1>
         <p className="page-sub">
           <Link to={`/p/${project.key}`}>← back to the board</Link>
         </p>

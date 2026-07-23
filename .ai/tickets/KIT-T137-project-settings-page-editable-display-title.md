@@ -62,3 +62,4 @@ setting would be vapor.
 - [2026-07-23 11:22] (fixed) node --test server/server.test.mjs — 17 pass (3 new: default, durable round-trip, 400 rejections); ui `npm run build` clean
 - [2026-07-23 11:22] (comment) commit carries scripts/identity.mjs (KIT-T145 in-flight leaf dep of writes.mjs) to keep main buildable; rest of the T145 wave left uncommitted for its own session
 - [2026-07-23 11:22] (status) doing → review — settings page look/behavior is Chris's UAT
+- [2026-07-23 11:42] (comment) UAT crash: blank /p/HOD/settings — dist built from the dirty shared tree called /api/me (404 on the stale server process) and the page did displayName.trim() with the field absent (version skew). Fixed: displayName ?? key fallback; dist rebuilt; :4319 server restarted; GET /api/projects now serves displayName for all 8 projects
