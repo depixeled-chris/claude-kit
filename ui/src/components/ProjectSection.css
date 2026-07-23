@@ -1,0 +1,61 @@
+/* A collapsible project swimlane on /all. The heading reuses the tinted swimlane treatment from the
+   waiting board (color-mix over --accent), light+dark safe via the shared surface vars. */
+
+.project-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.project-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.project-section-head:hover { background: color-mix(in srgb, var(--accent) 14%, var(--surface-2)); }
+.project-section.is-collapsed .project-section-head { border-bottom: none; }
+
+.project-section-caret {
+  flex: 0 0 auto;
+  width: 0.9rem;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.project-section-title { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; }
+.project-section-name {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-section-key { font-family: var(--mono); font-size: 0.8rem; color: var(--text-dim); }
+
+.project-section-counts { margin-left: auto; display: flex; align-items: center; gap: 0.4rem; flex: 0 0 auto; }
+
+.project-section-open,
+.project-section-review {
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  white-space: nowrap;
+}
+.project-section-open { background: var(--surface); color: var(--text-dim); border: 1px solid var(--border); }
+.project-section-review { background: #3b82f6; color: #fff; }
+
+.project-section-body { padding: 1rem; }

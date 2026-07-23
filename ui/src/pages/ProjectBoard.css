@@ -1,3 +1,6 @@
+/* Page chrome for /p/:key — the board header (title + status filter). The column grid + card
+   styles live with the reusable component (components/KanbanBoard.css). */
+
 .board-header {
   display: flex;
   justify-content: space-between;
@@ -7,116 +10,6 @@
 
 .status-filter { max-width: 12rem; }
 
-.board-columns {
-  display: flex;
-  gap: 1.25rem;
-  overflow-x: auto;
-  padding-bottom: 1rem;
-  align-items: flex-start;
-}
-
-.board-column {
-  flex: 0 0 300px;
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - 220px);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-2);
-}
-
-.column-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-bottom: 2px solid var(--border);
-  border-radius: 8px 8px 0 0; /* match .board-column so the tint doesn't overflow the corners */
-  background: color-mix(in srgb, var(--border) 35%, var(--surface-2));
-}
-
-.column-header h2 { margin: 0; font-size: 1rem; color: var(--text); }
-
-.column-count {
-  background: var(--surface);
-  color: var(--text-dim);
-  border: 1px solid var(--border);
-  padding: 0.1rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.column-todo .column-header {
-  border-bottom-color: #94a3b8;
-  background: color-mix(in srgb, #94a3b8 14%, var(--surface-2));
-}
-.column-doing .column-header {
-  border-bottom-color: #f59e0b;
-  background: color-mix(in srgb, #f59e0b 14%, var(--surface-2));
-}
-.column-review .column-header {
-  border-bottom-color: #3b82f6;
-  background: color-mix(in srgb, #3b82f6 14%, var(--surface-2));
-}
-.column-done .column-header {
-  border-bottom-color: #16a34a;
-  background: color-mix(in srgb, #16a34a 14%, var(--surface-2));
-}
-
-.column-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.85rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.ticket-card {
-  display: block;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 3px solid transparent;
-  border-radius: 6px;
-  padding: 0.75rem 0.85rem;
-  text-decoration: none;
-  color: inherit;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-
-.ticket-card:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12); }
-
-.column-todo .ticket-card { border-left-color: #94a3b8; }
-.column-doing .ticket-card { border-left-color: #f59e0b; }
-.column-review .ticket-card { border-left-color: #3b82f6; }
-.column-done .ticket-card { border-left-color: #16a34a; }
-
-.ticket-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
-}
-
-.ticket-card-id { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); font-weight: 600; }
-.ticket-card-badges { display: flex; gap: 0.3rem; flex-wrap: wrap; }
-.ticket-card-title { margin: 0; font-size: 0.92rem; font-weight: 600; color: var(--text); line-height: 1.35; }
-
-.ticket-card-milestone {
-  display: inline-block;
-  margin-top: 0.5rem;
-  font-size: 0.7rem;
-  color: var(--text-dim);
-  background: var(--surface-2);
-  border-radius: 4px;
-  padding: 0.1rem 0.4rem;
-}
-
-.empty-column { text-align: center; padding: 1.5rem 1rem; color: var(--text-dim); font-style: italic; font-size: 0.85rem; }
-
 @media (max-width: 768px) {
   .board-header { flex-direction: column; align-items: stretch; }
-  .board-column { flex: 0 0 85vw; }
 }

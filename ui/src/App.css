@@ -4,6 +4,10 @@
   padding: 1.75rem 1.5rem 3rem;
 }
 
+/* Board routes (/all, /p/:key) go full-bleed: a data-driven board claims all the width the screen
+   offers, so wider screens fit more swimlanes rather than centering a fixed column (KIT-T144). */
+.main--wide { max-width: none; }
+
 .page-header { margin-bottom: 1.5rem; }
 .page-header h1 { margin: 0; font-size: 1.5rem; color: var(--text); }
 .page-sub { margin: 0.25rem 0 0; color: var(--text-dim); font-size: 0.9rem; }

@@ -1,15 +1,13 @@
-// Per-project kanban (/p/:key): columns in flow order (todo/doing/review/done) over
-// /api/projects/:key/tickets, with a ?status= filter that narrows to one column and each card
-// carrying priority + type badges. Column layout + the relative-time footer are the workflow
-// TaskBoard harvest, re-shaped for our TicketListItem DTO. Cards link into detail.
+// Per-project kanban (/p/:key): the reusable KanbanBoard over /api/projects/:key/tickets, with a
+// ?status= filter that narrows to one column. The page owns the header (title + filter); the column
+// grid + cards are the shared component. Cards link into detail.
 
 import { useCallback } from 'react';
-import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { getTickets } from '../services/api';
 import { useAsync } from '../lib/useAsync';
 import { STATUS_FLOW, statusLabel } from '../lib/status';
-import type { TicketListItem } from '../types';
-import { PriorityBadge, TypeBadge } from '../components/Badge';
+import { KanbanBoard } from '../components/KanbanBoard';
 import { Loading, ErrorState } from '../components/AsyncState';
 import './ProjectBoard.css';
 
@@ -26,7 +24,6 @@ export default function ProjectBoard() {
 
   const tickets = data ?? [];
   const columns = statusFilter ? [statusFilter] : [...STATUS_FLOW];
-  const byStatus = (s: string) => tickets.filter((t) => t.status === s);
 
   return (
     <div className="project-board">
@@ -48,40 +45,7 @@ export default function ProjectBoard() {
         </select>
       </header>
 
-      <div className="board-columns">
-        {columns.map((status) => {
-          const col = byStatus(status);
-          return (
-            <div key={status} className={`board-column column-${status}`}>
-              <div className="column-header">
-                <h2>{statusLabel(status)}</h2>
-                <span className="column-count">{col.length}</span>
-              </div>
-              <div className="column-content">
-                {col.length === 0
-                  ? <div className="empty-column">No tickets</div>
-                  : col.map((t) => <Card key={t.id} ticket={t} projectKey={key} />)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <KanbanBoard tickets={tickets} projectKey={key} columns={columns} />
     </div>
-  );
-}
-
-function Card({ ticket, projectKey }: { ticket: TicketListItem; projectKey: string }) {
-  return (
-    <Link className="ticket-card" to={`/p/${projectKey}/t/${ticket.id}`}>
-      <div className="ticket-card-head">
-        <span className="ticket-card-id">{ticket.id}</span>
-        <div className="ticket-card-badges">
-          <PriorityBadge priority={ticket.priority} />
-          <TypeBadge type={ticket.type} />
-        </div>
-      </div>
-      <h3 className="ticket-card-title">{ticket.title}</h3>
-      {ticket.milestone && <span className="ticket-card-milestone">{ticket.milestone}</span>}
-    </Link>
   );
 }

@@ -8,6 +8,12 @@
 1. KIT-T061 — Entering review requires test evidence (or an explicit [no-test: reason]) — UAT gets a floor (review)
 2. KIT-T075 — Store mutation CLI — t status / t tick / t link; hand-edits remain for prose only (review)
 
+## M4-web-ui
+1. KIT-T145 — User identity/alias architecture — no personal names in code; role 'user' resolved via KIT_USER/registry; /api/me (todo)
+2. KIT-T146 — Mentions page + top-nav link with unread badge — cross-project mentions of the resolved user, ack from the UI (todo)
+3. KIT-T147 — Send Back requires a comment — inline comment box under the control; API rejects backward transitions without one (todo)
+4. KIT-T148 — Ticket-detail link chips treat commit hashes (fixed_by/causing_commit) as ticket ids — click yields 'no ticket' error (todo)
+
 ## Backlog (priority order)
 - KIT-T023 — SYSTEM PROBLEM — the durable record is passive; it must actively surface + connect relevant context at decision points (critical)
 - KIT-T082 — Branch-switch guard — block git switch / checkout -b in a shared checkout; force worktrees for parallel agents (critical)
@@ -49,7 +55,6 @@
 - KIT-T122 — timestamped agent replies + per-session timestamped transcript dump — Chris runs multiple terminals and cannot reconstruct what was said when/where; replies should lead with a [YYYY-MM-DD HH:MM] stamp (clock via hook-injected time or a date call), and a kit query should dump a session's conversation with the timestamps that already exist in ~/.claude/projects/*.jsonl transcripts (2026-07-09) (medium)
 - KIT-T123 — KIT process: session-transcript FTS as the RECALL mechanism — agents answer 'what was said about X' via q text-search over ingested session logs instead of resident context; enables SESSION.md diet (one screen + pointers), leaner orientation dump; rule: transcripts INFORM, DECISIONS/tickets GOVERN (extends -1550 sessions.db design, 2026-07-09) (medium)
 - KIT-T133 — Headless dispatch from the UI — 'send to agent' spawns a guarded claude -p run on a comment (phase 2) (medium)
-- KIT-T135 — Codify the UAT/automated-test role split in the base contract + init-project (medium)
 - KIT-T138 — Template-drift resync for adopted repos: init-project scaffolds .ai/config.yml once and adopted repos never receive template updates — groovegrid (scaffolded pre-KIT-D035) has NO dispatch block at all, so KIT-D043's standard->opus ladder change reaches new projects but not existing ones. Need an upgrade path (init-project --resync or a drift report comparing project config against project-template) that surfaces missing/changed blocks without clobbering per-project overrides. Origin: KIT-T128. (medium)
 - KIT-T140 — feedback Doc-audit delegations must verify EVERY claim against UI display strings (getDisplayName/addItem/undo-transaction names) + full-section sweep — a param-name enumeration is NOT an audit. Lived failure GG-T095 2026-07-18: a '222 params, 0 missing' audit passed while the manual misnamed a feature (internal enum Grids vs product name Atlas), invented a bookmark type (Drum) absent from code, and omitted the music-theory chord extensions. Encode in delegation templates/agent briefs. (medium)
 - KIT-T143 — CRX split-brain reconciliation — central copy frozen Jun 15 (9 tickets) vs live in-repo (20, Jul 14); merge or supersede, never clobber (medium)

@@ -20,6 +20,9 @@ export function Nav() {
           <NavLink to="/" end className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
             Waiting
           </NavLink>
+          <NavLink to="/all" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+            All
+          </NavLink>
           {projects.map((p) => (
             <NavLink
               key={p.key}
