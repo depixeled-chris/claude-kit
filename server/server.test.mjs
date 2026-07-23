@@ -297,6 +297,40 @@ test('POST /api/mentions/ack-all clears every remaining unread mention', async (
   assert.equal(after.body.data.unreadCount, 0);
 });
 
+// ---- send-back requires a comment (KIT-T147) ----
+test('POST status backward without a comment → 422; with one, the comment lands then status + a mention', async () => {
+  // TST-T003 was moved doing→review by the allowed-transition test above; review→doing is backward.
+  const bare = await post('/api/projects/TST/tickets/TST-T003/status', { status: 'doing', agent: 'user' });
+  assert.equal(bare.status, 422);
+  assert.equal(bare.body.error.code, 'send_back_needs_comment');
+
+  const withReason = await post('/api/projects/TST/tickets/TST-T003/status', {
+    status: 'doing', agent: 'user', comment: { text: 'needs fix X before review' },
+  });
+  assert.equal(withReason.status, 200);
+  assert.equal(withReason.body.data.to, 'doing');
+
+  // The reason is a durable comment that auto-@mentions the agent who should pick the work back up.
+  const detail = await get('/api/projects/TST/tickets/TST-T003');
+  assert.equal(detail.body.data.status, 'doing');
+  const c = detail.body.data.comments.find((x) => /needs fix X/.test(x.text));
+  assert.ok(c, 'send-back comment is durable');
+  assert.ok(c.mentions.length >= 1, 'auto-@mentions an agent');
+  const target = c.mentions[0];
+
+  // …so it surfaces in that agent's cross-project mention inbox (the KIT-T130 loop, reversed).
+  const mentions = await get(`/api/mentions?agent=${target}`);
+  assert.ok(
+    mentions.body.data.mentions.some((m) => m.id === 'TST-T003' && /needs fix X/.test(m.excerpt)),
+    'send-back reaches the agent mention inbox',
+  );
+
+  // The comment event lands BEFORE the send-back status event in the markdown truth.
+  const { readFileSync } = await import('node:fs');
+  const raw = readFileSync(join(fixtureRoot, '.ai', 'tickets', 'TST-T003-seed.md'), 'utf8');
+  assert.ok(raw.indexOf('needs fix X') < raw.lastIndexOf('(status)'), 'comment precedes the status event');
+});
+
 // ---- cross-project waiting board (survey.mjs data) ----
 test('GET /api/waiting surfaces a review ticket from a central notebook', async () => {
   const r = await get('/api/waiting');
@@ -365,8 +399,8 @@ test('PATCH /api/projects/:key writes display_name durably and serves it on the 
   assert.equal(list.body.data.find((p) => p.key === 'TST').displayName, 'Test Project');
 });
 
-test('PATCH /api/projects/:key rejects empty and quoted display names', async () => {
-  for (const displayName of ['   ', 'has "quotes"']) {
+test('PATCH /api/projects/:key rejects empty and newline display names', async () => {
+  for (const displayName of ['   ', 'has\nnewline']) {
     const res = await fetch(base + '/api/projects/TST', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -374,4 +408,21 @@ test('PATCH /api/projects/:key rejects empty and quoted display names', async ()
     });
     assert.equal(res.status, 400);
   }
+});
+
+// KIT-T147 fix to KIT-T137: quotes are now ALLOWED — escaped on write, unescaped on read.
+test('PATCH /api/projects/:key round-trips a display name containing a double-quote', async () => {
+  const displayName = 'A "Quoted" Name';
+  const res = await fetch(base + '/api/projects/TST', {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ displayName }),
+  });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).data.displayName, displayName);
+  const { readFileSync } = await import('node:fs');
+  const cfg = readFileSync(join(fixtureRoot, '.ai', 'config.yml'), 'utf8');
+  assert.match(cfg, /display_name: "A \\"Quoted\\" Name"/, 'quotes escaped in the config truth');
+  const list = await get('/api/projects');
+  assert.equal(list.body.data.find((p) => p.key === 'TST').displayName, displayName, 'reads back verbatim');
 });

@@ -42,3 +42,11 @@ export function transitionsFor(status: string): Transition[] {
 export function statusLabel(status: string): string {
   return STATUS_LABELS[status] ?? status;
 }
+
+// A SEND-BACK is any move EARLIER in the flow (review → doing, doing → todo, done → doing). The
+// server requires a comment on these (KIT-T147), so the UI reveals an inline reason box for them.
+export function isSendBack(from: string, to: string): boolean {
+  const fi = STATUS_FLOW.indexOf(from as FlowStatus);
+  const ti = STATUS_FLOW.indexOf(to as FlowStatus);
+  return fi !== -1 && ti !== -1 && ti < fi;
+}

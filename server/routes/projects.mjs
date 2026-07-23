@@ -50,8 +50,8 @@ export function projectRoutes(config) {
   }));
 
   router.post('/:key/tickets/:id/status', asyncHandler(async (req, res) => {
-    const { status, agent } = req.body || {};
-    const data = await setTicketStatus(config, project(req), req.params.id, { status, agent });
+    const { status, agent, comment } = req.body || {};
+    const data = await setTicketStatus(config, project(req), req.params.id, { status, agent, comment });
     send(res, data, { written: true });
   }));
 

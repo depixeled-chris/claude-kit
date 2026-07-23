@@ -82,7 +82,11 @@ export function postComment(key: string, id: string, payload: { text: string; au
   });
 }
 
-export function postStatus(key: string, id: string, payload: { status: string; agent: string }) {
+export function postStatus(
+  key: string,
+  id: string,
+  payload: { status: string; agent: string; comment?: { text: string } },
+) {
   return request<StatusResult>(`/projects/${key}/tickets/${id}/status`, {
     method: 'POST',
     body: JSON.stringify(payload),

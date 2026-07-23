@@ -1,14 +1,14 @@
-// Status controls: a button per legal transition from the current status (lib/status), with the
-// forward move on `review` (Accept & close) rendered prominent. A transition confirms through the
-// harvested Modal, then POSTs. The server is the guard authority — a 403 (human_only), 422
-// (evidence floor) or 409 (not writable here) comes back typed and its message renders INLINE,
-// because those are expected outcomes of honoring each project's human_only/uat config, not errors
-// to swallow.
+// Status controls: a button per legal transition from the current status (lib/status). A FORWARD
+// move confirms through the harvested Modal; a SEND-BACK (a backward move) instead reveals an inline
+// reason box beneath the controls (KIT-T147) — the server rejects a backward transition without a
+// comment (422), so the box's submit is disabled until non-empty and any guard 422 surfaces inline.
+// The server is the guard authority — 403 (human_only), 422 (evidence floor / send-back), 409 (not
+// writable) all come back typed and render INLINE rather than being swallowed.
 
 import { useState } from 'react';
 import { postStatus, ApiError } from '../../services/api';
 import { useIdentity } from '../../lib/identity';
-import { transitionsFor, statusLabel, type Transition } from '../../lib/status';
+import { transitionsFor, statusLabel, isSendBack, type Transition } from '../../lib/status';
 import { Modal, ModalHeader, ModalContent, ModalFooter } from '../Modal';
 
 interface Props {
@@ -20,13 +20,26 @@ interface Props {
 
 export function StatusControls({ projectKey, ticketId, status, onChanged }: Props) {
   const { alias } = useIdentity();
-  const [pending, setPending] = useState<Transition | null>(null);
+  const [pending, setPending] = useState<Transition | null>(null); // forward move → modal confirm
+  const [sendBack, setSendBack] = useState<Transition | null>(null); // backward move → inline reason box
+  const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [guard, setGuard] = useState<{ code: string; message: string } | null>(null);
 
   const transitions = transitionsFor(status);
 
-  async function confirm() {
+  function surfaceGuard(err: unknown) {
+    if (err instanceof ApiError) setGuard({ code: err.code, message: err.message });
+    else setGuard({ code: 'error', message: 'status change failed' });
+  }
+
+  function choose(t: Transition) {
+    setGuard(null);
+    if (isSendBack(status, t.to)) { setPending(null); setReason(''); setSendBack(t); }
+    else { setSendBack(null); setPending(t); }
+  }
+
+  async function confirmForward() {
     if (!pending) return;
     setSubmitting(true);
     setGuard(null);
@@ -35,8 +48,24 @@ export function StatusControls({ projectKey, ticketId, status, onChanged }: Prop
       setPending(null);
       onChanged();
     } catch (err) {
-      if (err instanceof ApiError) setGuard({ code: err.code, message: err.message });
-      else setGuard({ code: 'error', message: 'status change failed' });
+      surfaceGuard(err);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitSendBack(e: React.FormEvent) {
+    e.preventDefault();
+    if (!sendBack || !reason.trim()) return;
+    setSubmitting(true);
+    setGuard(null);
+    try {
+      await postStatus(projectKey, ticketId, { status: sendBack.to, agent: alias, comment: { text: reason.trim() } });
+      setSendBack(null);
+      setReason('');
+      onChanged();
+    } catch (err) {
+      surfaceGuard(err);
     } finally {
       setSubmitting(false);
     }
@@ -55,12 +84,43 @@ export function StatusControls({ projectKey, ticketId, status, onChanged }: Prop
             <button
               key={t.to}
               className={t.primary ? 'btn btn-primary' : 'btn btn-secondary'}
-              onClick={() => { setGuard(null); setPending(t); }}
+              aria-expanded={sendBack?.to === t.to || undefined}
+              onClick={() => choose(t)}
             >
               {t.label}
             </button>
           ))}
         </div>
+      )}
+
+      {sendBack && (
+        <form className="send-back-form" onSubmit={submitSendBack}>
+          <label className="send-back-label" htmlFor="send-back-reason">
+            Reason for “{sendBack.label}” → {statusLabel(sendBack.to)}
+          </label>
+          <textarea
+            id="send-back-reason"
+            className="input send-back-textarea"
+            rows={3}
+            autoFocus
+            placeholder="What needs to change? The agent who submitted this gets @mentioned."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          <div className="send-back-actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => { setSendBack(null); setReason(''); setGuard(null); }}
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={submitting || !reason.trim()}>
+              {submitting ? 'Sending…' : sendBack.label}
+            </button>
+          </div>
+        </form>
       )}
 
       {guard && (
@@ -76,7 +136,7 @@ export function StatusControls({ projectKey, ticketId, status, onChanged }: Prop
         </ModalContent>
         <ModalFooter>
           <button className="btn btn-secondary" onClick={() => setPending(null)} disabled={submitting}>Cancel</button>
-          <button className="btn btn-primary" onClick={confirm} disabled={submitting}>
+          <button className="btn btn-primary" onClick={confirmForward} disabled={submitting}>
             {submitting ? 'Working…' : 'Confirm'}
           </button>
         </ModalFooter>

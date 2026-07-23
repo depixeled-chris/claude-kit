@@ -13,6 +13,7 @@ import {
   EVIDENCE_PATTERNS, NO_TEST_ESCAPE,
 } from '../../scripts/t.mjs';
 import { resolveUser } from '../../scripts/identity.mjs';
+import { parseComments, resolveAgent } from '../../scripts/comments.mjs';
 import { regenerateIndexes } from '../../scripts/index-tickets.mjs';
 import { hydrate } from '../../scripts/hydrate-db.mjs';
 import { ApiError, notFound } from '../lib/errors.mjs';
@@ -98,8 +99,10 @@ export async function setProjectDisplayName(project, displayName) {
   if (name.length > DISPLAY_NAME_MAX) {
     throw new ApiError(STATUS.BAD_REQUEST, `displayName must be ${DISPLAY_NAME_MAX} chars or fewer`, 'bad_request');
   }
-  if (/["'\n\r]/.test(name)) {
-    throw new ApiError(STATUS.BAD_REQUEST, 'displayName may not contain quotes or newlines', 'bad_request');
+  // A newline would break the single-line YAML scalar; quotes are ALLOWED and escaped on write
+  // (KIT-T147 fix to KIT-T137: the old writer spliced them raw and so had to reject them).
+  if (/[\n\r]/.test(name)) {
+    throw new ApiError(STATUS.BAD_REQUEST, 'displayName may not contain newlines', 'bad_request');
   }
   const cfgPath = join(project.aiDir, 'config.yml');
   let text;
@@ -108,22 +111,82 @@ export async function setProjectDisplayName(project, displayName) {
   } catch {
     throw notFound(`no config.yml for project '${project.key}'`);
   }
-  const line = `display_name: "${name}"`;
+  // YAML double-quoted style: escape backslashes THEN double-quotes so a name with either round-trips
+  // (readDisplayName unescapes the same way). A function replacer avoids String.replace's $-specials
+  // in the escaped value.
+  const escaped = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const line = `display_name: "${escaped}"`;
   const updated = DISPLAY_NAME_LINE.test(text)
-    ? text.replace(DISPLAY_NAME_LINE, line)
+    ? text.replace(DISPLAY_NAME_LINE, () => line)
     : `${text.replace(/\n*$/, '\n')}\n# Human tab title in the web UI (KIT-T137) — editable there; defaults to ids.key.\n${line}\n`;
   writeFileSync(cfgPath, updated);
   return { key: project.key, displayName: name };
 }
 
-export async function setTicketStatus(config, project, id, { status, agent }) {
+const STATUS_FIELD = /^status:[ \t]*(.+)$/m;
+const currentStatusOf = (text) => {
+  const m = text.match(STATUS_FIELD);
+  return m ? m[1].trim().replace(/^["']|["']$/g, '') : '';
+};
+
+// A transition is a SEND-BACK when the target sits EARLIER than the current status in the project's
+// configured flow order (KIT-T147). Unknown/off-flow statuses (either side absent) are never
+// send-backs — the guard only governs the linear flow.
+const isSendBack = (flow, from, to) => {
+  const fi = flow.indexOf(from);
+  const ti = flow.indexOf(to);
+  return fi !== -1 && ti !== -1 && ti < fi;
+};
+
+// Who a send-back should reach: the last comment author who ISN'T the user (the agent that
+// submitted the work), else the default acting-agent handle — so the reason lands in an agent's
+// mention inbox (the KIT-T130 loop, in reverse).
+function sendBackTarget(text) {
+  const user = resolveUser().toLowerCase();
+  const comments = parseComments(text);
+  for (let i = comments.length - 1; i >= 0; i--) {
+    if (comments[i].author.toLowerCase() !== user) return comments[i].author;
+  }
+  return resolveAgent();
+}
+
+const withMention = (text, handle) => {
+  const re = new RegExp(`@${handle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+  return re.test(text) ? text : `@${handle} ${text}`;
+};
+
+const commentTextOf = (comment) => {
+  if (comment == null) return '';
+  const t = typeof comment === 'string' ? comment : comment.text;
+  return t == null ? '' : String(t).trim();
+};
+
+export async function setTicketStatus(config, project, id, { status, agent, comment }) {
   const root = requireWritableRoot(project);
   if (!status || !String(status).trim()) throw new ApiError(STATUS.BAD_REQUEST, 'status is required', 'bad_request');
   const who = (agent && String(agent).trim()) || resolveUser();
+  const reason = commentTextOf(comment);
   let result;
   try {
+    const cfg = readConfig(root);
     const { text } = findTicket(root, id);
-    assertEvidenceFloor(text, readConfig(root).uatDefault, status, id);
+    const from = currentStatusOf(text);
+    const backward = isSendBack(cfg.flow, from, status);
+    // Send-back guard (KIT-T147): a backward transition with no reason is useless to the receiving
+    // agent — reject it so ANY client (curl included) is held to it, not just the UI.
+    if (backward && !reason) {
+      throw new ApiError(
+        STATUS.UNPROCESSABLE,
+        `${id}: sending back (${from} → ${status}) requires a comment saying what needs to change`,
+        'send_back_needs_comment',
+      );
+    }
+    assertEvidenceFloor(text, cfg.uatDefault, status, id);
+    // With a reason: the comment lands durably FIRST (History (comment) event) — a send-back
+    // auto-@mentions the agent who should pick the work back up — THEN the status event rides after.
+    if (reason) {
+      tComment(root, id, backward ? withMention(reason, sendBackTarget(text)) : reason, { author: who });
+    }
     // Deliberately NO human flag: the API acts as an agent, so a human_only transition (e.g.
     // `done` in a uat=required project) is REFUSED by setStatus and mapped to 403 — the
     // maintainer's call stays the maintainer's.

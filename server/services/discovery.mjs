@@ -22,14 +22,29 @@ export function toProject({ name, aiDir }) {
   return { key: key || name, name, root, aiDir };
 }
 
+// A YAML scalar in the tolerant subset the settings writer emits (KIT-T137/T147): double-quoted
+// with `\\` / `\"` escapes, single-quoted with `''` escapes, or a bare token. Unescapes so a name
+// containing a quote reads back verbatim — the inverse of setProjectDisplayName's escaping.
+function parseScalar(raw) {
+  const s = raw.trim();
+  const dq = s.match(/^"((?:\\.|[^"\\])*)"/);
+  if (dq) return dq[1].replace(/\\(["\\])/g, '$1');
+  const sq = s.match(/^'((?:''|[^'])*)'/);
+  if (sq) return sq[1].replace(/''/g, "'");
+  return s.replace(/[ \t]+#.*$/, '').trim();
+}
+
 // The human tab title (KIT-T137): top-level `display_name:` in config.yml, read LIVE per
 // request (same line-wise no-YAML-dep discipline as readIdConfig) so a settings write shows
 // on the next read without a cache cycle. Falls back to the id key when absent/unreadable.
 export function readDisplayName(aiDir, fallback) {
   try {
     const cfg = readFileSync(join(aiDir, 'config.yml'), 'utf8');
-    const m = cfg.match(/^[ \t]*display_name:[ \t]*["']?([^"'\n]+?)["']?[ \t]*$/m);
-    if (m && m[1].trim()) return m[1].trim();
+    const m = cfg.match(/^[ \t]*display_name:[ \t]*(.+?)[ \t]*$/m);
+    if (m) {
+      const value = parseScalar(m[1]);
+      if (value) return value;
+    }
   } catch {
     /* fall through to the key */
   }

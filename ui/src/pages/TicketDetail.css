@@ -65,6 +65,22 @@
 .status-current { font-size: 0.85rem; margin-bottom: 0.75rem; color: var(--text); }
 .status-buttons { display: flex; flex-direction: column; gap: 0.5rem; }
 
+/* Inline send-back reason box (KIT-T147): revealed beneath the controls when a backward move is
+   chosen; submit stays disabled until the reason is non-empty. */
+.send-back-form {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: 7px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.send-back-label { font-size: 0.8rem; font-weight: 600; color: var(--text); }
+.send-back-textarea { resize: vertical; min-height: 3.5rem; }
+.send-back-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
 .inline-guard {
   margin-top: 0.75rem;
   padding: 0.6rem 0.75rem;
