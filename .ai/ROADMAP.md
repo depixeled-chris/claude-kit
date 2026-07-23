@@ -8,6 +8,12 @@
 1. KIT-T061 — Entering review requires test evidence (or an explicit [no-test: reason]) — UAT gets a floor (review)
 2. KIT-T075 — Store mutation CLI — t status / t tick / t link; hand-edits remain for prose only (review)
 
+## M4-web-ui
+1. KIT-T130 — Comment + @mention + read-receipt primitive in the .ai store — UI comments agents pick up at session start (todo)
+2. KIT-T131 — REST API hub server — cache-read/markdown-write over every adopted project (localhost) (todo)
+3. KIT-T132 — Web UI — cross-project review board, ticket detail with activity stream, comment + accept actions (todo)
+4. KIT-T129 — Web UI + REST API over the .ai store — review/comment loop without burning session context (todo)
+
 ## Backlog (priority order)
 - KIT-T023 — SYSTEM PROBLEM — the durable record is passive; it must actively surface + connect relevant context at decision points (critical)
 - KIT-T082 — Branch-switch guard — block git switch / checkout -b in a shared checkout; force worktrees for parallel agents (critical)
@@ -34,6 +40,7 @@
 - KIT-T124 — index-tickets.mjs silently fails to parse CRLF ticket frontmatter (high)
 - KIT-T125 — index-tickets.mjs writes cross-project + comment-garbage SUPERSEDED chains (high)
 - KIT-T126 — triage apply.mjs writes the cap's ENTIRE multi-line text into the `title:` frontmatter scalar (high)
+- KIT-T134 — claude-kit-data central store missing most adopted projects — sync updates existing dirs but never adds new ones (high)
 - KIT-T074 — maintenance-gaps gets a drain path — nags without resolution train you to ignore them (medium)
 - KIT-T089 — Install + configure eslint in claude-kit and clear its ~40 hits (split from KIT-T074) (medium)
 - KIT-T098 — orient: foundational decision tier - always-surface project identity regardless of scope (medium)
@@ -43,7 +50,7 @@
 - KIT-T119 — Orientation lacks runtime TOPOLOGY -- session-start rails surface identity/commits/queue but NOTHING about what serves what (ports, dev servers, API processes). Live cost (HOD 2026-07-05): agent burned a debugging arc on 'is 3001 legacy?' when the answer (editor.vite.config.ts at HOD root per HOD-T160; 3001 = current recipe API; 5174 = React editor) was derivable from the ticket store + git -- and the maintainer had to steer twice. Agent-side failing: didn't run provenance-first (KIT-T079) before runtime theories. Kit-side gap: orientation should emit a topology line when the project declares one (e.g. a TOPOLOGY.md or memory entry) so process-level debugging starts grounded, not derived per session. (medium)
 - KIT-T122 — timestamped agent replies + per-session timestamped transcript dump — Chris runs multiple terminals and cannot reconstruct what was said when/where; replies should lead with a [YYYY-MM-DD HH:MM] stamp (clock via hook-injected time or a date call), and a kit query should dump a session's conversation with the timestamps that already exist in ~/.claude/projects/*.jsonl transcripts (2026-07-09) (medium)
 - KIT-T123 — KIT process: session-transcript FTS as the RECALL mechanism — agents answer 'what was said about X' via q text-search over ingested session logs instead of resident context; enables SESSION.md diet (one screen + pointers), leaner orientation dump; rule: transcripts INFORM, DECISIONS/tickets GOVERN (extends -1550 sessions.db design, 2026-07-09) (medium)
-- KIT-T129 — Web UI + REST API over the .ai store — review/comment loop without burning session context (medium)
+- KIT-T133 — Headless dispatch from the UI — 'send to agent' spawns a guarded claude -p run on a comment (phase 2) (medium)
 - KIT-T072 — Quiet the per-turn hook chatter — dedupe advisories, conditional receipts (low)
 - KIT-T073 — Progressive disclosure for the global contract — specialist sections become on-demand skills (low)
 - KIT-T078 — Command-level model tiering — static `model:` on fixed-cost read-only commands (low)

@@ -4,9 +4,9 @@ title: Web UI + REST API over the .ai store — review/comment loop without burn
 type: epic
 status: todo
 priority: medium
-milestone:
+milestone: M4-web-ui
 labels: []
-links: []
+links: [KIT-T130, KIT-T131, KIT-T132, KIT-T133, KIT-D044]
 files: []
 supersedes:
 superseded_by:
@@ -33,8 +33,8 @@ CLI so gates and view regeneration stay consistent).
 - [ ] REST API over the .ai store: list/detail for tickets, questions, decisions, inbox; write surface for comments and status transitions — markdown files remain the truth, writes go through the t-CLI code paths
 - [ ] Web UI: review board (tickets parked in review, cross-project or per-project per design decision), ticket detail rendering Notes/History, comment box, accept/close action
 - [ ] A comment posted in the UI lands in the ticket file as a durable History/Notes entry that `/drain` or a fresh agent surfaces and acts on without maintainer re-prompting
-- [ ] Harvest verdict recorded in DECISIONS: what was lifted from D:\dev\workflow vs rebuilt vs left behind
-- [ ] Child tickets cut for the implementation slices once the design decisions land
+- [x] Harvest verdict recorded in DECISIONS: what was lifted from D:\dev\workflow vs rebuilt vs left behind
+- [x] Child tickets cut for the implementation slices once the design decisions land
 
 ## Plan
 1. Researcher sweep of D:\dev\workflow client/server (running).
@@ -73,3 +73,5 @@ Harvest verdict (researcher sweep of D:\dev\workflow, 2026-07-23):
 
 ## History
 - [2026-07-23 15:08] (created) epic — Web UI + REST API over the .ai store — review/comment loop without burning session context
+- [2026-07-23 15:18] (comment) ticked: Harvest verdict recorded in DECISIONS: what was lifted from D:\dev\workflow vs rebuilt vs left behind
+- [2026-07-23 15:18] (comment) ticked: Child tickets cut for the implementation slices once the design decisions land

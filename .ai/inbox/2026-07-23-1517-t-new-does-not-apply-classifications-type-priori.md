@@ -1,0 +1,1 @@
+(bug) t new does not apply classifications.<type>.priority at scaffold — KIT-T134 (bug) scaffolded priority: medium; config.classifications.bug.priority is high. Scaffold should default from the classification.
