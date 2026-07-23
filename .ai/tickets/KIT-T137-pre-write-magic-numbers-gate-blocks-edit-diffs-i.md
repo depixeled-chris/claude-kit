@@ -71,6 +71,8 @@ groovegrid/src/ui/tracks/effect-panels/ContinuumPanelSpec.h placements.
 ## Notes
 <!-- prose/narrative progress — free-form, direct-edit. Context, blockers, research,
      why a tradeoff was made. Append freely; no format enforced. -->
+### comment #1 [2026-07-23 18:57] @chris
+Maintainer challenged the 'displayName may not contain quotes or newlines' rejection (writes.mjs:101). Verdict: the quote ban is an unescaped-writer shortcut, not a real constraint — the line splice writes display_name: " name\ without escaping. Fix: escape backslash + double-quote on write (YAML double-quoted style), drop quotes from the rejection; KEEP the newline/CR ban (structurally required for the line-oriented splice) and the 48-char cap. Routed to the in-flight KIT-T147 writer since it edits writes.mjs anyway. --author claude
 
 ## History
 <!-- structured event log — APPEND-ONLY, stamped by the `t` CLI (KIT-T075). One line per
@@ -83,3 +85,4 @@ groovegrid/src/ui/tracks/effect-panels/ContinuumPanelSpec.h placements.
        (fixed)     <sha>                    (regressed) → T-040   (recurred as)
      NEVER edit or delete a prior line — this is the task's audit trail (KIT-D037). -->
 - [<YYYY-MM-DD HH:MM>] (created)
+- [2026-07-23 18:57] (comment) @chris: Maintainer challenged the 'displayName may not contain quotes or newlines' rejection (writes.mjs:101). Verdict: the quot (full comment #1 in ## Notes)

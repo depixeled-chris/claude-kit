@@ -1,0 +1,1 @@
+(bug) Grounding miss (process): filed KIT-T152 (display title) without q-fts-checking for concurrent work - KIT-T137 (parallel session, display_name in config.yml) partially covers it. Root cause: no pre-filing dedup query against the store; the KIT-T025 dedup strategy (in review) is the structural fix. Reconciled same hour: T152 narrowed to the delta.
