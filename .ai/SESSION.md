@@ -87,11 +87,16 @@ Updated: 2026-07-23  |  Branch: main  |  Active: M4-web-ui phase 1 SHIPPED
 - KIT-T149 captured (756e9cc): nav redesign — pinnable tabs + secondary dropdowns
   (project selector, settings w/ /api/me identity).
 
-## In flight (roster: .ai/agents.jsonl)
-- opus agent on the FIVE-ticket UI wave, sequential single writer, per-ticket
-  commit+close: T145 identity/alias → T149 nav tabs → T146 mentions page+badge →
-  T147 send-back-requires-comment (API 422 + inline box) → T148 sha chips.
-  Final step rebuilds ui/dist so 127.0.0.1:4319 serves it all.
+- FIVE-TICKET WAVE LANDED + VERIFIED (all done/archived/pushed): T145 identity
+  (42e2d73, identity.test 6/6, no-personal-names regression test), T149 nav tabs +
+  dropdowns (004f6b5), T146 mentions inbox/badge/page (db115d8, server 20/20 round-
+  trips), T147 send-back-requires-comment + T137 quote-escape fix (5e81c9c, 22/22),
+  T148 sha chips (8304699 + 438414d, chips test green). I restarted the API on 4319
+  (old process predated T146) and live-verified: /api/me alias, /api/mentions
+  (2 unread), /mentions 200. Suite spot-checks re-run by me: identity 6/6, server
+  22/22, chips green.
+- Parallel session landed KIT-T151 (985d243): dispatch-ladder hook + agent opus pins;
+  and a CRLF .gitattributes addendum cap.
 
 - KIT-T150 filed (5643897): agent bug/feature capture protocol — answered Chris's
   question (NO such protocol exists today; findings evaporate unless the orchestrator
