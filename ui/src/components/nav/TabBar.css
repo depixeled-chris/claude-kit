@@ -1,0 +1,76 @@
+/* The pinnable tab strip (KIT-T149). Base tabs (Waiting/All) and project tabs share the .tab shape;
+   the active tab is filled with the accent. A project tab pairs a route link with a pin toggle. */
+
+.tabbar {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 7px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.tab--base:hover { background: var(--surface-2); color: var(--text); }
+.tab.active { background: var(--accent); color: #fff; }
+
+/* Project tabs wrap a link + a pin button, so the container carries the chrome and the inner link
+   stays a plain click target. */
+.tab--project {
+  padding: 0.2rem 0.3rem 0.2rem 0.55rem;
+  border-color: var(--border);
+  background: var(--surface);
+}
+.tab--project.transient { border-style: dashed; }
+.tab--project.active { background: var(--accent); border-color: var(--accent); }
+
+.tab-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: inherit;
+  text-decoration: none;
+  max-width: 14rem;
+}
+.tab--project .tab-link { color: var(--text-dim); }
+.tab--project.active .tab-link { color: #fff; }
+
+.tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tab-badge {
+  background: color-mix(in srgb, var(--accent) 85%, #000 0%);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.03rem 0.38rem;
+  line-height: 1.4;
+}
+.tab--project.active .tab-badge { background: rgba(255, 255, 255, 0.3); }
+
+.tab-pin {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0 0.15rem;
+  font-size: 0.72rem;
+  line-height: 1;
+  border-radius: 5px;
+  opacity: 0.3;
+  filter: grayscale(1);
+  transition: opacity 0.12s, filter 0.12s;
+}
+.tab-pin:hover { opacity: 0.8; }
+.tab--project.pinned .tab-pin { opacity: 1; filter: none; }
+.tab-pin:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; opacity: 1; }

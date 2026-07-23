@@ -5,7 +5,7 @@
 // (KIT-T144 scope-add); detail + waiting keep the readable centered column.
 
 import { Routes, Route, useLocation } from 'react-router-dom';
-import { Nav } from './components/Nav';
+import { NavBar } from './components/nav/NavBar';
 import WaitingBoard from './pages/WaitingBoard';
 import AllBoards from './pages/AllBoards';
 import ProjectBoard from './pages/ProjectBoard';
@@ -25,7 +25,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Nav />
+      <NavBar />
       <main className={wide ? 'main main--wide' : 'main'}>
         <Routes>
           <Route path="/" element={<WaitingBoard />} />
