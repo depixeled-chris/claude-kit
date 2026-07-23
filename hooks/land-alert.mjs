@@ -59,14 +59,16 @@ const LANDED_RECEIPT = new RegExp(
   'i',
 );
 
-// WHAT CAN BE TESTED — Chris's standing rule (KIT-T099): a turn that lands work must end by
-// telling the maintainer what to run, so they can tell at a glance that work was DONE (not
-// navel-gazing) and exactly how to test it. Cleared by a test verb (test/verify/repro), a test
-// runner / command (cargo, npm, pytest, race_sim, …), "N passed", an explicit "nothing to test",
-// or "[no-test: <reason>]". Absent → the landing reply never said what to run. ([no-alert:] still
-// suppresses the whole gate.)
+// WHAT CAN BE UAT'd — Chris's standing rule (KIT-T099, sharpened by KIT-D045): a turn that
+// lands work must end by telling the maintainer what THEY can try as a user (the app/preview to
+// open, the CLI to run and read) — automated suites are Claude's own loop, cited only as
+// already-run evidence, never assigned to the maintainer. Cleared by a UAT line, a test verb
+// (test/verify/repro), a runner/command mention (cargo, npm, pytest, race_sim, … — as evidence),
+// "N passed", an explicit "nothing to test", or "[no-test: <reason>]". Absent → the landing
+// reply never said what to try. ([no-alert:] still suppresses the whole gate.)
 const TEST_RECEIPT = new RegExp(
   String.raw`\[no-?(?:test|alert)\b` +
+    String.raw`|\bUAT\b` +
     String.raw`|\bnothing to test\b` +
     String.raw`|\bcan be tested\b` +
     String.raw`|\b(?:tested?|verif(?:y|ied|ies))\b` +
@@ -169,7 +171,7 @@ function renderAlert(root, landed, pushed, hasLanding, hasTest) {
     lines.push('  - announce the landing — WHAT + the ticket + the link ("pushed"/"deployed"/the sha);');
   }
   if (!hasTest) {
-    lines.push('  - state WHAT CAN BE TESTED — the exact command(s) to run (e.g. `cargo test …`), or "[no-test: <reason>]" if nothing is testable;');
+    lines.push('  - state WHAT THE MAINTAINER CAN UAT — a user-facing command/experience to try (open X, run Y and read it), or "[no-test: <reason>]"; automated suites are Claude\'s to run — cite results, never assign them (KIT-D045);');
   }
   lines.push(
     '  - if a deploy follows, confirm when it is LIVE (not just pushed);',

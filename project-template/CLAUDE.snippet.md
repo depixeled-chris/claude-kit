@@ -79,6 +79,15 @@ On "work T-001" (or when I pull it from the drain):
 6. Chris sets `status: done` after merge (a `statuses.human_only` status — **never
    set it myself**). On done, the ticket moves to `.ai/tickets/archive/`.
 
+### Verification roles (KIT-D045)
+- **Automated tests are Claude's, end to end**: Claude runs them, reads them, acts on
+  them. Their results appear in replies as already-run evidence ("N passed", the sha) —
+  never as an instruction to the maintainer.
+- **The maintainer does UAT only.** The end-of-turn receipt (KIT-T099) is UAT-shaped:
+  a user-facing command or experience to try — the app to open, the CLI to run and
+  read, the thing to look at or listen to — or `[no-test: <reason>]` when nothing is
+  user-facing.
+
 ### Backlog vs roadmap
 - **Backlog** = tickets with `status: todo` and no `milestone`. Everything
   captured lands here first.

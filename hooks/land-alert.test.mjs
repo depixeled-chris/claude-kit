@@ -126,6 +126,19 @@ function makeTurnStateDir() {
     run(d, { transcript_path: tx }, tsDir).code, 0);
 }
 
+// ─── case 3d (KIT-D045): UAT-shaped receipt (no legacy test token) → ALLOW ───────────────
+{
+  const d = makeRepo();
+  const tsDir = makeTurnStateDir();
+  const userTs = new Date(Date.now() - 10000).toISOString();
+  const sha = makeCommit(d, 'src/app.ts', 'export const z = 3', 'feat: add z HOD-T012');
+  // Deliberately avoids every legacy token (test/verify/npm/preview/"N passed") — the
+  // UAT word alone must clear the gate, since KIT-D045 receipts are user-facing actions.
+  const tx = writeTranscript(d, 'push it', `pushed ${sha.slice(0, 8)} — HOD-T012 landed. UAT: open the app at localhost:8000 and click Render.`, userTs);
+  expect('allows a UAT-shaped receipt with no legacy test token',
+    run(d, { transcript_path: tx }, tsDir).code, 0);
+}
+
 // ─── case 4: [no-alert: x] release valve → ALLOW ─────────────────────────────────────────
 {
   const d = makeRepo();
