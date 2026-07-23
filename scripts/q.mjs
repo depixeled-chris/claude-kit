@@ -7,6 +7,7 @@
 //   node scripts/q.mjs backlinks <id>               # items that link TO <id> (any rel) — walk DOWN
 //   node scripts/q.mjs trail <id>                   # walk UP <id>'s ancestry → governing decisions/docs/origin (trail-on-action)
 //   node scripts/q.mjs governing <path...>          # OPEN tickets/decisions that GOVERN the given file path(s) (the inverse of trail)
+//   node scripts/q.mjs mentions <agent>             # comments @mentioning <agent> across the project, with read (acked) state
 //   node scripts/q.mjs drift                        # OPEN items naming a structural target path ABSENT from the tree (decided ≠ actual)
 //   node scripts/q.mjs by-commit <sha>              # tickets caused-by / fixed-by <sha>
 //   node scripts/q.mjs doc-trail <id>               # history events for <id>, newest first
@@ -38,6 +39,7 @@ import { resolveEngine } from './db-engine.mjs';
 import { collectItems } from './db-parse.mjs';
 import { hydrate, defaultDbPath, hydrationSources } from './hydrate-db.mjs';
 import { readIdConfig, STORE_TYPE, compareIds, statStoreFiles } from './id-utils.mjs';
+import { mentionsForAgent, readReceipts } from './comments.mjs';
 
 const OPEN = ['todo', 'doing', 'review'];
 const FTS_LIMIT = 25;        // cap FTS hits — a retrieval list, not a full dump
@@ -615,6 +617,16 @@ function fallback(cmd, args, root) {
       return governing(items, args);
     case 'drift':
       return drift(items, (t) => existsSync(join(root, t)));
+    // @mention inbox (KIT-T130): comments across the project mentioning <agent>, each with
+    // read state (acked?). Scan-only by nature — comment bodies + Notes spills + the ack
+    // sidecar aren't in the SQLite schema, so the markdown scan IS the source (like governing).
+    case 'mentions': {
+      const agent = args[0];
+      if (!agent) throw new Error('mentions needs an <agent>: q mentions <agent>');
+      const receipts = readReceipts(root);
+      return mentionsForAgent(items, receipts, agent)
+        .map((m) => ({ id: m.id, ref: m.ref, state: m.acked ? 'read' : 'unread', ts: m.ts, from: `@${m.author}`, text: clip(m.text, SUMMARY_CLIP) }));
+    }
     default:
       throw new Error(`'${cmd}' has no markdown fallback (needs SQLite). sql/integrity require the cache.`);
   }
@@ -649,7 +661,7 @@ export async function query(cmd, args = [], { root, cwdRoot = root || process.cw
   // governing/drift are scan-only (the cache schema carries no files/scope/paths/body), so
   // route them straight to the markdown scan over cwdRoot regardless of the engine — the
   // fail-open path IS the only path for them. `cached:false` is honest: no SQLite involved.
-  if (cmd === 'governing' || cmd === 'drift') {
+  if (cmd === 'governing' || cmd === 'drift' || cmd === 'mentions') {
     return { rows: fallback(cmd, args, cwdRoot), cached: false };
   }
   const { handle, wasStale } = noDb ? { handle: null, wasStale: false } : await dbOpen(root, dbPath);
@@ -682,6 +694,7 @@ const QUERY_SURFACE = `usage: q.mjs [--json] [--no-db] [--root <dir>] <query> [a
   backlinks <id>              items that link TO <id> (any rel) — walk DOWN
   trail <id>                  walk UP <id>'s ancestry — governing decisions/docs/origin
   governing <path...>         OPEN tickets/decisions that GOVERN the given file path(s)
+  mentions <agent>            comments @mentioning <agent> across the project, with read state
   drift                       OPEN items naming a structural target path ABSENT from the tree
   by-commit <sha>             tickets caused-by / fixed-by <sha>
   doc-trail <id>              history events for <id>, newest first

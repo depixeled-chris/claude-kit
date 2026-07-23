@@ -19,6 +19,7 @@ const DECISIONS_DIR_RECENT = 6; // ids shown from decisions/ directory
 const ROADMAP_GIST_LINES = 8;   // first lines of ROADMAP.md shown inline
 // KIT-T028: a `doing` ticket with no update for this long is a zombie — flag it prominently.
 const ORIENT_DOING_STALE_MS = 2 * 60 * 60 * 1000; // 2 hours
+const MENTIONS_SHOWN = 5; // KIT-T130: unread @mentions listed inline before the pointer
 
 const root = gitRoot();
 if (!adopted(root)) process.exit(0);
@@ -281,6 +282,25 @@ try {
   }
 } catch {
   /* cache + fallback both unavailable — orientation proceeds without the open-work view */
+}
+
+// KIT-T130: unread @mentions for the acting agent — durable UI/CLI comments a tabula-rasa
+// session must pick up without a built context. Acked ones are already cleared. Fail-open.
+try {
+  const { resolveAgent } = await import('../scripts/comments.mjs');
+  const { query } = await import('../scripts/q.mjs');
+  const agent = resolveAgent();
+  const { rows: mentionRows } = await query('mentions', [agent], { cwdRoot: root });
+  const unread = (mentionRows || []).filter((r) => r.state === 'unread');
+  if (unread.length) {
+    out.push('');
+    out.push(`--- UNREAD @${agent} mentions (${unread.length}) — comments addressed to you; ack to clear ---`);
+    for (const r of unread.slice(0, MENTIONS_SHOWN)) out.push(`  ${r.ref} [${r.ts}] ${r.from}: ${r.text}`);
+    if (unread.length > MENTIONS_SHOWN) out.push(`  +${unread.length - MENTIONS_SHOWN} more — q mentions ${agent}`);
+    out.push(`  ack once read: t ack <id>#<n> --agent ${agent}`);
+  }
+} catch {
+  /* mentions surfacing is fail-open — never break orientation */
 }
 
 // KIT-T028: stale `doing` detector — zombie banner. Fail-open.

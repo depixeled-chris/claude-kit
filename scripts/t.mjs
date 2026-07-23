@@ -25,6 +25,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { nextId, readIdConfig } from './id-utils.mjs';
+import { buildComment, parseComments, recordAck } from './comments.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const ID_RE = /^[A-Za-z]+-[A-Za-z]?\d+$/; // KIT-T075, KIT-D032
@@ -349,6 +350,45 @@ export function link(root, id, rel, target) {
   return { id, rel, target };
 }
 
+// --- t comment ----------------------------------------------------------------------------
+
+// Append a durable authored comment as a History `(comment)` event. Multi-line / long prose
+// spills to ## Notes with the History line referencing it (comments.buildComment owns the
+// shape). @mentions are DERIVED on read, never stored. Pure markdown mutation; the CLI main
+// wraps this with the index/cache refresh (comment activity lands in the cache history table).
+export function comment(root, id, text, opts = {}) {
+  const author = (opts.author || '').trim();
+  if (!author) throw new Error('t comment: --author <who> is required');
+  if (text === undefined || !String(text).trim()) throw new Error('t comment: a non-empty "<text>" is required');
+  const t = findTicket(root, id);
+  if (!t.parts) throw new Error(`${id}: no frontmatter block`);
+  const built = buildComment(t.parts.rest, { id, author, text, ts: stamp() });
+  let body = appendUnderSection(t.parts.rest, 'History', built.historyLine);
+  if (built.notesBlock) body = appendUnderSection(body, 'Notes', built.notesBlock);
+  writeFileSync(t.path, t.parts.open + t.parts.fm + t.parts.close + body);
+  return { id, ref: built.ref, ordinal: built.ordinal, mentions: built.mentions, spilled: !!built.notesBlock, path: t.path };
+}
+
+// --- t ack --------------------------------------------------------------------------------
+
+// Record a per-agent read receipt for one comment. The reference is `<id>#<ordinal>` — the
+// ticket id plus the comment's 1-based ordinal (append-only, so unambiguous). Verifies the
+// comment exists before writing the receipt; acked mentions stop surfacing at orient/drain.
+export function ack(root, refToken, opts = {}) {
+  const agent = (opts.agent || '').trim();
+  if (!agent) throw new Error('t ack: --agent <name> is required');
+  const m = String(refToken || '').match(/^([A-Za-z]+-[A-Za-z]?\d+)#(\d+)$/);
+  if (!m) throw new Error(`t ack: reference must be <id>#<comment-ordinal> (e.g. KIT-T130#2), got '${refToken}'`);
+  const id = m[1];
+  const ordinal = parseInt(m[2], 10);
+  const t = findTicket(root, id);
+  const comments = parseComments(t.parts ? t.parts.rest : t.text);
+  const target = comments.find((c) => c.ordinal === ordinal);
+  if (!target) throw new Error(`${id}: no comment #${ordinal} (ticket carries ${comments.length} comment(s))`);
+  const rec = recordAck(root, { ref: `${id}#${ordinal}`, agent, ts: target.tsKey });
+  return { id, ref: rec.ref, agent: rec.agent, already: rec.already, mentions: target.mentions };
+}
+
 // --- write-time structure lint (shared with hooks/ingest-data.mjs) -------------------------
 
 const PLACEHOLDERS = [
@@ -438,6 +478,8 @@ function parseArgs(argv) {
     if (a === '--human') flags.human = true;
     else if (a === '--note') flags.note = argv[++i];
     else if (a === '--fixed-commit') flags.fixedCommit = argv[++i];
+    else if (a === '--author') flags.author = argv[++i];
+    else if (a === '--agent') flags.agent = argv[++i];
     else if (a === '--root') flags.root = argv[++i];
     else pos.push(a);
   }
@@ -448,7 +490,7 @@ async function main() {
   const { flags, pos } = parseArgs(process.argv.slice(2));
   const root = flags.root || process.cwd();
   const [cmd, ...rest] = pos;
-  const usage = 'usage: t <new|status|tick|link> …  (t new <type> "<title>" | t status <id> <state> [--human] | t tick <id> <ordinal|match> | t link <id> <rel> <target>)';
+  const usage = 'usage: t <new|status|tick|link|comment|ack> …  (t new <type> "<title>" | t status <id> <state> [--human] | t tick <id> <ordinal|match> | t link <id> <rel> <target> | t comment <id> "<text>" --author <who> | t ack <id>#<n> --agent <name>)';
 
   if (!cmd) { console.error(usage); process.exit(2); }
 
@@ -482,6 +524,23 @@ async function main() {
     const r = link(root, id, rel, target);
     await refresh(root);
     process.stdout.write(`link: ${r.id} ${r.rel} ${r.target}${r.bothSides ? ` (+ ${r.older}.superseded_by = ${r.newer})` : ''}\n`);
+    return;
+  }
+  if (cmd === 'comment') {
+    const [id, ...textWords] = rest;
+    const text = textWords.join(' ');
+    if (!id || !text.trim()) { console.error('usage: t comment <id> "<text>" --author <who>'); process.exit(2); }
+    const r = comment(root, id, text, flags);
+    await refresh(root);
+    const mentioned = r.mentions.length ? ` — mentions ${r.mentions.map((m) => '@' + m).join(' ')}` : '';
+    process.stdout.write(`comment: ${r.ref} by @${flags.author}${r.spilled ? ' (body → Notes)' : ''}${mentioned}\n`);
+    return;
+  }
+  if (cmd === 'ack') {
+    const [refToken] = rest;
+    if (!refToken) { console.error('usage: t ack <id>#<comment-ordinal> --agent <name>'); process.exit(2); }
+    const r = ack(root, refToken, flags);
+    process.stdout.write(`ack: ${r.ref} by ${r.agent}${r.already ? ' (already acked)' : ''}\n`);
     return;
   }
   console.error(`t: unknown subcommand '${cmd}'\n${usage}`);

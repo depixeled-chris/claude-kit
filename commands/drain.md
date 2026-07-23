@@ -36,7 +36,13 @@ Keep going item-to-item until the queue needs them or they stop.
    guess — one you can't ground from the record becomes a Chris question), write the answer + date
    into its `**Resolution:**` and set `status: resolved` — RECORD the answer, never delete
    (KIT-T064). Leave `answerable_by: chris` ones open and batch them into the next `/decide`.
-6. STOP and report when: the queue is empty, every remaining item needs the maintainer
+6. UNREAD @MENTIONS drain alongside tickets (KIT-T130): at the start of a drain, check the
+   comments addressed to the acting agent identity — `node <kit>/scripts/q.mjs mentions <you>`
+   (SessionStart already surfaces these; `<you>` defaults to `claude`, or `$KIT_AGENT`). Each
+   unread mention is a durable UI/CLI comment to act on: address it as part of the work, then
+   `node <kit>/scripts/t.mjs ack <id>#<n> --agent <you>` so it stops surfacing. Leave one open
+   only if it needs the maintainer, and batch that into the next `/decide`.
+7. STOP and report when: the queue is empty, every remaining item needs the maintainer
    (decision / scope / design-gated), or the maintainer says stop. List what's left and why.
 
 **BIG-ASK TRIGGER (KIT-T038):** when an incoming request exceeds a size/risk threshold — long prompt AND a scope/risk signal (redesign, architecture, migrate, from scratch, overhaul, end-to-end, system-wide, etc.) — do NOT one-shot it. Route it into the structured pipeline: draft a plan, write a research doc (`docs/research/`), decompose into tickets, then drain them. Small/routine asks proceed directly; only the big-ask path engages the pipeline. The `UserPromptSubmit` hook nudges this automatically, but the contract here is the authoritative rule.
