@@ -228,3 +228,6 @@ regressions:
   links: [regressed_from, causing_commit, fixed_commit]
   index_file: REGRESSIONS.md       # generated chains: original -> recurrences
   board_file: tickets/INDEX.md     # generated ticket board (id/type/status/title)
+
+# Human tab title in the web UI (KIT-T137) — editable there; defaults to ids.key.
+display_name: "Claude Kit"
