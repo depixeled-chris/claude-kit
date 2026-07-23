@@ -83,6 +83,7 @@ export interface TicketDetail {
   milestone: string | null;
   parent: string | null;
   archived: boolean;
+  remoteUrl: string | null; // origin web base for commit-sha chip permalinks (KIT-T148)
   links: TicketLink[];
   description: string;
   acceptanceCriteria: AcceptanceCriterion[];

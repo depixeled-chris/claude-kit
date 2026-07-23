@@ -30,8 +30,9 @@ function mapComments(id, body, root, agent) {
   });
 }
 
-// `row` is the { item, body, history, links } shape from cache-read.fetchTicket.
-export function buildTicketDetail(row, { root, agent }) {
+// `row` is the { item, body, history, links } shape from cache-read.fetchTicket. `remoteUrl` is the
+// project's origin web base (KIT-T148) so the client can turn a commit-sha chip into a permalink.
+export function buildTicketDetail(row, { root, agent, remoteUrl = null }) {
   const { item, body, history, links } = row;
   const sections = parseTicketBody(body);
   return {
@@ -44,6 +45,7 @@ export function buildTicketDetail(row, { root, agent }) {
     milestone: item.milestone || null,
     parent: item.parent || null,
     archived: !!item.archived,
+    remoteUrl,
     links: mapLinks(links),
     description: sections.description,
     acceptanceCriteria: sections.acceptanceCriteria,

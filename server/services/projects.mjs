@@ -4,6 +4,7 @@
 
 import { resolveAgent } from '../../scripts/comments.mjs';
 import { compareIds } from '../../scripts/id-utils.mjs';
+import { remoteWebUrl } from '../../hooks/lib.mjs';
 import { withCache, fetchCounts, fetchTickets, fetchTicket, fetchStore } from './cache-read.mjs';
 import { buildTicketDetail } from './ticket-detail.mjs';
 import { readDisplayName } from './discovery.mjs';
@@ -37,10 +38,13 @@ export async function listTickets(config, project, status) {
 }
 
 export async function getTicketDetail(config, project, id, agent = resolveAgent()) {
+  // origin's https web base (git-normalized), so the detail's commit-sha chips can link to
+  // <remote>/commit/<sha> (KIT-T148). null when the project has no local repo / no origin.
+  const remoteUrl = project.root ? remoteWebUrl(project.root) : null;
   return withCache(config, (handle) => {
     const row = fetchTicket(handle, project.key, id);
     if (!row) throw notFound(`unknown ticket '${id}' in project '${project.key}'`);
-    return buildTicketDetail(row, { root: project.root, agent });
+    return buildTicketDetail(row, { root: project.root, agent, remoteUrl });
   });
 }
 

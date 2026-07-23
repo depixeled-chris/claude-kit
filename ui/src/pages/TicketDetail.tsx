@@ -16,6 +16,7 @@ import { AcceptanceList } from '../components/ticket/AcceptanceList';
 import { ActivityStream } from '../components/ticket/ActivityStream';
 import { CommentForm } from '../components/ticket/CommentForm';
 import { StatusControls } from '../components/ticket/StatusControls';
+import { Chip } from '../components/ticket/Chip';
 import './TicketDetail.css';
 
 export default function TicketDetail() {
@@ -96,7 +97,7 @@ export default function TicketDetail() {
                 {data.links.map((l, i) => (
                   <li key={i}>
                     <span className="link-rel">{l.rel}</span>
-                    <Link to={`/p/${key}/t/${l.to}`}>{l.to}</Link>
+                    <Chip value={l.to} projectKey={key} remoteUrl={data.remoteUrl} />
                   </li>
                 ))}
               </ul>

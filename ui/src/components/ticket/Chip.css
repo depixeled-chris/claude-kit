@@ -1,0 +1,32 @@
+/* Classified value chips (KIT-T148). Tokens from index.css drive light/dark. */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.4rem;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+/* Item id → in-app link */
+.chip-item { color: var(--accent); font-weight: 500; }
+.chip-item:hover { text-decoration: underline; }
+
+/* Commit sha → mono chip (permalink or copy) */
+.chip-commit {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.chip-commit:hover { border-color: var(--accent); }
+
+/* The copy variant is a button — strip the default chrome so it reads like the link chip. */
+.chip-copy { cursor: pointer; }
+.chip-copy:active { transform: translateY(0.5px); }
+
+/* Plain text — inert */
+.chip-text { color: var(--text-dim); }

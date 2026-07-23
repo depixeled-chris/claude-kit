@@ -202,6 +202,9 @@ test('GET /api/projects/:key/tickets/:id returns frontmatter + AC checked state 
   assert.match(d.notes, /initial progress note/);
   assert.ok(d.history.some((h) => h.event === 'created'));
   assert.deepEqual(d.comments, []);
+  // remoteUrl is exposed for commit-sha chips (KIT-T148); null here since the fixture is not a git repo.
+  assert.ok('remoteUrl' in d, 'detail DTO exposes remoteUrl');
+  assert.equal(d.remoteUrl, null);
 });
 
 test('GET list endpoints for questions / decisions / inbox', async () => {
