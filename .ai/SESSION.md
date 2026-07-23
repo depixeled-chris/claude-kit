@@ -93,10 +93,17 @@ Updated: 2026-07-23  |  Branch: main  |  Active: M4-web-ui phase 1 SHIPPED
   T147 send-back-requires-comment (API 422 + inline box) → T148 sha chips.
   Final step rebuilds ui/dist so 127.0.0.1:4319 serves it all.
 
+- KIT-T150 filed (5643897): agent bug/feature capture protocol — answered Chris's
+  question (NO such protocol exists today; findings evaporate unless the orchestrator
+  caps them — 3 same-day examples in the ticket). Queued behind the wave with T143.
+- Wave progress visible in tree: T145 doing — /api/me route + identity.test.mjs
+  registered in npm test.
+
 ## Next 3 steps
-1. Collect the wave agent — verify per-ticket evidence + live /mentions, receipt.
-2. KIT-T143 (CRX merge mode) after the UI wave; KIT-T133 on Chris's flip.
-3. Watch KIT-D045/T135 (parallel session) landing — affects accept/close semantics.
+1. Collect the wave agent (T145→T149→T146→T147→T148) — verify per-ticket evidence +
+  live /mentions, receipt.
+2. Then drain: KIT-T150 (capture protocol) + KIT-T143 (CRX merge mode).
+3. KIT-T133 on Chris's flip; watch KIT-D045/T135 (parallel session) landing.
 
 ## Carry-over (pre-2026-07-23, still open)
 - Inbox: 5 un-triaged items ≥2d (oldest 8d) — run /triage.
