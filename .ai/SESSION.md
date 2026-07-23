@@ -17,16 +17,29 @@ Updated: 2026-07-23  |  Branch: main  |  Active: KIT-T129 (epic) — web UI + RE
 - Inbox capture: t new ignores classifications.<type>.priority (scaffolded T134 medium
   vs config high).
 
+## Landed 2026-07-23 (verified)
+- KIT-T130 DONE (2ae4bc2, pushed): scripts/comments.mjs model + t comment / t ack /
+  q mentions + orient/drain surfacing + .ai/read-receipts.json sidecar. Verified live:
+  comments 35 passed, t 49 passed; q mentions round-trip incl. ack. Agent identity via
+  $KIT_AGENT/$CLAUDE_AGENT (default claude).
+- KIT-T134 root cause folded (a4d427e): CLAUDE_DATA-gated seeding; CRX split-brain
+  (central frozen 10 tickets vs live 21 — never clobber); back-fill list GG/JV/MGP.
+
 ## In flight (roster: .ai/agents.jsonl)
-- opus implementer on KIT-T130 (t comment / q mentions / t ack / orient+drain
-  surfacing + tests; commits to main citing KIT-T130; closes done per uat:none).
-- opus researcher on KIT-T134 root cause (read-only; report with fix shape).
+- opus implementer on KIT-T134 fix: (a) init-project registry-dataRoot default,
+  (b) reconcile-central.mjs (dry-run default, --execute, split-brain refusal —
+  CRX must refuse), (c) orient tripwire; executes back-fill for clean cases only;
+  pushes kit + data + touched project repos, all citing KIT-T134.
+
+## Parallel session (NOT this session's work — leave uncommitted files alone)
+- Untracked in tree: KIT-D045 (maintainer-does-UAT / claude-owns-automated-tests) +
+  KIT-T135 (codify UAT role split). Relevant to KIT-T132's accept/close controls —
+  reconcile when that session commits.
 
 ## Next 3 steps
-1. Collect KIT-T130 agent result — verify tests, review diff, receipt to Chris.
-2. Collect KIT-T134 root-cause report — fold into ticket, then fix (seed + reconcile
-   warning) after T130 lands (avoid shared-tree commit races).
-3. Dispatch KIT-T131 (API) once T130's comment verb + shapes exist.
+1. Collect KIT-T134 fix result — verify dry-run report + migrations, receipt.
+2. Dispatch KIT-T131 (API hub) — T130 shapes now exist.
+3. Then KIT-T132 (UI); /triage the inbox (7 items now).
 
 ## Carry-over (pre-2026-07-23, still open)
 - Inbox: 5 un-triaged items ≥2d (oldest 8d) — run /triage.
