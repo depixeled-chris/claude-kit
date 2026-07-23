@@ -97,6 +97,11 @@ Updated: 2026-07-23  |  Branch: main  |  Active: M4-web-ui phase 1 SHIPPED
   22/22, chips green.
 - Parallel session landed KIT-T151 (985d243): dispatch-ladder hook + agent opus pins;
   and a CRLF .gitattributes addendum cap.
+- Push sweep (51decfe): committed Chris's UI display_name edit ("Claude Kit") +
+  finished T151's half-staged archive move. NEW GAP CAPPED (inbox): API markdown-
+  writes are never git-committed — UI edits sit machine-local until a session
+  commits them; needs auto-commit policy (per-write or debounced sweep) for in-repo
+  stores. agents.jsonl stays uncommitted (live roster).
 
 - KIT-T150 filed (5643897): agent bug/feature capture protocol — answered Chris's
   question (NO such protocol exists today; findings evaporate unless the orchestrator
