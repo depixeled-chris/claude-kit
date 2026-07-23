@@ -35,11 +35,19 @@ Updated: 2026-07-23  |  Branch: main  |  Active: KIT-T129 (epic) — web UI + RE
   central frozen 9 tickets Jun 15 vs live in-repo 20; needs merge mode, never clobber).
 - Inbox cap: centralDataRoot 8.3 short-name path compare (test-env only).
 
+- KIT-T131 DONE + LIVE-VERIFIED (eb3d727): server/ (own package.json, express+cors
+  there only), 127.0.0.1:4319, {data,meta} camelCase, reads via exported q.mjs dbOpen
+  (staleness→rehydrate), writes via t.mjs/comments.mjs → markdown → regen → hydrate.
+  Typed guard 4xx (403 human_only / 422 evidence / 409 not_writable). 12/12 API tests,
+  suite EXIT=0. I curl-verified live: /health cacheFresh, /api/projects (8 projects,
+  real counts), /api/waiting board. Start: `node server/index.mjs`.
+
 ## In flight (roster: .ai/agents.jsonl)
-- opus implementer on KIT-T131 (API hub server): server/ with own package.json
-  (express there, kit root dependency-free), cache-read via q.mjs verifyCache,
-  writes via t.mjs/comments.mjs imports (isMain-guard pattern from eb23354),
-  /api/projects + tickets + comments + status + /api/waiting, fixture tests.
+- opus implementer on KIT-T132 (ui/ React 19 + Vite): WAITING-ON-YOU landing,
+  /p/:key kanban, /p/:key/t/:id detail (activity merge, comment form, status
+  controls w/ guard-4xx surfacing). Harvests Modal/fetch-wrapper/kanban/relative-time
+  from D:\dev\workflow\client; types hand-written from real DTOs. Build gate:
+  ui/ npm run build (tsc) must pass.
 
 ## Parallel session (NOT this session's work — leave uncommitted files alone)
 - KIT-D045 + KIT-T135 (UAT role split) — relevant to KIT-T132 accept/close controls.
