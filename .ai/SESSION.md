@@ -25,21 +25,31 @@ Updated: 2026-07-23  |  Branch: main  |  Active: KIT-T129 (epic) — web UI + RE
 - KIT-T134 root cause folded (a4d427e): CLAUDE_DATA-gated seeding; CRX split-brain
   (central frozen 10 tickets vs live 21 — never clobber); back-fill list GG/JV/MGP.
 
+- KIT-T134 DONE + VERIFIED (eb23354/75b1c73): registry-dataRoot default in
+  init-project, scripts/centralize.mjs shared primitives, reconcile-central.mjs
+  (dry-run default, guards), orient tripwire. Back-fill EXECUTED + pushed: groovegrid
+  (data 88bece8/repo 7961df04), jollys-vinyl (cd0e525/c6a18a8), marblerace2
+  (bb32bf9/85b4759). Central store now 7 projects; re-run idempotent (GG/JV/MGP SKIP
+  junctioned). Tests: reconcile-central 19, init-project 24, suite EXIT=0.
+- KIT-T143 filed (bug, medium): CRX split-brain reconciliation (the one refusal —
+  central frozen 9 tickets Jun 15 vs live in-repo 20; needs merge mode, never clobber).
+- Inbox cap: centralDataRoot 8.3 short-name path compare (test-env only).
+
 ## In flight (roster: .ai/agents.jsonl)
-- opus implementer on KIT-T134 fix: (a) init-project registry-dataRoot default,
-  (b) reconcile-central.mjs (dry-run default, --execute, split-brain refusal —
-  CRX must refuse), (c) orient tripwire; executes back-fill for clean cases only;
-  pushes kit + data + touched project repos, all citing KIT-T134.
+- opus implementer on KIT-T131 (API hub server): server/ with own package.json
+  (express there, kit root dependency-free), cache-read via q.mjs verifyCache,
+  writes via t.mjs/comments.mjs imports (isMain-guard pattern from eb23354),
+  /api/projects + tickets + comments + status + /api/waiting, fixture tests.
 
 ## Parallel session (NOT this session's work — leave uncommitted files alone)
-- Untracked in tree: KIT-D045 (maintainer-does-UAT / claude-owns-automated-tests) +
-  KIT-T135 (codify UAT role split). Relevant to KIT-T132's accept/close controls —
-  reconcile when that session commits.
+- KIT-D045 + KIT-T135 (UAT role split) — relevant to KIT-T132 accept/close controls.
+- It ran the big triage (e104f21: 40 caps → tickets T136+) and captured a triage.mjs
+  frontmatter-corruption bug (9677a88). Inbox largely drained by it.
 
 ## Next 3 steps
-1. Collect KIT-T134 fix result — verify dry-run report + migrations, receipt.
-2. Dispatch KIT-T131 (API hub) — T130 shapes now exist.
-3. Then KIT-T132 (UI); /triage the inbox (7 items now).
+1. Collect KIT-T131 result — verify tests + curl round-trip, receipt.
+2. Dispatch KIT-T132 (UI) against the live API shapes.
+3. KIT-T143 (CRX merge mode) after the epic slices; watch KIT-D045/T135 landing.
 
 ## Carry-over (pre-2026-07-23, still open)
 - Inbox: 5 un-triaged items ≥2d (oldest 8d) — run /triage.

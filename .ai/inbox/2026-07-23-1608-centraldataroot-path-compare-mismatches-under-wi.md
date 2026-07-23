@@ -1,0 +1,1 @@
+(tech-debt) centralDataRoot path compare mismatches under Windows 8.3 short-name tmpdirs (realpathSync does not expand short names, git does) — test-env only, real D:/dev paths unaffected; reconcile-central.test.mjs works around with realpathSync.native. Consider normalizing via realpathSync.native in centralDataRoot itself. Found during KIT-T134.
