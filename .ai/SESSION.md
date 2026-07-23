@@ -72,11 +72,21 @@ Updated: 2026-07-23  |  Branch: main  |  Active: M4-web-ui phase 1 SHIPPED
 - It ran the big triage (e104f21: 40 caps → T136+) and captured a triage.mjs
   frontmatter-corruption bug (9677a88).
 
+- Live-testing capture wave (86b8547 + 066ced2), all high, M4-web-ui, QUEUED behind
+  the in-flight T144 agent (single writer in ui/):
+  KIT-T145 identity/alias — no personal names in code (KIT_USER → registry user →
+  'user'; /api/me; regression test). Sweep of offenders is in the ticket.
+  KIT-T146 mentions page + nav unread badge (depends T145).
+  KIT-T147 send-back requires comment — inline box + API 422 on comment-less backward
+  transition, auto-@mention the agent.
+  KIT-T148 sha chips misroute as ticket links → classify chips, GitHub commit URL.
+
 ## Next 3 steps
-1. Collect KIT-T144 agent (All view + width + naming) — verify build + live /all,
-  rebuild served dist if the agent didn't, receipt to Chris.
-2. KIT-T143 (CRX split-brain merge mode) — next drain item.
-3. KIT-T133 phase-2 design when Chris flips it; watch KIT-D045/T135 landing.
+1. Collect KIT-T144 agent (All view + full-width + name-headings) — verify build +
+  live /all, rebuild served dist if needed, receipt.
+2. Dispatch the T145 → T146/T147/T148 batch (T145 first — identity underpins the
+  rest; single sequential writer in ui/).
+3. KIT-T143 (CRX merge mode) after the UI wave; KIT-T133 on Chris's flip.
 
 ## Carry-over (pre-2026-07-23, still open)
 - Inbox: 5 un-triaged items ≥2d (oldest 8d) — run /triage.
