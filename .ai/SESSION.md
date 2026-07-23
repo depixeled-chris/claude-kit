@@ -1,6 +1,6 @@
 # SESSION HANDOFF — claude-kit
 
-Updated: 2026-07-23  |  Branch: main  |  Active: KIT-T129 (epic) — web UI + REST API
+Updated: 2026-07-23  |  Branch: main  |  Active: M4-web-ui phase 1 SHIPPED
 
 ## Current state (2026-07-23)
 - KIT-T129 epic DESIGNED + children cut (cc4fffd pushed). KIT-D044 records the
@@ -42,22 +42,24 @@ Updated: 2026-07-23  |  Branch: main  |  Active: KIT-T129 (epic) — web UI + RE
   suite EXIT=0. I curl-verified live: /health cacheFresh, /api/projects (8 projects,
   real counts), /api/waiting board. Start: `node server/index.mjs`.
 
-## In flight (roster: .ai/agents.jsonl)
-- opus implementer on KIT-T132 (ui/ React 19 + Vite): WAITING-ON-YOU landing,
-  /p/:key kanban, /p/:key/t/:id detail (activity merge, comment form, status
-  controls w/ guard-4xx surfacing). Harvests Modal/fetch-wrapper/kanban/relative-time
-  from D:\dev\workflow\client; types hand-written from real DTOs. Build gate:
-  ui/ npm run build (tsc) must pass.
+- KIT-T132 DONE + VERIFIED (f093e7c): ui/ React 19 + Vite + router, 37 atomic files,
+  3 screens (WAITING-ON-YOU landing, /p/:key kanban, /p/:key/t/:id detail w/ activity
+  merge + comment form + guard-4xx surfacing). Harvested Modal/fetch-wrapper/kanban/
+  relative-time from workflow client; types hand-written camelCase. I re-ran the build
+  gate: tsc+vite ✓ 987ms. Comment round-trip proven (POST → refetch, mentions derived).
+- KIT-T129 EPIC CLOSED done (all 5 AC ticked, evidence comment KIT-T129#1). Phase 2 =
+  KIT-T133 (headless dispatch, backlog).
+- RUN THE STACK: `node server/index.mjs` (API :4319) + `cd ui && npm run dev` (:5173).
 
 ## Parallel session (NOT this session's work — leave uncommitted files alone)
-- KIT-D045 + KIT-T135 (UAT role split) — relevant to KIT-T132 accept/close controls.
-- It ran the big triage (e104f21: 40 caps → tickets T136+) and captured a triage.mjs
-  frontmatter-corruption bug (9677a88). Inbox largely drained by it.
+- KIT-D045 + KIT-T135 (UAT role split) — relevant to UI accept/close semantics.
+- It ran the big triage (e104f21: 40 caps → T136+) and captured a triage.mjs
+  frontmatter-corruption bug (9677a88).
 
 ## Next 3 steps
-1. Collect KIT-T131 result — verify tests + curl round-trip, receipt.
-2. Dispatch KIT-T132 (UI) against the live API shapes.
-3. KIT-T143 (CRX merge mode) after the epic slices; watch KIT-D045/T135 landing.
+1. Chris tries the UI (http://localhost:5173) — feedback becomes tickets/comments.
+2. KIT-T143 (CRX split-brain merge mode) — next drain item.
+3. KIT-T133 phase-2 design when Chris flips it; watch KIT-D045/T135 landing.
 
 ## Carry-over (pre-2026-07-23, still open)
 - Inbox: 5 un-triaged items ≥2d (oldest 8d) — run /triage.
