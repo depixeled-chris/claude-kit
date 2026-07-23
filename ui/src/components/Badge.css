@@ -1,0 +1,40 @@
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.badge-type {
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+/* Status colors track the flow: todo (neutral) → doing (amber) → review (blue) → done (green). */
+.status-todo { background: #e2e8f0; color: #334155; }
+.status-doing { background: #fef3c7; color: #92400e; }
+.status-review { background: #dbeafe; color: #1e40af; }
+.status-done { background: #dcfce7; color: #166534; }
+.status-superseded { background: #f1f5f9; color: #94a3b8; }
+
+/* Priority: high (red) → medium (amber) → low (slate). */
+.priority-high { background: #fee2e2; color: #991b1b; }
+.priority-medium { background: #fef3c7; color: #92400e; }
+.priority-low { background: #e2e8f0; color: #475569; }
+
+@media (prefers-color-scheme: dark) {
+  .status-todo { background: #334155; color: #cbd5e1; }
+  .status-doing { background: #78350f; color: #fcd34d; }
+  .status-review { background: #1e3a8a; color: #bfdbfe; }
+  .status-done { background: #14532d; color: #bbf7d0; }
+  .status-superseded { background: #1e293b; color: #64748b; }
+  .priority-high { background: #7f1d1d; color: #fecaca; }
+  .priority-medium { background: #78350f; color: #fcd34d; }
+  .priority-low { background: #334155; color: #cbd5e1; }
+}

@@ -1,0 +1,76 @@
+/* Design tokens + base styles. Light by default, dark via prefers-color-scheme — one variable set
+   the components reference (no per-component color literals except a few status accents). */
+
+:root {
+  --surface: #ffffff;
+  --surface-2: #f4f6f8;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text-dim: #64748b;
+  --accent: #2563eb;
+  --unread-bg: #fffbeb;
+  --mention-bg: #eff6ff;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #0f172a;
+    --surface-2: #1e293b;
+    --border: #334155;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --accent: #60a5fa;
+    --unread-bg: #2a2213;
+    --mention-bg: #172554;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  background: var(--surface-2);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); }
+
+h1, h2, h3, h4 { color: var(--text); }
+
+.muted { color: var(--text-dim); font-size: 0.88rem; }
+
+/* Buttons */
+.btn {
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+
+.btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+
+/* Inputs */
+.input {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }

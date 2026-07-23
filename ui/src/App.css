@@ -1,0 +1,31 @@
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.75rem 1.5rem 3rem;
+}
+
+.page-header { margin-bottom: 1.5rem; }
+.page-header h1 { margin: 0; font-size: 1.5rem; color: var(--text); }
+.page-sub { margin: 0.25rem 0 0; color: var(--text-dim); font-size: 0.9rem; }
+
+.empty-state {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--text-dim);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.async-loading { padding: 3rem 1rem; text-align: center; color: var(--text-dim); }
+.async-error {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #b91c1c;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.async-error button { margin-top: 0.75rem; }
+
+@media (prefers-color-scheme: dark) {
+  .async-error { color: #fca5a5; }
+}
