@@ -49,7 +49,10 @@ Updated: 2026-07-23  |  Branch: main  |  Active: M4-web-ui phase 1 SHIPPED
   gate: tsc+vite ✓ 987ms. Comment round-trip proven (POST → refetch, mentions derived).
 - KIT-T129 EPIC CLOSED done (all 5 AC ticked, evidence comment KIT-T129#1). Phase 2 =
   KIT-T133 (headless dispatch, backlog).
-- RUN THE STACK: `node server/index.mjs` (API :4319) + `cd ui && npm run dev` (:5173).
+- RUN THE STACK (from repo root, 7e43950): `npm run api` (:4319) + `npm run ui`
+  (:5173). Both RUNNING in this session's background (started 2026-07-23 after Chris
+  hit the missing-scripts DX gap; verified over HTTP: health cacheFresh, page serves,
+  proxy passes /api/projects with real data).
 - Push sweep verified (6b07a47): kit + data + GG/JV/MGP all in sync with remotes;
   6b07a47 completed the T129 archive move (original's deletion had been left
   unstaged by the close commit). Only parallel-session files remain uncommitted
