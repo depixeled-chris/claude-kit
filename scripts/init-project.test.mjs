@@ -7,9 +7,14 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { deriveKey } from './init-project.mjs';
+import { deriveKey, resolveDataRoot } from './init-project.mjs';
 
 const SCRIPT = resolve(fileURLToPath(import.meta.url), '..', 'init-project.mjs');
+
+// Isolate from the REAL machine registry: resolveDataRoot() now falls back to the
+// registry's dataRoot (KIT-T134), so a spawned init MUST NOT see the live central store —
+// point CLAUDE_KIT_REGISTRY at a nonexistent temp path to force local mode.
+const NO_REGISTRY = join(mkdtempSync(join(tmpdir(), 'kit-noreg-')), 'registry.json');
 
 let pass = 0;
 let fail = 0;
@@ -33,6 +38,30 @@ ok('---  → PRJ (all separators)',                deriveKey('---') === 'PRJ');
 ok('claude-kit → CK (two words)',               deriveKey('claude-kit') === 'CK');
 ok('prefix is uppercased',                       deriveKey('hello-world') === 'HW');
 
+// ---- resolveDataRoot resolution order (KIT-T134) ------------------------------
+// env CLAUDE_DATA wins; else the registry's dataRoot; else '' (local mode).
+{
+  const regDir = mkdtempSync(join(tmpdir(), 'kit-reg-'));
+  fixtures.push(regDir);
+  const regPath = join(regDir, 'registry.json');
+  writeFileSync(regPath, JSON.stringify({ dataRoot: 'D:/central/store', projects: {} }));
+  const savedData = process.env.CLAUDE_DATA;
+  const savedReg = process.env.CLAUDE_KIT_REGISTRY;
+
+  process.env.CLAUDE_KIT_REGISTRY = regPath;
+  process.env.CLAUDE_DATA = 'E:/env/override';
+  ok('resolveDataRoot: CLAUDE_DATA env wins over registry', resolveDataRoot() === 'E:/env/override');
+
+  delete process.env.CLAUDE_DATA;
+  ok('resolveDataRoot: falls back to registry dataRoot', resolveDataRoot() === 'D:/central/store');
+
+  process.env.CLAUDE_KIT_REGISTRY = join(regDir, 'absent.json');
+  ok('resolveDataRoot: no env + no registry dataRoot → local mode ("")', resolveDataRoot() === '');
+
+  if (savedData === undefined) delete process.env.CLAUDE_DATA; else process.env.CLAUDE_DATA = savedData;
+  if (savedReg === undefined) delete process.env.CLAUDE_KIT_REGISTRY; else process.env.CLAUDE_KIT_REGISTRY = savedReg;
+}
+
 // ---- Fresh init into a temp dir -----------------------------------------------
 
 // Minimal project-template .ai scaffold to exercise seedProjectKey.
@@ -51,10 +80,12 @@ function readConfig(projectDir) {
 
 // Run init-project.mjs against a target dir (no CLAUDE_DATA → local mode).
 function runInit(projectDir, extraArgs = []) {
+  const env = { ...process.env, CLAUDE_KIT_REGISTRY: NO_REGISTRY };
+  delete env.CLAUDE_DATA; // force the registry-fallback path to resolve to '' (local mode)
   const result = spawnSync(
     process.execPath,
     [SCRIPT, projectDir, ...extraArgs],
-    { encoding: 'utf8' },
+    { encoding: 'utf8', env },
   );
   return result;
 }

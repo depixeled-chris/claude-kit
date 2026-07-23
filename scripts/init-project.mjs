@@ -15,13 +15,12 @@
 //   Requires CLAUDE_DATA. Scaffolds $CLAUDE_DATA/projects/<name>/ directly (no junction,
 //   no code repo), writes config.yml with `lab: true`, seeds standard .ai/ structure.
 
-import {
-  existsSync, mkdirSync, readdirSync, statSync,
-  copyFileSync, readFileSync, writeFileSync, appendFileSync, symlinkSync,
-} from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, appendFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installGitHooks } from './install-git-hooks.mjs';
+import { readRegistry } from '../hooks/lib.mjs';
+import { copyDir, linkAiJunction, writeProjectPointer, updateGitignore, CENTRAL_GITIGNORE, LOCAL_GITIGNORE } from './centralize.mjs';
 
 const KIT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TEMPLATE = join(KIT, 'project-template');
@@ -33,8 +32,24 @@ const labFlag = args.find((a) => a === '--lab');
 const positional = args.find((a) => !a.startsWith('--'));
 const FLAG_KEY = keyFlag ? keyFlag.slice('--key='.length).trim().toUpperCase() : '';
 
-const DATA = process.env.CLAUDE_DATA || '';
+// CENTRALIZE whenever a central store is in reach: an explicit CLAUDE_DATA wins, else the
+// machine registry's dataRoot — so adoption centralizes on a machine already using the
+// central store even when the env var isn't set (the KIT-T134 gap: adoptions silently went
+// in-repo because only the env var was read). Empty string = local mode.
+export function resolveDataRoot() {
+  return process.env.CLAUDE_DATA || readRegistry().dataRoot || '';
+}
+const DATA = resolveDataRoot();
 const MARKER = '## Workflow contract (.ai/)';
+
+// Only run the adoption when executed as a script — importing this module (for deriveKey /
+// seedProjectKey in tests + survey) must NOT touch the filesystem or the central store.
+const THIS_FILE = fileURLToPath(import.meta.url);
+const INVOKED = process.argv[1] ? resolve(process.argv[1]) : '';
+let isMain = INVOKED === resolve(THIS_FILE);
+if (!isMain && INVOKED) {
+  try { isMain = realpathSync(INVOKED) === realpathSync(THIS_FILE); } catch { /* keep false — never adopt on import */ }
+}
 
 // The placeholder value the template ships. Only replace this literal string — never
 // clobber a key that someone has already customised.
@@ -53,16 +68,6 @@ export function deriveKey(name) {
   }
   key = key.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
   return key || 'PRJ';
-}
-
-function copyDir(src, dst) {
-  mkdirSync(dst, { recursive: true });
-  for (const entry of readdirSync(src)) {
-    const s = join(src, entry);
-    const d = join(dst, entry);
-    if (statSync(s).isDirectory()) copyDir(s, d);
-    else copyFileSync(s, d);
-  }
 }
 
 // Seed the central data dir from the template if it doesn't exist yet.
@@ -121,30 +126,7 @@ export function stampLabFlag(cfgPath) {
   console.log('• lab: true stamped into config.yml');
 }
 
-// ---- LAB mode (--lab <name>) ------------------------------------------------
-if (labFlag) {
-  if (!positional) {
-    console.error('usage: init-project.mjs --lab <name>');
-    process.exit(1);
-  }
-  if (!DATA) {
-    console.error('--lab requires CLAUDE_DATA to be set (the centralized data store).');
-    process.exit(1);
-  }
-  const name = positional;
-  const dataDir = join(DATA, 'projects', name);
-  seedCentralDataDir(dataDir);
-  seedProjectKey(dataDir, name);
-  stampLabFlag(join(dataDir, 'config.yml'));
-  console.log(`\nDone (lab scope "${name}" at ${dataDir}).`);
-  process.exit(0);
-}
-
-// ---- Normal repo-adoption mode ---------------------------------------------
-
-const target = resolve(positional || process.cwd());
-
-function projectName() {
+function projectName(target) {
   const marker = join(target, '.claude-project');
   if (existsSync(marker)) {
     const m = readFileSync(marker, 'utf8').match(/^project:[ \t]*(.+)$/m);
@@ -153,74 +135,89 @@ function projectName() {
   return basename(target);
 }
 
-const aiDst = join(target, '.ai');
-
-if (DATA) {
-  const name = projectName();
-  const dataDir = join(DATA, 'projects', name);
-  seedCentralDataDir(dataDir);
-  writeFileSync(join(target, '.claude-project'), `project: ${name}\n`);
-  console.log(`• .claude-project -> ${name}`);
-  if (existsSync(aiDst)) {
-    console.log('• .ai already present — left as-is (verify it points at the data dir)');
-  } else {
-    symlinkSync(dataDir, aiDst, process.platform === 'win32' ? 'junction' : 'dir');
-    console.log(`• .ai linked -> ${dataDir}`);
+async function adopt() {
+  // ---- LAB mode (--lab <name>) ----------------------------------------------
+  if (labFlag) {
+    if (!positional) {
+      console.error('usage: init-project.mjs --lab <name>');
+      process.exit(1);
+    }
+    if (!DATA) {
+      console.error('--lab requires CLAUDE_DATA to be set (the centralized data store).');
+      process.exit(1);
+    }
+    const name = positional;
+    const dataDir = join(DATA, 'projects', name);
+    seedCentralDataDir(dataDir);
+    seedProjectKey(dataDir, name);
+    stampLabFlag(join(dataDir, 'config.yml'));
+    console.log(`\nDone (lab scope "${name}" at ${dataDir}).`);
+    return;
   }
-  seedProjectKey(dataDir, name);
-} else if (existsSync(aiDst)) {
-  console.log('• .ai/ already exists — left untouched');
-  seedProjectKey(aiDst, basename(target));
-} else {
-  copyDir(join(TEMPLATE, '.ai'), aiDst);
-  console.log('• .ai/ scaffolded (local; set CLAUDE_DATA to centralize)');
-  seedProjectKey(aiDst, basename(target));
-}
 
-// CLAUDE.md — append the contract once (both modes)
-const claudeMd = join(target, 'CLAUDE.md');
-const snippet = readFileSync(join(TEMPLATE, 'CLAUDE.snippet.md'), 'utf8');
-const existing = existsSync(claudeMd) ? readFileSync(claudeMd, 'utf8') : '';
-if (existing.includes(MARKER)) {
-  console.log('• CLAUDE.md already has the workflow contract — skipped');
-} else if (existing) {
-  appendFileSync(claudeMd, '\n\n' + snippet);
-  console.log('• workflow contract appended to CLAUDE.md');
-} else {
-  writeFileSync(claudeMd, '# Project\n\n' + snippet);
-  console.log('• CLAUDE.md created with the workflow contract');
-}
+  // ---- Normal repo-adoption mode --------------------------------------------
+  const target = resolve(positional || process.cwd());
+  const aiDst = join(target, '.ai');
 
-// .gitignore — keep the junction + secrets/local out of git
-const gi = join(target, '.gitignore');
-const wants = DATA
-  ? ['.ai', 'CLAUDE.local.md', '.claude/settings.local.json', '.claude/journal/']
-  : ['.ai/SECRETS*', 'CLAUDE.local.md', '.claude/settings.local.json'];
-const giText = existsSync(gi) ? readFileSync(gi, 'utf8') : '';
-const missing = wants.filter((w) => !giText.split('\n').includes(w));
-if (missing.length) {
-  appendFileSync(gi, (giText && !giText.endsWith('\n') ? '\n' : '') + '\n# claude-kit\n' + missing.join('\n') + '\n');
-  console.log(`• .gitignore updated (${missing.length})`);
-} else {
-  console.log('• .gitignore already covers it');
-}
+  if (DATA) {
+    const name = projectName(target);
+    const dataDir = join(DATA, 'projects', name);
+    seedCentralDataDir(dataDir);
+    writeProjectPointer(target, name);
+    console.log(`• .claude-project -> ${name}`);
+    if (existsSync(aiDst)) {
+      console.log('• .ai already present — left as-is (verify it points at the data dir)');
+    } else {
+      linkAiJunction(target, dataDir);
+      console.log(`• .ai linked -> ${dataDir}`);
+    }
+    seedProjectKey(dataDir, name);
+  } else if (existsSync(aiDst)) {
+    console.log('• .ai/ already exists — left untouched');
+    seedProjectKey(aiDst, basename(target));
+  } else {
+    copyDir(join(TEMPLATE, '.ai'), aiDst);
+    console.log('• .ai/ scaffolded (local; set CLAUDE_DATA to centralize)');
+    seedProjectKey(aiDst, basename(target));
+  }
 
-// Install the native git hooks on the adopted repo (fail-open — a hook install failure
-// must never fail init). For centralized mode the data repo is also a git repo (and it's
-// where item changes land), so install there too when CLAUDE_DATA is set. KIT-T097.
-try {
-  await installGitHooks(target);
-} catch {
-  /* fail-open */
-}
-if (DATA) {
+  // CLAUDE.md — append the contract once (both modes)
+  const claudeMd = join(target, 'CLAUDE.md');
+  const snippet = readFileSync(join(TEMPLATE, 'CLAUDE.snippet.md'), 'utf8');
+  const existing = existsSync(claudeMd) ? readFileSync(claudeMd, 'utf8') : '';
+  if (existing.includes(MARKER)) {
+    console.log('• CLAUDE.md already has the workflow contract — skipped');
+  } else if (existing) {
+    appendFileSync(claudeMd, '\n\n' + snippet);
+    console.log('• workflow contract appended to CLAUDE.md');
+  } else {
+    writeFileSync(claudeMd, '# Project\n\n' + snippet);
+    console.log('• CLAUDE.md created with the workflow contract');
+  }
+
+  // .gitignore — keep the junction + secrets/local out of git
+  const added = updateGitignore(target, DATA ? CENTRAL_GITIGNORE : LOCAL_GITIGNORE);
+  console.log(added ? `• .gitignore updated (${added})` : '• .gitignore already covers it');
+
+  // Install the native git hooks on the adopted repo (fail-open — a hook install failure
+  // must never fail init). For centralized mode the data repo is also a git repo (and it's
+  // where item changes land), so install there too when CLAUDE_DATA is set. KIT-T097.
   try {
-    const { centralDataRoot } = await import('../hooks/lib.mjs');
-    const dataRepo = centralDataRoot(target) || DATA;
-    if (dataRepo && dataRepo !== target) await installGitHooks(dataRepo);
+    await installGitHooks(target);
   } catch {
     /* fail-open */
   }
+  if (DATA) {
+    try {
+      const { centralDataRoot } = await import('../hooks/lib.mjs');
+      const dataRepo = centralDataRoot(target) || DATA;
+      if (dataRepo && dataRepo !== target) await installGitHooks(dataRepo);
+    } catch {
+      /* fail-open */
+    }
+  }
+
+  console.log(`\nDone (${DATA ? 'centralized' : 'local'}).`);
 }
 
-console.log(`\nDone (${DATA ? 'centralized' : 'local'}).`);
+if (isMain) await adopt();

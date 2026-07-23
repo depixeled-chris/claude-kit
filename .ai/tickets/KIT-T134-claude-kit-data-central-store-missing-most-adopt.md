@@ -2,7 +2,7 @@
 id: KIT-T134
 title: claude-kit-data central store missing most adopted projects — sync updates existing dirs but never adds new ones
 type: bug
-status: todo
+status: doing
 priority: high
 milestone:
 labels: []
@@ -11,7 +11,7 @@ files: []
 supersedes:
 superseded_by:
 created: 2026-07-23T15:16:58Z
-updated: 2026-07-23T15:16:58Z
+updated: 2026-07-23T15:37:37Z
 ---
 
 ## Description
@@ -32,10 +32,10 @@ discovery (registry + central notebooks) is blind to these projects on any machi
 the one they live on.
 
 ## Acceptance Criteria
-- [ ] Root cause identified and recorded: which component seeds/updates claude-kit-data, and why newly adopted projects never land there
+- [x] Root cause identified and recorded: which component seeds/updates claude-kit-data, and why newly adopted projects never land there
 - [ ] Every adopted project on this machine exists under claude-kit-data/projects and is pushed
-- [ ] The adoption/sync path creates the central mirror automatically for a new project (test-covered)
-- [ ] A reconcile check surfaces "adopted locally but missing centrally" (orient/prime/survey warning) so this class of gap can't rot silently again
+- [x] The adoption/sync path creates the central mirror automatically for a new project (test-covered)
+- [x] A reconcile check surfaces "adopted locally but missing centrally" (orient/prime/survey warning) so this class of gap can't rot silently again
 
 ## Plan
 Per root cause (Notes, 2026-07-23):
@@ -68,3 +68,7 @@ Root cause (researcher, 2026-07-23) — hypothesis CONFIRMED with refinement:
 
 ## History
 - [2026-07-23 15:16] (created) bug — claude-kit-data central store missing most adopted projects — sync updates existing dirs but never adds new ones
+- [2026-07-23 15:37] (status) todo → doing
+- [2026-07-23 15:59] (comment) ticked: Root cause identified and recorded: which component seeds/updates claude-kit-data, and why newly adopted projects never land there
+- [2026-07-23 15:59] (comment) ticked: The adoption/sync path creates the central mirror automatically for a new project (test-covered)
+- [2026-07-23 15:59] (comment) ticked: A reconcile check surfaces "adopted locally but missing centrally" (orient/prime/survey warning) so this class of gap can't rot silently again

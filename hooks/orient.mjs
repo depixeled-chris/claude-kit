@@ -6,7 +6,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
-import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, centralDataRoot, globToRegExp, sessionStale, readAgents, partitionAgents, AGENT_STALE_MS, scanStaleDoingTickets, WIP_FILES, WIP_COMMITS } from './lib.mjs';
+import { git, gitRoot, adopted, projectName, formatWip, wipSummary, watchRepos, readLineage, recordProject, aheadBehind, centralDataRoot, globToRegExp, sessionStale, readAgents, partitionAgents, AGENT_STALE_MS, scanStaleDoingTickets, readRegistry, WIP_FILES, WIP_COMMITS } from './lib.mjs';
 import { unifyMemory, memoryLinkCommand } from './memory-link.mjs';
 // q.mjs / id-utils.mjs are imported DYNAMICALLY at their (try-wrapped) use sites so a
 // broken scripts/ tree degrades that one section instead of crashing orientation (KIT-T055).
@@ -142,6 +142,22 @@ out.push(git(['-C', root, 'log', '--oneline', `-${COMMITS}`]).trim());
 const dataRoot = centralDataRoot(root);
 recordProject(projectName(root), root, dataRoot);
 
+// KIT-T134: an in-repo notebook while a central store IS registered means "adopted locally
+// but never centralized" — invisible cross-machine, the exact gap this ticket closes. Nudge
+// once, prominently. Never for the kit itself, whose .ai deliberately stays in-repo.
+const isKitRepo = (r) => {
+  try { return JSON.parse(readFileSync(join(r, 'package.json'), 'utf8')).name === 'claude-kit'; } catch { return false; }
+};
+const centralBanner = [];
+try {
+  const regDataRoot = readRegistry().dataRoot;
+  if (dataRoot === null && regDataRoot && existsSync(join(root, '.ai')) && !isKitRepo(root)) {
+    centralBanner.push(`!! NOTEBOOK IN-REPO, NOT CENTRALIZED: a central store is registered (${regDataRoot}) but this project's .ai lives in-repo — invisible on other machines. Centralize it: node <kit>/scripts/reconcile-central.mjs (dry-run) then --execute ${projectName(root)}.`);
+  }
+} catch {
+  /* tripwire is best-effort — never break orientation */
+}
+
 // KIT-T016 / KIT-D016+D002: ENFORCE the harness-memory⇄committed-memory unification.
 const memBanners = [];
 try {
@@ -179,6 +195,7 @@ if (divergedLabels.length) {
   out.splice(1, 0, `!! DIVERGED FROM ORIGIN: ${divergedLabels.join(', ')} — fetch + rebase BEFORE working; two machines hold different history.`);
 }
 if (memBanners.length) out.splice(1, 0, ...memBanners);
+if (centralBanner.length) out.splice(1, 0, ...centralBanner);
 
 // KIT-T071: SESSION.md — first SESSION_GIST_LINES inline (resume-point); pointer for the rest.
 if (existsSync(session)) {
