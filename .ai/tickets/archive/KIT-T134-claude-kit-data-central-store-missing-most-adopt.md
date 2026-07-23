@@ -2,7 +2,7 @@
 id: KIT-T134
 title: claude-kit-data central store missing most adopted projects — sync updates existing dirs but never adds new ones
 type: bug
-status: doing
+status: done
 priority: high
 milestone:
 labels: []
@@ -11,7 +11,8 @@ files: []
 supersedes:
 superseded_by:
 created: 2026-07-23T15:16:58Z
-updated: 2026-07-23T15:37:37Z
+updated: 2026-07-23T16:04:31Z
+fixed_commit: eb23354
 ---
 
 ## Description
@@ -33,7 +34,7 @@ the one they live on.
 
 ## Acceptance Criteria
 - [x] Root cause identified and recorded: which component seeds/updates claude-kit-data, and why newly adopted projects never land there
-- [ ] Every adopted project on this machine exists under claude-kit-data/projects and is pushed
+- [x] Every adopted project on this machine exists under claude-kit-data/projects and is pushed
 - [x] The adoption/sync path creates the central mirror automatically for a new project (test-covered)
 - [x] A reconcile check surfaces "adopted locally but missing centrally" (orient/prime/survey warning) so this class of gap can't rot silently again
 
@@ -66,9 +67,36 @@ Root cause (researcher, 2026-07-23) — hypothesis CONFIRMED with refinement:
 - Registry: ~/.claude/claude-kit-projects.json (dataRoot: D:/dev/claude-kit-data;
   itself incomplete — missing woodshed).
 
+Implementation (2026-07-23, claude):
+- (a) init-project.mjs `resolveDataRoot()` = `CLAUDE_DATA || readRegistry().dataRoot || ''`
+  — adoption now centralizes whenever a dataRoot is registered. Script body guarded behind
+  `isMain` so importing the module (deriveKey/seedProjectKey in tests/survey) never adopts.
+- (b) scripts/reconcile-central.mjs (new, dry-run-default) + scripts/centralize.mjs (shared
+  primitives extracted from init-project: copyDir, linkAiJunction, writeProjectPointer,
+  updateGitignore, CENTRAL_GITIGNORE — DRY). Guards are hard: missing config, placeholder
+  key, split-brain (refuse-and-report with divergence summary), junction failure. Migration
+  order is git-recoverable: copy → commit-central → junction → commit-repo; both commits cite
+  KIT-T134. `git rm --cached -f .ai` stages the removal past uncommitted-edit safety checks.
+- (c) orient.mjs SessionStart tripwire: in-repo .ai + registered dataRoot → banner (kit-self
+  exempt via package.json name).
+- Executed the real back-fill (dry-run first): groovegrid (GG, data 88bece8 / repo 7961df04),
+  jollys-vinyl (JV, data cd0e525 / repo c6a18a8), marblerace2 (MGP, data bb32bf9 / repo
+  85b4759). JV key verified = "JV" (NOT placeholder — Notes above were stale). CRX correctly
+  REFUSED as split-brain (central 9 vs in-repo 20 tickets; never clobbered). All four repos
+  pushed. groovegrid had an active parallel session that committed its own source work
+  (bf86b25a) before migration; my repo commit touched ZERO source files (verified).
+- Found during work (captured separately as new tickets by triage): centralDataRoot's path
+  compare mismatches under 8.3 short-name tmpdirs (Node realpathSync doesn't expand them, git
+  does) — test-env only, real D:/dev paths unaffected; test uses realpathSync.native.
+### comment #1 [2026-07-23 16:04] @claude
+Tests: scripts/reconcile-central.test.mjs 19 passed (split-brain refusal + clean migration against temp fixture; orient banner fires + kit-self/no-dataRoot negatives); init-project.test.mjs 24 passed (resolveDataRoot resolution order); full npm suite green (exit 0). Verify: node scripts/reconcile-central.test.mjs && node scripts/init-project.test.mjs && npm test.
+
 ## History
 - [2026-07-23 15:16] (created) bug — claude-kit-data central store missing most adopted projects — sync updates existing dirs but never adds new ones
 - [2026-07-23 15:37] (status) todo → doing
 - [2026-07-23 15:59] (comment) ticked: Root cause identified and recorded: which component seeds/updates claude-kit-data, and why newly adopted projects never land there
 - [2026-07-23 15:59] (comment) ticked: The adoption/sync path creates the central mirror automatically for a new project (test-covered)
 - [2026-07-23 15:59] (comment) ticked: A reconcile check surfaces "adopted locally but missing centrally" (orient/prime/survey warning) so this class of gap can't rot silently again
+- [2026-07-23 16:04] (comment) ticked: Every adopted project on this machine exists under claude-kit-data/projects and is pushed
+- [2026-07-23 16:04] (comment) @claude: Tests: scripts/reconcile-central.test.mjs 19 passed (split-brain refusal + clean migration against temp fixture; orient  (full comment #1 in ## Notes)
+- [2026-07-23 16:04] (status) doing → done
