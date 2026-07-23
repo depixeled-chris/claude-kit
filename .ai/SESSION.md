@@ -60,13 +60,21 @@ Updated: 2026-07-23  |  Branch: main  |  Active: M4-web-ui phase 1 SHIPPED
   unstaged by the close commit). Only parallel-session files remain uncommitted
   (KIT-D045, KIT-T135, agents.jsonl) — theirs to land.
 
+- UI feedback round (Chris, live, 2026-07-23 evening): swimlane-heading tints SHIPPED
+  (bfaceb0, rebuilt + served on :4319). KIT-T144 filed (e19942c) + agent DISPATCHED:
+  /all stacked collapsible per-project kanbans. Two mid-flight scope-adds recorded as
+  ticket comments KIT-T144#1/#2 and SendMessage'd to the running agent: (1) boards use
+  FULL viewport width — no brochure max-width on /p/:key + /all (detail may keep one);
+  (2) expanded section headings show "project-name (KEY)", never shorthand alone.
+
 ## Parallel session (NOT this session's work — leave uncommitted files alone)
 - KIT-D045 + KIT-T135 (UAT role split) — relevant to UI accept/close semantics.
 - It ran the big triage (e104f21: 40 caps → T136+) and captured a triage.mjs
   frontmatter-corruption bug (9677a88).
 
 ## Next 3 steps
-1. Chris tries the UI (http://localhost:5173) — feedback becomes tickets/comments.
+1. Collect KIT-T144 agent (All view + width + naming) — verify build + live /all,
+  rebuild served dist if the agent didn't, receipt to Chris.
 2. KIT-T143 (CRX split-brain merge mode) — next drain item.
 3. KIT-T133 phase-2 design when Chris flips it; watch KIT-D045/T135 landing.
 
