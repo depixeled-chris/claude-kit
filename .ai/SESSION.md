@@ -49,10 +49,12 @@ Updated: 2026-07-23  |  Branch: main  |  Active: M4-web-ui phase 1 SHIPPED
   gate: tsc+vite ✓ 987ms. Comment round-trip proven (POST → refetch, mentions derived).
 - KIT-T129 EPIC CLOSED done (all 5 AC ticked, evidence comment KIT-T129#1). Phase 2 =
   KIT-T133 (headless dispatch, backlog).
-- RUN THE STACK (from repo root, 7e43950): `npm run api` (:4319) + `npm run ui`
-  (:5173). Both RUNNING in this session's background (started 2026-07-23 after Chris
-  hit the missing-scripts DX gap; verified over HTTP: health cacheFresh, page serves,
-  proxy passes /api/projects with real data).
+- RUN THE STACK — ONE COMMAND (8cc658e): `npm start` = ui:build + serve; the API
+  serves ui/dist at http://127.0.0.1:4319/ (SPA fallback via server/lib/static-ui.mjs;
+  /api + /health keep typed JSON 404). Chris rejected the two-script DX. Currently
+  RUNNING in session background + HTTP-verified (GET / 200 text/html, /api/waiting
+  200). `npm run ui` (Vite :5173 + proxy) remains for UI development only. Server
+  tests 14/14 (2 new static-UI cases).
 - Push sweep verified (6b07a47): kit + data + GG/JV/MGP all in sync with remotes;
   6b07a47 completed the T129 archive move (original's deletion had been left
   unstaged by the close commit). Only parallel-session files remain uncommitted
