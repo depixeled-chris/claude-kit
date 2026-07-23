@@ -1,0 +1,1 @@
+(bug) Test-fixture scopes DUP/ORI/RCN leak into the PRODUCTION cache: db-cache.test.mjs / test-hooks.mjs / next-id.mjs fixture ids (DUP-T001-a, ORI-T001-x, RCN-T001-old) hydrate into .cache/workflow.db and show up in q open + orient scope counts. Tests must hydrate an isolated temp cache, never the real one. Found during KIT-T134 root-cause.

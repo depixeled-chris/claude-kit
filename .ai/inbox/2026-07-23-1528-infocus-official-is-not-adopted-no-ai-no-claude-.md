@@ -1,0 +1,1 @@
+(observation) infocus-official is NOT adopted (no .ai/, no .claude-project, not in registry) despite .claude/skills/ present — adoption was started but never completed. Chris expected it in claude-kit-data (KIT-T134 report). Needs a decision: adopt it (init-project) or drop the expectation. infocus-data next door is an unrelated website repo, not a data store.
