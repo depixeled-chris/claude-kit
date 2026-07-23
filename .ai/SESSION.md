@@ -96,8 +96,18 @@ Updated: 2026-07-23  |  Branch: main  |  Active: M4-web-ui phase 1 SHIPPED
 - KIT-T150 filed (5643897): agent bug/feature capture protocol — answered Chris's
   question (NO such protocol exists today; findings evaporate unless the orchestrator
   caps them — 3 same-day examples in the ticket). Queued behind the wave with T143.
-- Wave progress visible in tree: T145 doing — /api/me route + identity.test.mjs
-  registered in npm test.
+- Wave progress visible in tree: T145 landed /api/me (live: alias "chris" from
+  registry user field); T146 doing.
+- KIT-T152 captured (64a735d), narrowed to the DELTA over KIT-T137 (parallel session
+  shipped UI-editable display_name in config.yml): extrapolated default title,
+  .ai/PROJECT.md details file (cross-device via store sync), DTO description, seeding.
+- KIT-T137 quote-ban verdict recorded (T137#1) + routed to the wave agent's T147
+  writes.mjs pass: escape quotes on write, keep newline/length rules, test.
+- Process cap (inbox): filed T152 without pre-filing q fts dedup vs concurrent T137 —
+  KIT-T025 (review) is the structural fix.
+- Global CLAUDE.md updated by parallel session: KIT-D045 (UAT receipts — cite test
+  RESULTS, never assign test commands) + KIT-T151 (kit agents pin model: opus;
+  unpinned delegations from fable main need explicit model). Honor both.
 
 ## Next 3 steps
 1. Collect the wave agent (T145→T149→T146→T147→T148) — verify per-ticket evidence +
