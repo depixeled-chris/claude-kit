@@ -8,7 +8,8 @@
 // A Discovery is an object exposing listProjects(); the registry-backed one is production,
 // createStaticDiscovery injects a fixed list for tests (never the real registry).
 
-import { dirname } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { projectAiDirs } from '../../hooks/lib.mjs';
 import { readIdConfig } from '../../scripts/id-utils.mjs';
 import { notFound } from '../lib/errors.mjs';
@@ -19,6 +20,20 @@ export function toProject({ name, aiDir }) {
   const root = IN_REPO_AI.test(aiDir) ? dirname(aiDir) : null;
   const { key } = readIdConfig(root || aiDir, aiDir);
   return { key: key || name, name, root, aiDir };
+}
+
+// The human tab title (KIT-T137): top-level `display_name:` in config.yml, read LIVE per
+// request (same line-wise no-YAML-dep discipline as readIdConfig) so a settings write shows
+// on the next read without a cache cycle. Falls back to the id key when absent/unreadable.
+export function readDisplayName(aiDir, fallback) {
+  try {
+    const cfg = readFileSync(join(aiDir, 'config.yml'), 'utf8');
+    const m = cfg.match(/^[ \t]*display_name:[ \t]*["']?([^"'\n]+?)["']?[ \t]*$/m);
+    if (m && m[1].trim()) return m[1].trim();
+  } catch {
+    /* fall through to the key */
+  }
+  return fallback;
 }
 
 export function createRegistryDiscovery() {

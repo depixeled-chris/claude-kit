@@ -295,3 +295,37 @@ test('static UI disabled cleanly when no build exists', async () => {
     bareServer.close();
   }
 });
+
+// ---- project settings: display title (KIT-T137) ----
+test('GET /api/projects defaults displayName to the id key', async () => {
+  const r = await get('/api/projects');
+  const tst = r.body.data.find((p) => p.key === 'TST');
+  assert.equal(tst.displayName, 'TST');
+});
+
+test('PATCH /api/projects/:key writes display_name durably and serves it on the next read', async () => {
+  const res = await fetch(base + '/api/projects/TST', {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ displayName: 'Test Project' }),
+  });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.data.displayName, 'Test Project');
+  const { readFileSync } = await import('node:fs');
+  const cfg = readFileSync(join(fixtureRoot, '.ai', 'config.yml'), 'utf8');
+  assert.match(cfg, /^display_name: "Test Project"$/m, 'display_name landed in the config truth');
+  const list = await get('/api/projects');
+  assert.equal(list.body.data.find((p) => p.key === 'TST').displayName, 'Test Project');
+});
+
+test('PATCH /api/projects/:key rejects empty and quoted display names', async () => {
+  for (const displayName of ['   ', 'has "quotes"']) {
+    const res = await fetch(base + '/api/projects/TST', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ displayName }),
+    });
+    assert.equal(res.status, 400);
+  }
+});

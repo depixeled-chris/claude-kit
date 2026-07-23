@@ -6,6 +6,7 @@ import { resolveAgent } from '../../scripts/comments.mjs';
 import { compareIds } from '../../scripts/id-utils.mjs';
 import { withCache, fetchCounts, fetchTickets, fetchTicket, fetchStore } from './cache-read.mjs';
 import { buildTicketDetail } from './ticket-detail.mjs';
+import { readDisplayName } from './discovery.mjs';
 import { notFound } from '../lib/errors.mjs';
 
 const byId = (a, b) => compareIds(a.id, b.id);
@@ -16,7 +17,13 @@ export async function projectSummaries(config) {
   return withCache(config, (handle) =>
     projects.map((p) => {
       const { open, review } = fetchCounts(handle, p.key);
-      return { key: p.key, name: p.name, openCount: open, reviewCount: review };
+      return {
+        key: p.key,
+        name: p.name,
+        displayName: readDisplayName(p.aiDir, p.key),
+        openCount: open,
+        reviewCount: review,
+      };
     }));
 }
 

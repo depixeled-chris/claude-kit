@@ -8,7 +8,7 @@ import { asyncHandler, send } from '../lib/respond.mjs';
 import { STATUS } from '../lib/status.mjs';
 import { resolveProject } from '../services/discovery.mjs';
 import { projectSummaries, listTickets, getTicketDetail, listStore } from '../services/projects.mjs';
-import { postComment, setTicketStatus } from '../services/writes.mjs';
+import { postComment, setTicketStatus, setProjectDisplayName } from '../services/writes.mjs';
 
 export function projectRoutes(config) {
   const router = Router();
@@ -36,6 +36,12 @@ export function projectRoutes(config) {
       send(res, data, { count: data.length, store });
     }));
   }
+
+  router.patch('/:key', asyncHandler(async (req, res) => {
+    const { displayName } = req.body || {};
+    const data = await setProjectDisplayName(project(req), displayName);
+    send(res, data, { written: true });
+  }));
 
   router.post('/:key/tickets/:id/comments', asyncHandler(async (req, res) => {
     const { text, author } = req.body || {};

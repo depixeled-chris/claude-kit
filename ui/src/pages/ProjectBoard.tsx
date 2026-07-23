@@ -3,7 +3,7 @@
 // grid + cards are the shared component. Cards link into detail.
 
 import { useCallback } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { getTickets } from '../services/api';
 import { useAsync } from '../lib/useAsync';
 import { STATUS_FLOW, statusLabel } from '../lib/status';
@@ -32,17 +32,20 @@ export default function ProjectBoard() {
           <h1>{key} board</h1>
           <p className="page-sub">{tickets.length} ticket{tickets.length === 1 ? '' : 's'}{statusFilter ? ` in ${statusLabel(statusFilter)}` : ''}</p>
         </div>
-        <select
-          className="input status-filter"
-          value={statusFilter}
-          onChange={(e) => {
-            const v = e.target.value;
-            setParams(v ? { status: v } : {});
-          }}
-        >
-          <option value="">All statuses</option>
-          {STATUS_FLOW.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
-        </select>
+        <div className="board-tools">
+          <select
+            className="input status-filter"
+            value={statusFilter}
+            onChange={(e) => {
+              const v = e.target.value;
+              setParams(v ? { status: v } : {});
+            }}
+          >
+            <option value="">All statuses</option>
+            {STATUS_FLOW.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
+          </select>
+          <Link className="btn btn-secondary" to={`/p/${key}/settings`}>Settings</Link>
+        </div>
       </header>
 
       <KanbanBoard tickets={tickets} projectKey={key} columns={columns} />

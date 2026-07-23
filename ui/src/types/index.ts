@@ -2,12 +2,25 @@
 // lifted from the workflow client's types — that file had a snake_case/camelCase mismatch bug).
 // Every field here mirrors a `server/services/*.mjs` shape verbatim: camelCase end to end.
 
+// GET /api/me — the resolved viewer identity (routes/me.mjs). `alias` is the human's configurable
+// handle (KIT_USER / registry `user` / 'user'); the UI derives every author/agent/viewer from it.
+export interface Me {
+  alias: string;
+}
+
 // GET /api/projects — one row per adopted project (services/projects.mjs projectSummaries).
 export interface ProjectSummary {
   key: string;
   name: string;
+  displayName: string; // human tab title (KIT-T137); server defaults it to the key
   openCount: number;
   reviewCount: number;
+}
+
+// PATCH /api/projects/:key response (services/writes.mjs setProjectDisplayName).
+export interface ProjectPatchResult {
+  key: string;
+  displayName: string;
 }
 
 // GET /api/projects/:key/tickets — board rows (services/projects.mjs ticketListItem).

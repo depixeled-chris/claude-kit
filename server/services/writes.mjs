@@ -6,10 +6,13 @@
 // A guard rejection surfaces as a typed 4xx (never a 500): an unknown id → 404, a human_only
 // transition → 403, an evidence-floor miss → 422, any other write refusal → 400.
 
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   comment as tComment, setStatus, readConfig, findTicket,
   EVIDENCE_PATTERNS, NO_TEST_ESCAPE,
 } from '../../scripts/t.mjs';
+import { resolveUser } from '../../scripts/identity.mjs';
 import { regenerateIndexes } from '../../scripts/index-tickets.mjs';
 import { hydrate } from '../../scripts/hydrate-db.mjs';
 import { ApiError, notFound } from '../lib/errors.mjs';
@@ -49,11 +52,11 @@ async function afterWrite(config, root) {
 
 export async function postComment(config, project, id, { text, author }) {
   const root = requireWritableRoot(project);
-  if (!author || !String(author).trim()) throw new ApiError(STATUS.BAD_REQUEST, 'author is required', 'bad_request');
+  const who = (author && String(author).trim()) || resolveUser();
   if (text === undefined || !String(text).trim()) throw new ApiError(STATUS.BAD_REQUEST, 'text is required', 'bad_request');
   let result;
   try {
-    result = tComment(root, id, text, { author });
+    result = tComment(root, id, text, { author: who });
   } catch (e) {
     throw mapWriteError(e);
   }
@@ -82,9 +85,41 @@ function assertEvidenceFloor(text, uatDefault, target, id) {
   }
 }
 
+const DISPLAY_NAME_MAX = 48;
+const DISPLAY_NAME_LINE = /^[ \t]*display_name:.*$/m;
+
+// Project display title (KIT-T137): a surgical replace-or-append on the store's config.yml —
+// the same no-YAML-dep line discipline as init-project's seedProjectKey. Writes to the aiDir
+// (present for central-only notebooks too), so no repo root is required; discovery reads the
+// line live, so no cache rehydrate is needed either.
+export async function setProjectDisplayName(project, displayName) {
+  const name = String(displayName ?? '').trim();
+  if (!name) throw new ApiError(STATUS.BAD_REQUEST, 'displayName is required', 'bad_request');
+  if (name.length > DISPLAY_NAME_MAX) {
+    throw new ApiError(STATUS.BAD_REQUEST, `displayName must be ${DISPLAY_NAME_MAX} chars or fewer`, 'bad_request');
+  }
+  if (/["'\n\r]/.test(name)) {
+    throw new ApiError(STATUS.BAD_REQUEST, 'displayName may not contain quotes or newlines', 'bad_request');
+  }
+  const cfgPath = join(project.aiDir, 'config.yml');
+  let text;
+  try {
+    text = readFileSync(cfgPath, 'utf8');
+  } catch {
+    throw notFound(`no config.yml for project '${project.key}'`);
+  }
+  const line = `display_name: "${name}"`;
+  const updated = DISPLAY_NAME_LINE.test(text)
+    ? text.replace(DISPLAY_NAME_LINE, line)
+    : `${text.replace(/\n*$/, '\n')}\n# Human tab title in the web UI (KIT-T137) — editable there; defaults to ids.key.\n${line}\n`;
+  writeFileSync(cfgPath, updated);
+  return { key: project.key, displayName: name };
+}
+
 export async function setTicketStatus(config, project, id, { status, agent }) {
   const root = requireWritableRoot(project);
   if (!status || !String(status).trim()) throw new ApiError(STATUS.BAD_REQUEST, 'status is required', 'bad_request');
+  const who = (agent && String(agent).trim()) || resolveUser();
   let result;
   try {
     const { text } = findTicket(root, id);
@@ -92,7 +127,7 @@ export async function setTicketStatus(config, project, id, { status, agent }) {
     // Deliberately NO human flag: the API acts as an agent, so a human_only transition (e.g.
     // `done` in a uat=required project) is REFUSED by setStatus and mapped to 403 — the
     // maintainer's call stays the maintainer's.
-    const note = agent ? `status set via web API (agent: ${agent})` : 'status set via web API';
+    const note = `status set via web API (agent: ${who})`;
     result = setStatus(root, id, status, { note });
   } catch (e) {
     throw mapWriteError(e);

@@ -9,6 +9,7 @@ import { Nav } from './components/Nav';
 import WaitingBoard from './pages/WaitingBoard';
 import AllBoards from './pages/AllBoards';
 import ProjectBoard from './pages/ProjectBoard';
+import ProjectSettings from './pages/ProjectSettings';
 import TicketDetail from './pages/TicketDetail';
 import './App.css';
 
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/" element={<WaitingBoard />} />
           <Route path="/all" element={<AllBoards />} />
           <Route path="/p/:key" element={<ProjectBoard />} />
+          <Route path="/p/:key/settings" element={<ProjectSettings />} />
           <Route path="/p/:key/t/:id" element={<TicketDetail />} />
         </Routes>
       </main>

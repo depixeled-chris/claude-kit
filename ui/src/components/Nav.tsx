@@ -1,16 +1,23 @@
 // The top nav: the brand links home to the waiting board; the project list (from /api/projects)
 // gives a direct route to each project's kanban, with the review count surfaced as a badge so the
-// projects with work parked for the maintainer stand out. Fetched once at mount; nav is best-effort
-// (a fetch failure just hides the project links, never blocks the app).
+// projects with work parked for the maintainer stand out. Tabs show the editable display title
+// (KIT-T137), not the id prefix, and refetch on the projects-changed event so a settings save
+// shows without a reload. Nav is best-effort (a fetch failure just hides the project links).
 
+import { useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { getProjects } from '../services/api';
+import { getProjects, PROJECTS_CHANGED_EVENT } from '../services/api';
 import { useAsync } from '../lib/useAsync';
 import './Nav.css';
 
 export function Nav() {
-  const { data } = useAsync(getProjects, []);
+  const { data, reload } = useAsync(getProjects, []);
   const projects = data ?? [];
+
+  useEffect(() => {
+    window.addEventListener(PROJECTS_CHANGED_EVENT, reload);
+    return () => window.removeEventListener(PROJECTS_CHANGED_EVENT, reload);
+  }, [reload]);
 
   return (
     <nav className="nav">
@@ -28,9 +35,9 @@ export function Nav() {
               key={p.key}
               to={`/p/${p.key}`}
               className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
-              title={`${p.openCount} open`}
+              title={`${p.key} — ${p.openCount} open`}
             >
-              {p.key}
+              {p.displayName || p.key}
               {p.reviewCount > 0 && <span className="nav-review-count">{p.reviewCount}</span>}
             </NavLink>
           ))}

@@ -5,7 +5,7 @@
 // swallowing. All requests are same-origin (/api) — the Vite dev proxy forwards to the API.
 
 import type {
-  ProjectSummary, TicketListItem, StoreItem, TicketDetail,
+  Me, ProjectSummary, ProjectPatchResult, TicketListItem, StoreItem, TicketDetail,
   WaitingGroup, CommentResult, StatusResult,
 } from '../types';
 
@@ -52,6 +52,7 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 }
 
 // ---- reads ----
+export const getMe = () => request<Me>('/me');
 export const getProjects = () => request<ProjectSummary[]>('/projects');
 export const getWaiting = () => request<WaitingGroup[]>('/waiting');
 
@@ -82,3 +83,14 @@ export function postStatus(key: string, id: string, payload: { status: string; a
     body: JSON.stringify(payload),
   });
 }
+
+export function patchProject(key: string, payload: { displayName: string }) {
+  return request<ProjectPatchResult>(`/projects/${key}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+// Fired after a project-meta write so live views (the Nav tabs) refetch without a reload.
+export const PROJECTS_CHANGED_EVENT = 'kit:projects-changed';
+export const announceProjectsChanged = () => window.dispatchEvent(new Event(PROJECTS_CHANGED_EVENT));
